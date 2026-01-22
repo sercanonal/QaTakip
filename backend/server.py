@@ -472,7 +472,7 @@ async def create_task(task: TaskCreate, user_id: str):
             """INSERT INTO tasks (id, title, description, category_id, project_id, user_id, status, priority, due_date, created_at, completed_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (task_id, task.title, task.description or "", task.category_id, task.project_id, user_id, 
-             TaskStatus.TODO.value, task.priority.value, task.due_date, created_at, None)
+             TaskStatus.BACKLOG.value, task.priority.value, task.due_date, created_at, None)
         )
         await db.commit()
     
@@ -483,7 +483,7 @@ async def create_task(task: TaskCreate, user_id: str):
         "category_id": task.category_id,
         "project_id": task.project_id,
         "user_id": user_id,
-        "status": TaskStatus.TODO.value,
+        "status": TaskStatus.BACKLOG.value,
         "priority": task.priority.value,
         "due_date": task.due_date,
         "created_at": created_at,
