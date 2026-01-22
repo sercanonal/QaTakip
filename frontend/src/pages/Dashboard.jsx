@@ -21,6 +21,7 @@ import { cn } from "../lib/utils";
 const statusLabels = {
   todo: "Yapılacak",
   in_progress: "Devam Ediyor",
+  blocked: "Bloke",
   completed: "Tamamlandı"
 };
 
