@@ -22,49 +22,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
 import { Calendar } from "../components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import { toast } from "sonner";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { 
   Plus, 
   Search, 
   Filter,
-  MoreVertical,
   Edit,
   Trash2,
-  CheckCircle2,
-  Clock,
-  ListTodo,
   CalendarIcon,
-  Loader2
+  Loader2,
+  GripVertical
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 
-const statusLabels = {
-  todo: "Yapılacak",
-  in_progress: "Devam Ediyor",
-  completed: "Tamamlandı"
-};
-
-const statusIcons = {
-  todo: ListTodo,
-  in_progress: Clock,
-  completed: CheckCircle2
-};
-
-const statusColors = {
-  todo: "bg-muted text-muted-foreground",
-  in_progress: "bg-info/20 text-info border-info/30",
-  completed: "bg-success/20 text-success border-success/30"
-};
+// Kanban column definitions
+const COLUMNS = [
+  { id: "todo", title: "Yapılacak", color: "bg-zinc-500/20", borderColor: "border-zinc-500/30" },
+  { id: "in_progress", title: "Devam Ediyor", color: "bg-blue-500/20", borderColor: "border-blue-500/30" },
+  { id: "blocked", title: "Bloke", color: "bg-orange-500/20", borderColor: "border-orange-500/30" },
+  { id: "completed", title: "Tamamlandı", color: "bg-green-500/20", borderColor: "border-green-500/30" }
+];
 
 const priorityLabels = {
   low: "Düşük",
@@ -86,14 +68,12 @@ const Tasks = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [saving, setSaving] = useState(false);
   
-  // Form state
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -182,13 +162,25 @@ const Tasks = () => {
     }
   };
 
-  const handleStatusChange = async (taskId, newStatus) => {
+  const handleDragEnd = async (result) => {
+    const { destination, source, draggableId } = result;
+    
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+    
+    const newStatus = destination.droppableId;
+    
+    // Optimistic update
+    setTasks(prev => prev.map(task => 
+      task.id === draggableId ? { ...task, status: newStatus } : task
+    ));
+    
     try {
-      await api.put(`/tasks/${taskId}`, { status: newStatus });
+      await api.put(`/tasks/${draggableId}`, { status: newStatus });
       toast.success("Durum güncellendi");
-      fetchTasks();
     } catch (error) {
       toast.error("Durum güncellenirken hata oluştu");
+      fetchTasks(); // Revert on error
     }
   };
 
@@ -219,15 +211,21 @@ const Tasks = () => {
     return project?.name || "";
   };
 
+  // Filter tasks
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase()) ||
                          task.description?.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = filterStatus === "all" || task.status === filterStatus;
     const matchesCategory = filterCategory === "all" || task.category_id === filterCategory;
     const matchesPriority = filterPriority === "all" || task.priority === filterPriority;
     
-    return matchesSearch && matchesStatus && matchesCategory && matchesPriority;
+    return matchesSearch && matchesCategory && matchesPriority;
   });
+
+  // Group tasks by status
+  const tasksByStatus = COLUMNS.reduce((acc, col) => {
+    acc[col.id] = filteredTasks.filter(t => t.status === col.id);
+    return acc;
+  }, {});
 
   if (loading) {
     return (
@@ -238,7 +236,7 @@ const Tasks = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-4 animate-fadeIn">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -385,25 +383,6 @@ const Tasks = () => {
                 </div>
               </div>
 
-              {editingTask && (
-                <div className="space-y-2">
-                  <Label>Durum</Label>
-                  <Select
-                    value={formData.status || editingTask.status}
-                    onValueChange={(value) => setFormData({ ...formData, status: value })}
-                  >
-                    <SelectTrigger data-testid="task-status-select">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(statusLabels).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   İptal
@@ -432,21 +411,9 @@ const Tasks = () => {
               />
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-[140px]" data-testid="filter-status">
-                  <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Durum" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tüm Durumlar</SelectItem>
-                  {Object.entries(statusLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
               <Select value={filterCategory} onValueChange={setFilterCategory}>
                 <SelectTrigger className="w-[140px]" data-testid="filter-category">
+                  <Filter className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Kategori" />
                 </SelectTrigger>
                 <SelectContent>
@@ -473,117 +440,121 @@ const Tasks = () => {
         </CardContent>
       </Card>
 
-      {/* Task List */}
-      <div className="space-y-3">
-        {filteredTasks.length > 0 ? (
-          filteredTasks.map((task, index) => {
-            const StatusIcon = statusIcons[task.status];
-            return (
-              <Card 
-                key={task.id} 
-                className={cn(
-                  "card-hover border-border/50 bg-card animate-slideIn",
-                  `stagger-${(index % 5) + 1}`
-                )}
-                style={{ animationFillMode: "both" }}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <button
-                        onClick={() => handleStatusChange(
-                          task.id, 
-                          task.status === "completed" ? "todo" : 
-                          task.status === "todo" ? "in_progress" : "completed"
-                        )}
-                        className={cn(
-                          "mt-1 p-1 rounded-full border transition-colors",
-                          statusColors[task.status]
-                        )}
-                        data-testid={`task-status-toggle-${task.id}`}
-                      >
-                        <StatusIcon className="w-4 h-4" />
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className={cn(
-                            "font-medium",
-                            task.status === "completed" && "line-through text-muted-foreground"
-                          )}>
-                            {task.title}
-                          </h3>
-                          <Badge 
-                            variant="outline" 
-                            className="text-xs"
-                            style={{ borderColor: getCategoryColor(task.category_id), color: getCategoryColor(task.category_id) }}
+      {/* Kanban Board */}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {COLUMNS.map((column) => (
+            <div key={column.id} className="flex flex-col">
+              <div className={cn(
+                "flex items-center justify-between p-3 rounded-t-lg border-b-2",
+                column.color,
+                column.borderColor
+              )}>
+                <h3 className="font-heading font-semibold">{column.title}</h3>
+                <Badge variant="secondary" className="font-mono">
+                  {tasksByStatus[column.id]?.length || 0}
+                </Badge>
+              </div>
+              
+              <Droppable droppableId={column.id}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={cn(
+                      "flex-1 min-h-[300px] p-2 rounded-b-lg border border-t-0 border-border/50 space-y-2 transition-colors",
+                      snapshot.isDraggingOver && "bg-secondary/50"
+                    )}
+                  >
+                    {tasksByStatus[column.id]?.map((task, index) => (
+                      <Draggable key={task.id} draggableId={task.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={cn(
+                              "p-3 rounded-lg bg-card border border-border/50 transition-all",
+                              snapshot.isDragging && "shadow-lg rotate-2"
+                            )}
                           >
-                            {getCategoryName(task.category_id)}
-                          </Badge>
-                        </div>
-                        {task.description && (
-                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                            {task.description}
-                          </p>
+                            <div className="flex items-start gap-2">
+                              <div 
+                                {...provided.dragHandleProps}
+                                className="mt-1 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+                              >
+                                <GripVertical className="w-4 h-4" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="font-medium text-sm line-clamp-2">{task.title}</p>
+                                  <div className="flex gap-1 shrink-0">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6"
+                                      onClick={() => handleEdit(task)}
+                                      data-testid={`task-edit-${task.id}`}
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-destructive"
+                                      onClick={() => handleDelete(task.id)}
+                                      data-testid={`task-delete-${task.id}`}
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex flex-wrap items-center gap-1 mt-2">
+                                  <div
+                                    className="w-2 h-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: getCategoryColor(task.category_id) }}
+                                  />
+                                  <span className="text-xs text-muted-foreground truncate">
+                                    {getCategoryName(task.category_id)}
+                                  </span>
+                                </div>
+                                
+                                <div className="flex flex-wrap items-center gap-1 mt-2">
+                                  <Badge className={cn("text-xs", priorityColors[task.priority])}>
+                                    {priorityLabels[task.priority]}
+                                  </Badge>
+                                  {task.due_date && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {format(new Date(task.due_date), "d MMM", { locale: tr })}
+                                    </Badge>
+                                  )}
+                                </div>
+                                
+                                {task.project_id && (
+                                  <p className="text-xs text-muted-foreground mt-1 font-mono truncate">
+                                    {getProjectName(task.project_id)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         )}
-                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
-                          {task.project_id && (
-                            <span className="font-mono bg-secondary px-2 py-0.5 rounded">
-                              {getProjectName(task.project_id)}
-                            </span>
-                          )}
-                          {task.due_date && (
-                            <span className="flex items-center gap-1">
-                              <CalendarIcon className="w-3 h-3" />
-                              {format(new Date(task.due_date), "d MMM yyyy", { locale: tr })}
-                            </span>
-                          )}
-                        </div>
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                    
+                    {tasksByStatus[column.id]?.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        Görev yok
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className={cn("text-xs", priorityColors[task.priority])}>
-                        {priorityLabels[task.priority]}
-                      </Badge>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`task-menu-${task.id}`}>
-                            <MoreVertical className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(task)} data-testid={`task-edit-${task.id}`}>
-                            <Edit className="w-4 h-4 mr-2" />
-                            Düzenle
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDelete(task.id)} 
-                            className="text-destructive"
-                            data-testid={`task-delete-${task.id}`}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Sil
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })
-        ) : (
-          <Card className="border-border/50 bg-card">
-            <CardContent className="p-8 text-center">
-              <ListTodo className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <p className="text-muted-foreground">
-                {search || filterStatus !== "all" || filterCategory !== "all" || filterPriority !== "all"
-                  ? "Filtrelere uygun görev bulunamadı"
-                  : "Henüz görev yok. İlk görevinizi oluşturun!"}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+                )}
+              </Droppable>
+            </div>
+          ))}
+        </div>
+      </DragDropContext>
     </div>
   );
 };
