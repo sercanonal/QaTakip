@@ -208,12 +208,11 @@ class QATaskManagerTester:
         success, project_data = self.run_test(
             "Create Project for Task",
             "POST",
-            "projects",
+            f"projects?user_id={self.user_id}",
             200,
             data={
                 "name": "Task Test Project",
-                "description": "Project for task testing",
-                "user_id": self.user_id
+                "description": "Project for task testing"
             }
         )
         
