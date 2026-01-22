@@ -53,14 +53,22 @@ async def init_db():
                 category_id TEXT NOT NULL,
                 project_id TEXT,
                 user_id TEXT NOT NULL,
+                assigned_to TEXT,
                 status TEXT NOT NULL,
                 priority TEXT NOT NULL,
                 due_date TEXT,
                 created_at TEXT NOT NULL,
                 completed_at TEXT,
-                FOREIGN KEY (user_id) REFERENCES users(id)
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (assigned_to) REFERENCES users(id)
             )
         ''')
+        
+        # Add assigned_to column if not exists (for existing databases)
+        try:
+            await db.execute('ALTER TABLE tasks ADD COLUMN assigned_to TEXT')
+        except:
+            pass  # Column already exists
         
         # Projects table
         await db.execute('''
