@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import api from "../lib/api";
 import {
   LayoutDashboard,
   CheckSquare,
@@ -12,7 +13,8 @@ import {
   Bell,
   Menu,
   X,
-  ChevronLeft
+  ChevronLeft,
+  Check
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -21,8 +23,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
 import { cn } from "../lib/utils";
+import { formatDistanceToNow } from "date-fns";
+import { tr } from "date-fns/locale";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -38,12 +43,61 @@ const Layout = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+
+  useEffect(() => {
+    fetchNotifications();
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await api.get("/notifications");
+      setNotifications(response.data);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  const markAsRead = async (notificationId) => {
+    try {
+      await api.put(`/notifications/${notificationId}/read`);
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      );
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await api.put("/notifications/read-all");
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (error) {
+      console.error("Error marking all as read:", error);
+    }
+  };
 
   const getPageTitle = () => {
     const path = location.pathname;
     if (path === "/") return "Dashboard";
     const item = navItems.find(item => item.to === path);
     return item?.label || "QA Task Manager";
+  };
+
+  const getNotifTypeColor = (type) => {
+    switch (type) {
+      case "success": return "text-green-400";
+      case "warning": return "text-orange-400";
+      case "error": return "text-red-400";
+      default: return "text-blue-400";
+    }
   };
 
   return (
@@ -110,7 +164,7 @@ const Layout = () => {
             {sidebarOpen && (
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{user?.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                <p className="text-xs text-muted-foreground truncate">QA Engineer</p>
               </div>
             )}
           </div>
@@ -190,18 +244,72 @@ const Layout = () => {
 
           <div className="flex items-center gap-2">
             {/* Notifications */}
-            <DropdownMenu>
+            <DropdownMenu open={notifOpen} onOpenChange={setNotifOpen}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative" data-testid="notifications-btn">
                   <Bell className="w-5 h-5" />
-                  <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center text-xs">
-                    0
-                  </Badge>
+                  {unreadCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center text-xs bg-primary">
+                      {unreadCount}
+                    </Badge>
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-80">
-                <div className="p-4 text-center text-muted-foreground">
-                  Yeni bildirim yok
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+                  <span className="font-semibold">Bildirimler</span>
+                  {unreadCount > 0 && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-xs h-7"
+                      onClick={markAllAsRead}
+                    >
+                      <Check className="w-3 h-3 mr-1" />
+                      Tümünü Okundu İşaretle
+                    </Button>
+                  )}
+                </div>
+                <div className="max-h-[300px] overflow-y-auto">
+                  {notifications.length > 0 ? (
+                    notifications.slice(0, 10).map((notif) => (
+                      <DropdownMenuItem 
+                        key={notif.id} 
+                        className={cn(
+                          "flex flex-col items-start p-3 cursor-pointer",
+                          !notif.is_read && "bg-secondary/50"
+                        )}
+                        onClick={() => markAsRead(notif.id)}
+                      >
+                        <div className="flex items-start gap-2 w-full">
+                          <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", 
+                            notif.is_read ? "bg-muted" : "bg-primary"
+                          )} />
+                          <div className="flex-1 min-w-0">
+                            <p className={cn(
+                              "font-medium text-sm",
+                              getNotifTypeColor(notif.type)
+                            )}>
+                              {notif.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                              {notif.message}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatDistanceToNow(new Date(notif.created_at), { 
+                                addSuffix: true, 
+                                locale: tr 
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-muted-foreground text-sm">
+                      Bildirim yok
+                    </div>
+                  )}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
