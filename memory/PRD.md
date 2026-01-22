@@ -64,7 +64,7 @@ Intertech şirketinde QA mühendisleri için profesyonel iş takip uygulaması. 
 
 ## Database Schema (SQLite)
 - **users**: id, name, device_id, categories (JSON), created_at
-- **tasks**: id, title, description, category_id, project_id, user_id, status, priority, due_date, created_at, completed_at
+- **tasks**: id, title, description, category_id, project_id, user_id, status (backlog/today_planned/in_progress/blocked/completed), priority, due_date, created_at, completed_at
 - **projects**: id, name, description, user_id, created_at
 - **notifications**: id, user_id, title, message, type, is_read, created_at
 
