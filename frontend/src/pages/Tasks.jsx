@@ -34,7 +34,9 @@ import {
   Trash2,
   CalendarIcon,
   Loader2,
-  GripVertical
+  GripVertical,
+  User,
+  Users
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { format } from "date-fns";
