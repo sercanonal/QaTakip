@@ -33,13 +33,13 @@ export const AuthProvider = ({ children }) => {
     const deviceId = getDeviceId();
     
     try {
-      // Check if device is already registered
       const response = await api.get(`/auth/check/${deviceId}`);
       setUser(response.data);
       localStorage.setItem("qa_user", JSON.stringify(response.data));
     } catch (error) {
-      // Device not registered yet
+      // Device not registered - this is expected for new users
       setUser(null);
+      localStorage.removeItem("qa_user");
     } finally {
       setLoading(false);
     }
@@ -47,7 +47,13 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (name) => {
     const deviceId = getDeviceId();
-    const response = await api.post("/auth/register", { name, device_id: deviceId });
+    
+    // API call - errors will be handled by interceptor
+    const response = await api.post("/auth/register", { 
+      name: name.trim(), 
+      device_id: deviceId 
+    });
+    
     const userData = response.data;
     setUser(userData);
     localStorage.setItem("qa_user", JSON.stringify(userData));
@@ -57,7 +63,6 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem("qa_user");
-    // Keep device_id for potential re-login
   };
 
   const updateUser = (updatedUser) => {
