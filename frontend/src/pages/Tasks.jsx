@@ -42,7 +42,8 @@ import { tr } from "date-fns/locale";
 
 // Kanban column definitions
 const COLUMNS = [
-  { id: "todo", title: "Yapılacak", color: "bg-zinc-500/20", borderColor: "border-zinc-500/30" },
+  { id: "backlog", title: "Backlog", color: "bg-zinc-500/20", borderColor: "border-zinc-500/30" },
+  { id: "today_planned", title: "Bugün Başlamayı Planlıyorum", color: "bg-purple-500/20", borderColor: "border-purple-500/30" },
   { id: "in_progress", title: "Devam Ediyor", color: "bg-blue-500/20", borderColor: "border-blue-500/30" },
   { id: "blocked", title: "Bloke", color: "bg-orange-500/20", borderColor: "border-orange-500/30" },
   { id: "completed", title: "Tamamlandı", color: "bg-green-500/20", borderColor: "border-green-500/30" }
