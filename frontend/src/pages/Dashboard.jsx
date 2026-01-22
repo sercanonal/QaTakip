@@ -19,7 +19,8 @@ import { Link } from "react-router-dom";
 import { cn } from "../lib/utils";
 
 const statusLabels = {
-  todo: "Yapılacak",
+  backlog: "Backlog",
+  today_planned: "Bugün Planlanan",
   in_progress: "Devam Ediyor",
   blocked: "Bloke",
   completed: "Tamamlandı"
