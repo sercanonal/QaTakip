@@ -393,6 +393,36 @@ const Tasks = () => {
                 </div>
 
                 <div className="space-y-2">
+                  <Label>Atanan Kişi</Label>
+                  <Select
+                    value={formData.assigned_to}
+                    onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
+                  >
+                    <SelectTrigger data-testid="task-assignee-select">
+                      <SelectValue placeholder="Kişi seçin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                          Atama yok
+                        </div>
+                      </SelectItem>
+                      {users.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-primary" />
+                            {u.name} {u.id === user?.id && "(Ben)"}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label>Bitiş Tarihi</Label>
                   <Popover>
                     <PopoverTrigger asChild>
