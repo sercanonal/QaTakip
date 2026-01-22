@@ -152,6 +152,7 @@ class TaskBase(BaseModel):
     description: Optional[str] = ""
     category_id: str
     project_id: Optional[str] = None
+    assigned_to: Optional[str] = None
     priority: TaskPriority = TaskPriority.MEDIUM
     due_date: Optional[str] = None
 
@@ -163,6 +164,7 @@ class TaskUpdate(BaseModel):
     description: Optional[str] = None
     category_id: Optional[str] = None
     project_id: Optional[str] = None
+    assigned_to: Optional[str] = None
     priority: Optional[TaskPriority] = None
     status: Optional[TaskStatus] = None
     due_date: Optional[str] = None
