@@ -49,6 +49,8 @@ Intertech şirketinde QA mühendisleri için profesyonel iş takip uygulaması. 
 - [x] Görev silme sorunu düzeltildi (event propagation)
 - [x] Clipboard API hatası için fallback eklendi
 - [x] Takvimde seçili güne göre Daily Summary gösterimi eklendi
+- [x] Kanban board 5 kolona genişletildi (Backlog, Bugün Başlamayı Planlıyorum, Devam Ediyor, Bloke, Tamamlandı)
+- [x] Daily Summary popup eklendi (büyük dialog ile detaylı görünüm)
 
 ## API Endpoints
 - `POST /api/auth/register` - Yeni kullanıcı kaydı
