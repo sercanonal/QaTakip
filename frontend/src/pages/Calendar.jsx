@@ -5,6 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Calendar } from "../components/ui/calendar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 import { 
   ChevronLeft, 
   ChevronRight,
@@ -13,8 +19,10 @@ import {
   CheckCircle2,
   ListTodo,
   AlertOctagon,
-  Copy,
-  MessageSquare
+  FileText,
+  MessageSquare,
+  Calendar as CalendarIcon,
+  Target
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { format, isSameDay, isToday, addMonths, subMonths, startOfDay } from "date-fns";
@@ -22,7 +30,8 @@ import { tr } from "date-fns/locale";
 import { toast } from "sonner";
 
 const statusConfig = {
-  todo: { label: "Yapılacak", icon: ListTodo, color: "bg-zinc-500/20 text-zinc-400" },
+  backlog: { label: "Backlog", icon: ListTodo, color: "bg-zinc-500/20 text-zinc-400" },
+  today_planned: { label: "Bugün Planlanan", icon: Target, color: "bg-purple-500/20 text-purple-400" },
   in_progress: { label: "Devam Ediyor", icon: Clock, color: "bg-blue-500/20 text-blue-400" },
   blocked: { label: "Bloke", icon: AlertOctagon, color: "bg-orange-500/20 text-orange-400" },
   completed: { label: "Tamamlandı", icon: CheckCircle2, color: "bg-green-500/20 text-green-400" }
