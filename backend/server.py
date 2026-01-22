@@ -603,7 +603,7 @@ async def get_tasks(
 async def get_task(task_id: str):
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            "SELECT id, title, description, category_id, project_id, user_id, status, priority, due_date, created_at, completed_at FROM tasks WHERE id = ?",
+            "SELECT id, title, description, category_id, project_id, user_id, assigned_to, status, priority, due_date, created_at, completed_at FROM tasks WHERE id = ?",
             (task_id,)
         )
         row = await cursor.fetchone()
@@ -618,19 +618,25 @@ async def get_task(task_id: str):
             "category_id": row[3],
             "project_id": row[4],
             "user_id": row[5],
-            "status": row[6],
-            "priority": row[7],
-            "due_date": row[8],
-            "created_at": row[9],
-            "completed_at": row[10]
+            "assigned_to": row[6],
+            "status": row[7],
+            "priority": row[8],
+            "due_date": row[9],
+            "created_at": row[10],
+            "completed_at": row[11]
         }
 
 @api_router.put("/tasks/{task_id}", response_model=dict)
-async def update_task(task_id: str, task_update: TaskUpdate):
+async def update_task(task_id: str, task_update: TaskUpdate, user_id: Optional[str] = None):
     async with aiosqlite.connect(DB_PATH) as db:
-        cursor = await db.execute("SELECT id FROM tasks WHERE id = ?", (task_id,))
-        if not await cursor.fetchone():
+        # Get current task to check for assignment changes
+        cursor = await db.execute("SELECT id, title, assigned_to FROM tasks WHERE id = ?", (task_id,))
+        current_task = await cursor.fetchone()
+        if not current_task:
             raise HTTPException(status_code=404, detail="Görev bulunamadı")
+        
+        old_assigned_to = current_task[2]
+        task_title = current_task[1]
         
         updates = []
         params = []
@@ -638,6 +644,7 @@ async def update_task(task_id: str, task_update: TaskUpdate):
         if task_update.title is not None:
             updates.append("title = ?")
             params.append(task_update.title)
+            task_title = task_update.title
         if task_update.description is not None:
             updates.append("description = ?")
             params.append(task_update.description)
@@ -647,6 +654,9 @@ async def update_task(task_id: str, task_update: TaskUpdate):
         if task_update.project_id is not None:
             updates.append("project_id = ?")
             params.append(task_update.project_id)
+        if task_update.assigned_to is not None:
+            updates.append("assigned_to = ?")
+            params.append(task_update.assigned_to if task_update.assigned_to != "none" else None)
         if task_update.priority is not None:
             updates.append("priority = ?")
             params.append(task_update.priority.value)
@@ -668,6 +678,20 @@ async def update_task(task_id: str, task_update: TaskUpdate):
         
         params.append(task_id)
         await db.execute(f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?", params)
+        
+        # Create notification if assigned_to changed
+        new_assigned = task_update.assigned_to if task_update.assigned_to != "none" else None
+        if task_update.assigned_to is not None and new_assigned != old_assigned_to and new_assigned and user_id:
+            # Get assigner name
+            cursor = await db.execute("SELECT name FROM users WHERE id = ?", (user_id,))
+            assigner = await cursor.fetchone()
+            assigner_name = assigner[0] if assigner else "Birisi"
+            
+            notif_id = str(uuid.uuid4())
+            await db.execute(
+                "INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (notif_id, new_assigned, "Görev Atandı", f"{assigner_name} size bir görev atadı: {task_title}", "info", 0, datetime.now(timezone.utc).isoformat())
+            )
         await db.commit()
         
         cursor = await db.execute(
