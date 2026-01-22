@@ -97,6 +97,7 @@ async def init_db():
 class TaskStatus(str, Enum):
     TODO = "todo"
     IN_PROGRESS = "in_progress"
+    BLOCKED = "blocked"
     COMPLETED = "completed"
 
 class TaskPriority(str, Enum):
