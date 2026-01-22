@@ -46,6 +46,9 @@ Intertech şirketinde QA mühendisleri için profesyonel iş takip uygulaması. 
 - [x] Oturum sorunu düzeltildi (localStorage'dan hemen kullanıcı yükleme)
 - [x] Bildirim dropdown'u düzeltildi
 - [x] Daily Summary endpoint ve UI eklendi
+- [x] Görev silme sorunu düzeltildi (event propagation)
+- [x] Clipboard API hatası için fallback eklendi
+- [x] Takvimde seçili güne göre Daily Summary gösterimi eklendi
 
 ## API Endpoints
 - `POST /api/auth/register` - Yeni kullanıcı kaydı
