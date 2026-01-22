@@ -215,6 +215,7 @@ const Tasks = () => {
       description: "",
       category_id: user?.categories?.[0]?.id || "",
       project_id: "",
+      assigned_to: "",
       priority: "medium",
       due_date: null
     });
