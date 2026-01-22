@@ -132,7 +132,8 @@ const Tasks = () => {
       const payload = {
         ...formData,
         due_date: formData.due_date ? formData.due_date.toISOString() : null,
-        project_id: formData.project_id === "none" ? null : formData.project_id
+        project_id: formData.project_id === "none" ? null : formData.project_id,
+        assigned_to: formData.assigned_to === "none" ? null : formData.assigned_to
       };
       
       if (editingTask) {
@@ -160,6 +161,7 @@ const Tasks = () => {
       description: task.description || "",
       category_id: task.category_id,
       project_id: task.project_id || "none",
+      assigned_to: task.assigned_to || "none",
       priority: task.priority,
       due_date: task.due_date ? new Date(task.due_date) : null
     });
