@@ -228,8 +228,7 @@ class QATaskManagerTester:
             "category_id": "api-test",  # Default category
             "project_id": project_id,
             "priority": "medium",
-            "due_date": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
-            "user_id": self.user_id
+            "due_date": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
         }
         
         success, task_response = self.run_test(
