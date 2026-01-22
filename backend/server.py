@@ -1,25 +1,19 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
-import asyncio
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 from contextlib import asynccontextmanager
-import resend
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
-
-# Resend configuration
-resend.api_key = os.environ.get('RESEND_API_KEY')
-SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -33,216 +27,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ============== EMAIL REMINDER SYSTEM ==============
-
-async def send_reminder_email(to_email: str, subject: str, html_content: str) -> bool:
-    """Send email via Resend API"""
-    if not resend.api_key:
-        logger.warning("Resend API key not configured")
-        return False
-    
-    try:
-        params = {
-            "from": SENDER_EMAIL,
-            "to": [to_email],
-            "subject": subject,
-            "html": html_content
-        }
-        await asyncio.to_thread(resend.Emails.send, params)
-        logger.info(f"Email sent to {to_email}: {subject}")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to send email to {to_email}: {str(e)}")
-        return False
-
-def generate_upcoming_deadline_email(tasks: list, user_name: str) -> tuple:
-    """Generate email for upcoming deadlines (24 hours)"""
-    subject = f"⏰ Yarın Son Gün: {len(tasks)} Görev"
-    
-    tasks_html = ""
-    for task in tasks:
-        priority_tr = {"low": "Düşük", "medium": "Orta", "high": "Yüksek", "critical": "Kritik"}
-        tasks_html += f"""
-        <tr>
-            <td style="padding: 12px; border-bottom: 1px solid #27272A;">
-                <strong style="color: #FAFAFA;">{task['title']}</strong><br>
-                <span style="color: #A1A1AA; font-size: 13px;">
-                    Proje: {task.get('project_name', '-')} | 
-                    Öncelik: {priority_tr.get(task.get('priority', 'medium'), 'Orta')}
-                </span>
-            </td>
-            <td style="padding: 12px; border-bottom: 1px solid #27272A; text-align: right;">
-                <span style="color: #F59E0B; font-weight: 500;">Yarın</span>
-            </td>
-        </tr>
-        """
-    
-    html = f"""
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #09090B; color: #FAFAFA; padding: 24px; border-radius: 12px;">
-        <h2 style="color: #FAFAFA; margin-bottom: 8px;">Merhaba {user_name},</h2>
-        <p style="color: #A1A1AA; margin-bottom: 24px;">Aşağıdaki görevlerin deadline'ı yarın doluyor.</p>
-        
-        <table style="width: 100%; border-collapse: collapse; background: #18181B; border-radius: 8px; overflow: hidden;">
-            <thead>
-                <tr style="background: #27272A;">
-                    <th style="padding: 12px; text-align: left; color: #A1A1AA; font-weight: 500;">Görev</th>
-                    <th style="padding: 12px; text-align: right; color: #A1A1AA; font-weight: 500;">Deadline</th>
-                </tr>
-            </thead>
-            <tbody>
-                {tasks_html}
-            </tbody>
-        </table>
-        
-        <p style="color: #71717A; font-size: 13px; margin-top: 24px; text-align: center;">
-            QA Task Manager - Intertech
-        </p>
-    </div>
-    """
-    return subject, html
-
-def generate_overdue_email(tasks: list, user_name: str) -> tuple:
-    """Generate email for overdue tasks"""
-    subject = f"⚠️ Gecikmiş Görev: Aksiyon Gerekiyor"
-    
-    tasks_html = ""
-    for task in tasks:
-        priority_tr = {"low": "Düşük", "medium": "Orta", "high": "Yüksek", "critical": "Kritik"}
-        overdue_days = task.get('overdue_days', 1)
-        tasks_html += f"""
-        <tr>
-            <td style="padding: 12px; border-bottom: 1px solid #27272A;">
-                <strong style="color: #FAFAFA;">{task['title']}</strong><br>
-                <span style="color: #A1A1AA; font-size: 13px;">
-                    Proje: {task.get('project_name', '-')} | 
-                    Öncelik: {priority_tr.get(task.get('priority', 'medium'), 'Orta')}
-                </span>
-            </td>
-            <td style="padding: 12px; border-bottom: 1px solid #27272A; text-align: right;">
-                <span style="color: #EF4444; font-weight: 500;">{overdue_days} gün gecikmiş</span>
-            </td>
-        </tr>
-        """
-    
-    html = f"""
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #09090B; color: #FAFAFA; padding: 24px; border-radius: 12px;">
-        <h2 style="color: #FAFAFA; margin-bottom: 8px;">Merhaba {user_name},</h2>
-        <p style="color: #A1A1AA; margin-bottom: 24px;">Aşağıdaki görevlerin deadline'ı geçti ve hâlâ tamamlanmadı.</p>
-        
-        <table style="width: 100%; border-collapse: collapse; background: #18181B; border-radius: 8px; overflow: hidden;">
-            <thead>
-                <tr style="background: #27272A;">
-                    <th style="padding: 12px; text-align: left; color: #A1A1AA; font-weight: 500;">Görev</th>
-                    <th style="padding: 12px; text-align: right; color: #A1A1AA; font-weight: 500;">Durum</th>
-                </tr>
-            </thead>
-            <tbody>
-                {tasks_html}
-            </tbody>
-        </table>
-        
-        <p style="color: #71717A; font-size: 13px; margin-top: 24px; text-align: center;">
-            QA Task Manager - Intertech
-        </p>
-    </div>
-    """
-    return subject, html
-
-async def process_reminders():
-    """Main reminder processor - runs hourly"""
-    logger.info("Starting reminder check...")
-    now = datetime.now(timezone.utc)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-    tomorrow_end = (now + timedelta(days=1)).replace(hour=23, minute=59, second=59).isoformat()
-    
-    # Get all users
-    users = await db.users.find({}, {"_id": 0}).to_list(1000)
-    
-    for user in users:
-        user_id = user['id']
-        user_email = user['email']
-        user_name = user['name'].split()[0]
-        
-        # Get all projects for name lookup
-        projects = await db.projects.find({"user_id": user_id}, {"_id": 0}).to_list(100)
-        project_map = {p['id']: p['name'] for p in projects}
-        
-        # 1. UPCOMING DEADLINES (within 24 hours)
-        upcoming_tasks = await db.tasks.find({
-            "user_id": user_id,
-            "status": {"$ne": TaskStatus.COMPLETED},
-            "due_date": {"$gte": now.isoformat(), "$lte": tomorrow_end},
-            "$or": [
-                {"last_reminder_date": {"$exists": False}},
-                {"last_reminder_date": {"$lt": today_start}}
-            ]
-        }, {"_id": 0}).to_list(100)
-        
-        if upcoming_tasks:
-            for task in upcoming_tasks:
-                task['project_name'] = project_map.get(task.get('project_id'), '-')
-            
-            subject, html = generate_upcoming_deadline_email(upcoming_tasks, user_name)
-            sent = await send_reminder_email(user_email, subject, html)
-            
-            if sent:
-                # Update last_reminder_date for these tasks
-                task_ids = [t['id'] for t in upcoming_tasks]
-                await db.tasks.update_many(
-                    {"id": {"$in": task_ids}},
-                    {"$set": {"last_reminder_date": now.isoformat()}}
-                )
-        
-        # 2. OVERDUE TASKS
-        overdue_tasks = await db.tasks.find({
-            "user_id": user_id,
-            "status": {"$ne": TaskStatus.COMPLETED},
-            "due_date": {"$lt": now.isoformat(), "$ne": None},
-            "$or": [
-                {"last_reminder_date": {"$exists": False}},
-                {"last_reminder_date": {"$lt": today_start}}
-            ]
-        }, {"_id": 0}).to_list(100)
-        
-        if overdue_tasks:
-            for task in overdue_tasks:
-                task['project_name'] = project_map.get(task.get('project_id'), '-')
-                due_dt = datetime.fromisoformat(task['due_date'].replace('Z', '+00:00'))
-                task['overdue_days'] = (now - due_dt).days
-            
-            subject, html = generate_overdue_email(overdue_tasks, user_name)
-            sent = await send_reminder_email(user_email, subject, html)
-            
-            if sent:
-                task_ids = [t['id'] for t in overdue_tasks]
-                await db.tasks.update_many(
-                    {"id": {"$in": task_ids}},
-                    {"$set": {"last_reminder_date": now.isoformat()}}
-                )
-    
-    logger.info("Reminder check completed")
-
-async def reminder_scheduler():
-    """Background task that runs every hour"""
-    while True:
-        try:
-            await process_reminders()
-        except Exception as e:
-            logger.error(f"Reminder scheduler error: {str(e)}")
-        await asyncio.sleep(3600)  # 1 hour
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
-    # Start background scheduler
-    task = asyncio.create_task(reminder_scheduler())
-    logger.info("Email reminder scheduler started")
+    logger.info("QA Task Manager started")
     yield
-    # Cleanup
-    task.cancel()
     client.close()
 
-# Create the main app with lifespan
+# Create the main app
 app = FastAPI(title="QA Task Manager - Intertech", lifespan=lifespan)
 
 # Create a router with the /api prefix
@@ -270,25 +62,22 @@ DEFAULT_CATEGORIES = [
 ]
 
 # Models
-class UserBase(BaseModel):
-    email: EmailStr
-    name: str
-
 class UserCreate(BaseModel):
-    email: EmailStr
+    name: str
+    device_id: str
 
 class User(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    email: EmailStr
     name: str
+    device_id: str
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     categories: List[dict] = Field(default_factory=lambda: DEFAULT_CATEGORIES.copy())
 
 class UserResponse(BaseModel):
     id: str
-    email: str
     name: str
+    device_id: str
     created_at: str
     categories: List[dict]
 
@@ -360,29 +149,18 @@ class Notification(BaseModel):
     is_read: bool = False
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
-# Helper function to get user from email header
-async def get_current_user(email: str) -> dict:
-    user = await db.users.find_one({"email": email}, {"_id": 0})
-    if not user:
-        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
-    return user
+# ============== AUTH ROUTES (Device-based) ==============
 
-# Auth Routes
 @api_router.post("/auth/register", response_model=UserResponse)
 async def register(user_data: UserCreate):
-    # Validate Intertech email
-    if not user_data.email.endswith("@intertech.com.tr"):
-        raise HTTPException(status_code=400, detail="Sadece @intertech.com.tr uzantılı e-postalar kabul edilir")
-    
-    # Check if user exists
-    existing = await db.users.find_one({"email": user_data.email})
+    """Register new user with device_id"""
+    # Check if device already registered
+    existing = await db.users.find_one({"device_id": user_data.device_id})
     if existing:
-        raise HTTPException(status_code=400, detail="Bu e-posta zaten kayıtlı")
+        # Return existing user
+        return UserResponse(**{k: v for k, v in existing.items() if k != "_id"})
     
-    # Extract name from email
-    name = user_data.email.split("@")[0].replace(".", " ").title()
-    
-    user = User(email=user_data.email, name=name)
+    user = User(name=user_data.name, device_id=user_data.device_id)
     user_dict = user.model_dump()
     
     await db.users.insert_one(user_dict)
@@ -391,26 +169,23 @@ async def register(user_data: UserCreate):
     notification = Notification(
         user_id=user.id,
         title="Hoş Geldiniz!",
-        message=f"QA Task Manager'a hoş geldiniz, {name}!",
+        message=f"QA Task Manager'a hoş geldiniz, {user_data.name}!",
         type="success"
     )
     await db.notifications.insert_one(notification.model_dump())
     
     return UserResponse(**user_dict)
 
-@api_router.post("/auth/login", response_model=UserResponse)
-async def login(user_data: UserCreate):
-    # Validate Intertech email
-    if not user_data.email.endswith("@intertech.com.tr"):
-        raise HTTPException(status_code=400, detail="Sadece @intertech.com.tr uzantılı e-postalar kabul edilir")
-    
-    user = await db.users.find_one({"email": user_data.email}, {"_id": 0})
+@api_router.get("/auth/check/{device_id}", response_model=UserResponse)
+async def check_device(device_id: str):
+    """Check if device is registered"""
+    user = await db.users.find_one({"device_id": device_id}, {"_id": 0})
     if not user:
-        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı. Lütfen önce kayıt olun.")
-    
+        raise HTTPException(status_code=404, detail="Cihaz kayıtlı değil")
     return UserResponse(**user)
 
-# User Routes
+# ============== USER ROUTES ==============
+
 @api_router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(user_id: str):
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
@@ -454,7 +229,8 @@ async def delete_category(user_id: str, category_id: str):
     updated_user = await db.users.find_one({"id": user_id}, {"_id": 0})
     return UserResponse(**updated_user)
 
-# Project Routes
+# ============== PROJECT ROUTES ==============
+
 @api_router.post("/projects", response_model=dict)
 async def create_project(project: ProjectBase, user_id: str):
     project_obj = Project(
@@ -465,14 +241,12 @@ async def create_project(project: ProjectBase, user_id: str):
     project_dict = project_obj.model_dump()
     
     await db.projects.insert_one(project_dict)
-    # Return clean dict without MongoDB ObjectId
     return {k: v for k, v in project_dict.items() if k != "_id"}
 
 @api_router.get("/projects", response_model=List[dict])
 async def get_projects(user_id: str):
     projects = await db.projects.find({"user_id": user_id}, {"_id": 0}).to_list(1000)
     
-    # Update task counts
     for project in projects:
         task_count = await db.tasks.count_documents({"project_id": project["id"]})
         project["task_count"] = task_count
@@ -500,16 +274,14 @@ async def update_project(project_id: str, project: ProjectBase):
 
 @api_router.delete("/projects/{project_id}")
 async def delete_project(project_id: str):
-    # Delete all tasks in project
     await db.tasks.delete_many({"project_id": project_id})
-    
     result = await db.projects.delete_one({"id": project_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Proje bulunamadı")
-    
     return {"message": "Proje silindi"}
 
-# Task Routes
+# ============== TASK ROUTES ==============
+
 @api_router.post("/tasks", response_model=dict)
 async def create_task(task: TaskCreate, user_id: str):
     task_obj = Task(
@@ -524,7 +296,6 @@ async def create_task(task: TaskCreate, user_id: str):
     task_dict = task_obj.model_dump()
     
     await db.tasks.insert_one(task_dict)
-    # Return clean dict without MongoDB ObjectId
     return {k: v for k, v in task_dict.items() if k != "_id"}
 
 @api_router.get("/tasks", response_model=List[dict])
@@ -560,7 +331,6 @@ async def get_task(task_id: str):
 async def update_task(task_id: str, task_update: TaskUpdate):
     update_data = {k: v for k, v in task_update.model_dump().items() if v is not None}
     
-    # If status is being set to completed, add completed_at
     if update_data.get("status") == TaskStatus.COMPLETED:
         update_data["completed_at"] = datetime.now(timezone.utc).isoformat()
     elif update_data.get("status") and update_data.get("status") != TaskStatus.COMPLETED:
@@ -587,7 +357,8 @@ async def delete_task(task_id: str):
         raise HTTPException(status_code=404, detail="Görev bulunamadı")
     return {"message": "Görev silindi"}
 
-# Dashboard Stats
+# ============== DASHBOARD STATS ==============
+
 @api_router.get("/dashboard/stats")
 async def get_dashboard_stats(user_id: str):
     total_tasks = await db.tasks.count_documents({"user_id": user_id})
@@ -615,7 +386,7 @@ async def get_dashboard_stats(user_id: str):
         {"_id": 0}
     ).sort("created_at", -1).limit(5).to_list(5)
     
-    # Overdue tasks (due_date < now and status != completed)
+    # Overdue tasks
     now = datetime.now(timezone.utc).isoformat()
     overdue_tasks = await db.tasks.count_documents({
         "user_id": user_id,
@@ -623,72 +394,59 @@ async def get_dashboard_stats(user_id: str):
         "status": {"$ne": TaskStatus.COMPLETED}
     })
     
-    # === TODAY FOCUS: Akıllı önceliklendirme ===
+    # === TODAY FOCUS ===
     now_dt = datetime.now(timezone.utc)
-    today_end = now_dt.replace(hour=23, minute=59, second=59).isoformat()
-    tomorrow_end = (now_dt.replace(hour=23, minute=59, second=59) + timedelta(days=1)).isoformat()
+    tomorrow_end = (now_dt + timedelta(days=1)).replace(hour=23, minute=59, second=59).isoformat()
     
-    # Tüm aktif görevleri al (tamamlanmamış)
     active_tasks = await db.tasks.find({
         "user_id": user_id,
         "status": {"$ne": TaskStatus.COMPLETED}
     }, {"_id": 0}).to_list(1000)
     
-    # Her görev için risk ve aciliyet hesapla
     focus_tasks = []
     for task in active_tasks:
         risk_score = 0
         urgency_score = 0
         labels = []
         
-        # Öncelik puanı
         priority_weights = {"critical": 4, "high": 3, "medium": 2, "low": 1}
         risk_score += priority_weights.get(task.get("priority", "medium"), 2)
         
-        # Gecikme kontrolü
         if task.get("due_date"):
             due_dt = datetime.fromisoformat(task["due_date"].replace("Z", "+00:00"))
             days_until = (due_dt - now_dt).days
             
             if days_until < 0:
-                # Gecikmiş
                 overdue_days = abs(days_until)
-                risk_score += min(overdue_days, 5) + 3  # Max +8
+                risk_score += min(overdue_days, 5) + 3
                 urgency_score = 10
                 labels.append(f"{overdue_days} gün gecikmiş")
             elif days_until == 0:
-                # Bugün son gün
                 risk_score += 3
                 urgency_score = 8
                 labels.append("Bugün son gün")
             elif days_until == 1:
-                # Yarın bitiyor
                 risk_score += 2
                 urgency_score = 6
                 labels.append("Yarın bitiyor")
             elif days_until <= 3:
-                # 3 gün içinde
                 risk_score += 1
                 urgency_score = 4
                 labels.append(f"{days_until} gün kaldı")
         
-        # Kritik veya yüksek öncelikli
         if task.get("priority") in ["critical", "high"]:
-            if "Bugün son gün" not in labels and not any("gecikmiş" in l for l in labels):
+            if not labels:
                 labels.append("Yüksek öncelik")
         
         task["risk_score"] = risk_score
         task["urgency_score"] = urgency_score
         task["focus_labels"] = labels
         
-        # Sadece dikkat gerektiren görevleri ekle
         if risk_score >= 4 or urgency_score >= 4:
             focus_tasks.append(task)
     
-    # Risk skoruna göre sırala
     focus_tasks.sort(key=lambda x: (x["urgency_score"], x["risk_score"]), reverse=True)
     
-    # Özet mesajlar
     overdue_list = [t for t in focus_tasks if any("gecikmiş" in l for l in t.get("focus_labels", []))]
     critical_today = [t for t in focus_tasks if "Bugün son gün" in t.get("focus_labels", [])]
     high_priority = [t for t in active_tasks if t.get("priority") in ["critical", "high"]]
@@ -712,13 +470,14 @@ async def get_dashboard_stats(user_id: str):
         "priority_stats": {stat["_id"]: stat["count"] for stat in priority_stats},
         "recent_tasks": recent_tasks,
         "today_focus": {
-            "tasks": focus_tasks[:5],  # En önemli 5 görev
+            "tasks": focus_tasks[:5],
             "summary": today_summary,
             "total_attention_needed": len(focus_tasks)
         }
     }
 
-# Notification Routes
+# ============== NOTIFICATION ROUTES ==============
+
 @api_router.get("/notifications", response_model=List[dict])
 async def get_notifications(user_id: str):
     notifications = await db.notifications.find(
@@ -757,14 +516,7 @@ async def delete_notification(notification_id: str):
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
-# Manual trigger for testing reminders (can be removed in production)
-@api_router.post("/reminders/trigger")
-async def trigger_reminders():
-    """Manually trigger reminder check - for testing"""
-    await process_reminders()
-    return {"message": "Reminder check completed"}
-
-# Include the router in the main app
+# Include the router
 app.include_router(api_router)
 
 app.add_middleware(
