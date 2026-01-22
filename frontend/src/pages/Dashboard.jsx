@@ -12,9 +12,8 @@ import {
   ListTodo,
   Plus,
   ArrowRight,
-  Activity,
-  TrendingUp,
-  Bug
+  Target,
+  AlertCircle
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "../lib/utils";
@@ -69,6 +68,9 @@ const Dashboard = () => {
     return category?.color || "#3B82F6";
   };
 
+  const todayFocus = stats?.today_focus;
+  const hasFocusTasks = todayFocus?.tasks?.length > 0;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -79,14 +81,17 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Welcome Section */}
+      {/* Welcome + Action */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="font-heading text-2xl font-bold">
-            Hoş geldin, {user?.name?.split(" ")[0]}!
+            Günaydın, {user?.name?.split(" ")[0]}
           </h2>
           <p className="text-muted-foreground">
-            İşte bugünkü özet görünümün
+            {hasFocusTasks 
+              ? `${todayFocus.total_attention_needed} görev dikkatini bekliyor`
+              : "Bugün için acil görev yok"
+            }
           </p>
         </div>
         <Button asChild className="btn-glow" data-testid="new-task-btn">
@@ -97,160 +102,186 @@ const Dashboard = () => {
         </Button>
       </div>
 
-      {/* Stats Grid - Bento Style */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
-        {/* Main Progress Card */}
-        <Card className="lg:col-span-8 row-span-2 card-hover border-border/50 bg-card">
-          <CardHeader className="pb-2">
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        
+        {/* TODAY FOCUS - Hero Card */}
+        <Card className="lg:col-span-8 border-border/50 bg-card" data-testid="today-focus-card">
+          <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 font-heading">
-              <Activity className="w-5 h-5 text-primary" />
-              Haftalık İlerleme
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-end gap-4">
-              <span className="font-heading text-6xl font-bold text-primary">
-                {stats?.completion_rate || 0}%
-              </span>
-              <span className="text-muted-foreground pb-2">tamamlandı</span>
-            </div>
-            <Progress value={stats?.completion_rate || 0} className="h-3" />
-            
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4">
-              <div className="text-center p-4 rounded-lg bg-secondary/50">
-                <ListTodo className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-2xl font-bold">{stats?.todo_tasks || 0}</p>
-                <p className="text-xs text-muted-foreground">Yapılacak</p>
-              </div>
-              <div className="text-center p-4 rounded-lg bg-info/10">
-                <Clock className="w-6 h-6 mx-auto mb-2 text-info" />
-                <p className="text-2xl font-bold">{stats?.in_progress_tasks || 0}</p>
-                <p className="text-xs text-muted-foreground">Devam Eden</p>
-              </div>
-              <div className="text-center p-4 rounded-lg bg-success/10">
-                <CheckCircle2 className="w-6 h-6 mx-auto mb-2 text-success" />
-                <p className="text-2xl font-bold">{stats?.completed_tasks || 0}</p>
-                <p className="text-xs text-muted-foreground">Tamamlanan</p>
-              </div>
-              <div className="text-center p-4 rounded-lg bg-destructive/10">
-                <AlertTriangle className="w-6 h-6 mx-auto mb-2 text-destructive" />
-                <p className="text-2xl font-bold">{stats?.overdue_tasks || 0}</p>
-                <p className="text-xs text-muted-foreground">Geciken</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card className="lg:col-span-4 card-hover border-border/50 bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="font-heading text-base">Hızlı İşlemler</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button variant="secondary" className="w-full justify-start" asChild data-testid="quick-new-task">
-              <Link to="/tasks">
-                <Plus className="w-4 h-4 mr-2" />
-                Yeni Görev Ekle
-              </Link>
-            </Button>
-            <Button variant="secondary" className="w-full justify-start" asChild data-testid="quick-calendar">
-              <Link to="/calendar">
-                <Clock className="w-4 h-4 mr-2" />
-                Takvimi Görüntüle
-              </Link>
-            </Button>
-            <Button variant="secondary" className="w-full justify-start" asChild data-testid="quick-reports">
-              <Link to="/reports">
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Raporları İncele
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Category Stats */}
-        <Card className="lg:col-span-4 card-hover border-border/50 bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 font-heading text-base">
-              <Bug className="w-4 h-4 text-primary" />
-              Kategorilere Göre
+              <Target className="w-5 h-5 text-primary" />
+              Bugün Odaklan
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {user?.categories?.slice(0, 4).map((category) => (
-                <div key={category.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: category.color }}
-                    />
-                    <span className="text-sm">{category.name}</span>
+            {/* Summary Messages */}
+            {todayFocus?.summary?.length > 0 && (
+              <div className="mb-4 p-3 rounded-lg bg-warning/10 border border-warning/20">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
+                  <div className="text-sm text-warning">
+                    {todayFocus.summary.map((msg, i) => (
+                      <p key={i}>{msg}</p>
+                    ))}
                   </div>
-                  <Badge variant="secondary" className="font-mono">
-                    {stats?.category_stats?.[category.id] || 0}
-                  </Badge>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {/* Focus Tasks */}
+            {hasFocusTasks ? (
+              <div className="space-y-2">
+                {todayFocus.tasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: getCategoryColor(task.category_id) }}
+                      />
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{task.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {getCategoryName(task.category_id)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {task.focus_labels?.map((label, i) => (
+                        <Badge 
+                          key={i}
+                          variant="outline" 
+                          className={cn(
+                            "text-xs",
+                            label.includes("gecikmiş") && "border-destructive/50 text-destructive",
+                            label.includes("son gün") && "border-warning/50 text-warning",
+                            label.includes("Yarın") && "border-info/50 text-info"
+                          )}
+                        >
+                          {label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                
+                {todayFocus.total_attention_needed > 5 && (
+                  <p className="text-xs text-muted-foreground text-center pt-2">
+                    +{todayFocus.total_attention_needed - 5} görev daha
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-success opacity-70" />
+                <p className="text-muted-foreground">Harika! Acil görev yok.</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Bugün rahat bir gün geçirebilirsin.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {/* Quick Stats */}
+        <div className="lg:col-span-4 space-y-4">
+          {/* Progress Card */}
+          <Card className="border-border/50 bg-card">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Tamamlanma</span>
+                <span className="font-heading text-2xl font-bold text-primary">
+                  {stats?.completion_rate || 0}%
+                </span>
+              </div>
+              <Progress value={stats?.completion_rate || 0} className="h-2" />
+              <p className="text-xs text-muted-foreground mt-2">
+                {stats?.completed_tasks || 0} / {stats?.total_tasks || 0} görev
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Status Summary */}
+          <Card className="border-border/50 bg-card">
+            <CardContent className="pt-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ListTodo className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm">Yapılacak</span>
+                </div>
+                <span className="font-mono text-sm">{stats?.todo_tasks || 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-info" />
+                  <span className="text-sm">Devam Eden</span>
+                </div>
+                <span className="font-mono text-sm">{stats?.in_progress_tasks || 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-success" />
+                  <span className="text-sm">Tamamlanan</span>
+                </div>
+                <span className="font-mono text-sm">{stats?.completed_tasks || 0}</span>
+              </div>
+              {stats?.overdue_tasks > 0 && (
+                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-destructive" />
+                    <span className="text-sm text-destructive">Geciken</span>
+                  </div>
+                  <span className="font-mono text-sm text-destructive">{stats?.overdue_tasks}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Recent Tasks */}
-      <Card className="card-hover border-border/50 bg-card">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="font-heading">Son Görevler</CardTitle>
+      {/* Recent Activity - Simplified */}
+      <Card className="border-border/50 bg-card">
+        <CardHeader className="flex flex-row items-center justify-between py-4">
+          <CardTitle className="font-heading text-base">Son Eklenenler</CardTitle>
           <Button variant="ghost" size="sm" asChild data-testid="view-all-tasks">
             <Link to="/tasks">
-              Tümünü Gör
+              Tümü
               <ArrowRight className="w-4 h-4 ml-1" />
             </Link>
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           {stats?.recent_tasks?.length > 0 ? (
-            <div className="space-y-3">
-              {stats.recent_tasks.map((task, index) => (
+            <div className="space-y-2">
+              {stats.recent_tasks.slice(0, 4).map((task) => (
                 <div
                   key={task.id}
-                  className={cn(
-                    "flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors",
-                    `animate-slideIn stagger-${index + 1}`
-                  )}
-                  style={{ animationFillMode: "both" }}
+                  className="flex items-center justify-between py-2 border-b border-border/30 last:border-0"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className="w-2 h-2 rounded-full"
+                      className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: getCategoryColor(task.category_id) }}
                     />
-                    <div>
-                      <p className="font-medium">{task.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {getCategoryName(task.category_id)}
-                      </p>
-                    </div>
+                    <span className={cn(
+                      "text-sm truncate",
+                      task.status === "completed" && "line-through text-muted-foreground"
+                    )}>
+                      {task.title}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={cn("text-xs", priorityColors[task.priority])}>
-                      {priorityLabels[task.priority]}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {statusLabels[task.status]}
-                    </Badge>
-                  </div>
+                  <Badge variant="outline" className="text-xs shrink-0">
+                    {statusLabels[task.status]}
+                  </Badge>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <ListTodo className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Henüz görev yok</p>
-              <Button variant="link" asChild className="mt-2">
-                <Link to="/tasks">İlk görevinizi oluşturun</Link>
-              </Button>
-            </div>
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Henüz görev yok
+            </p>
           )}
         </CardContent>
       </Card>
