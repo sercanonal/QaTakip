@@ -12,14 +12,17 @@ import {
   Clock,
   CheckCircle2,
   ListTodo,
-  AlertOctagon
+  AlertOctagon,
+  Copy,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { format, isSameDay, isToday, addMonths, subMonths, startOfDay } from "date-fns";
 import { tr } from "date-fns/locale";
+import { toast } from "sonner";
 
 const statusConfig = {
-  todo: { label: "Yapılacak", icon: ListTodo, color: "bg-muted text-muted-foreground" },
+  todo: { label: "Yapılacak", icon: ListTodo, color: "bg-zinc-500/20 text-zinc-400" },
   in_progress: { label: "Devam Ediyor", icon: Clock, color: "bg-blue-500/20 text-blue-400" },
   blocked: { label: "Bloke", icon: AlertOctagon, color: "bg-orange-500/20 text-orange-400" },
   completed: { label: "Tamamlandı", icon: CheckCircle2, color: "bg-green-500/20 text-green-400" }
@@ -35,65 +38,42 @@ const priorityColors = {
 const CalendarPage = () => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
+  const [dailySummary, setDailySummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
-    fetchTasks();
+    fetchData();
   }, []);
 
-  const fetchTasks = async () => {
+  const fetchData = async () => {
     try {
-      const response = await api.get("/tasks");
-      setTasks(response.data);
+      const [tasksRes, summaryRes] = await Promise.all([
+        api.get("/tasks"),
+        api.get("/daily-summary")
+      ]);
+      setTasks(tasksRes.data);
+      setDailySummary(summaryRes.data);
     } catch (error) {
-      console.error("Error fetching tasks:", error);
+      console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Get tasks for a specific date
-  // Shows tasks if:
-  // 1. due_date matches the date, OR
-  // 2. task is active (todo/in_progress/blocked) AND date is today
   const getTasksForDate = (date) => {
     const isSelectedToday = isToday(date);
     
     return tasks.filter(task => {
-      // If task has due_date and it matches
       if (task.due_date && isSameDay(new Date(task.due_date), date)) {
         return true;
       }
-      
-      // If date is today, show all active (non-completed) tasks
       if (isSelectedToday && task.status !== "completed") {
         return true;
       }
-      
       return false;
     });
-  };
-
-  // Get days that have tasks (for calendar dots)
-  const getDaysWithTasks = () => {
-    const days = new Set();
-    const today = startOfDay(new Date());
-    
-    tasks.forEach(task => {
-      // Add due_date
-      if (task.due_date) {
-        days.add(startOfDay(new Date(task.due_date)).toISOString());
-      }
-      
-      // Add today if task is active
-      if (task.status !== "completed") {
-        days.add(today.toISOString());
-      }
-    });
-    
-    return days;
   };
 
   const getCategoryColor = (categoryId) => {
@@ -107,10 +87,8 @@ const CalendarPage = () => {
   };
 
   const selectedDateTasks = getTasksForDate(selectedDate);
-  const daysWithTasksSet = getDaysWithTasks();
   const isSelectedToday = isToday(selectedDate);
 
-  // Sort tasks: active first, then by priority
   const sortedTasks = [...selectedDateTasks].sort((a, b) => {
     const statusOrder = { blocked: 0, in_progress: 1, todo: 2, completed: 3 };
     const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -120,6 +98,62 @@ const CalendarPage = () => {
     }
     return priorityOrder[a.priority] - priorityOrder[b.priority];
   });
+
+  // Generate daily standup text
+  const generateDailyText = () => {
+    if (!dailySummary) return "";
+    
+    let text = "📋 Daily Standup\n\n";
+    
+    // Yesterday
+    if (dailySummary.yesterday_completed.length > 0) {
+      text += "✅ Dün tamamladım:\n";
+      dailySummary.yesterday_completed.forEach(task => {
+        const project = task.project_name ? ` (${task.project_name})` : "";
+        text += `  • ${task.title}${project}\n`;
+      });
+      text += "\n";
+    } else {
+      text += "✅ Dün tamamlanan görev yok\n\n";
+    }
+    
+    // Today - In Progress
+    if (dailySummary.today_in_progress.length > 0) {
+      text += "🔄 Bugün devam edeceğim:\n";
+      dailySummary.today_in_progress.forEach(task => {
+        const project = task.project_name ? ` (${task.project_name})` : "";
+        text += `  • ${task.title}${project}\n`;
+      });
+      text += "\n";
+    }
+    
+    // Today - Planned
+    if (dailySummary.today_planned.length > 0) {
+      text += "📌 Bugün başlayacağım:\n";
+      dailySummary.today_planned.forEach(task => {
+        const project = task.project_name ? ` (${task.project_name})` : "";
+        text += `  • ${task.title}${project}\n`;
+      });
+      text += "\n";
+    }
+    
+    // Blocked
+    if (dailySummary.blocked_tasks.length > 0) {
+      text += "🚫 Bloke olan:\n";
+      dailySummary.blocked_tasks.forEach(task => {
+        const project = task.project_name ? ` (${task.project_name})` : "";
+        text += `  • ${task.title}${project}\n`;
+      });
+    }
+    
+    return text.trim();
+  };
+
+  const copyDailyText = () => {
+    const text = generateDailyText();
+    navigator.clipboard.writeText(text);
+    toast.success("Daily metni kopyalandı!");
+  };
 
   if (loading) {
     return (
@@ -132,15 +166,146 @@ const CalendarPage = () => {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header */}
-      <div>
-        <h2 className="font-heading text-2xl font-bold">Takvim</h2>
-        <p className="text-muted-foreground">
-          {isSelectedToday 
-            ? "Bugünkü görevleriniz ve yaklaşan deadlinelar"
-            : "Seçili tarihteki görevler"
-          }
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="font-heading text-2xl font-bold">Takvim</h2>
+          <p className="text-muted-foreground">
+            {isSelectedToday 
+              ? "Bugünkü görevleriniz ve daily özeti"
+              : "Seçili tarihteki görevler"
+            }
+          </p>
+        </div>
+        {isSelectedToday && (
+          <Button onClick={copyDailyText} className="gap-2" data-testid="copy-daily-btn">
+            <Copy className="w-4 h-4" />
+            Daily Metnini Kopyala
+          </Button>
+        )}
       </div>
+
+      {/* Daily Standup Card - Only for Today */}
+      {isSelectedToday && dailySummary && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="font-heading flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-primary" />
+              Daily Standup Özeti
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Yesterday Completed */}
+              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle2 className="w-5 h-5 text-green-400" />
+                  <h4 className="font-semibold text-green-400">Dün Tamamladım</h4>
+                </div>
+                {dailySummary.yesterday_completed.length > 0 ? (
+                  <ul className="space-y-2">
+                    {dailySummary.yesterday_completed.slice(0, 5).map(task => (
+                      <li key={task.id} className="text-sm">
+                        <span className="font-medium">{task.title}</span>
+                        {task.project_name && (
+                          <span className="text-muted-foreground text-xs block">{task.project_name}</span>
+                        )}
+                      </li>
+                    ))}
+                    {dailySummary.yesterday_completed.length > 5 && (
+                      <li className="text-xs text-muted-foreground">
+                        +{dailySummary.yesterday_completed.length - 5} daha
+                      </li>
+                    )}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Tamamlanan görev yok</p>
+                )}
+              </div>
+
+              {/* Today In Progress */}
+              <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock className="w-5 h-5 text-blue-400" />
+                  <h4 className="font-semibold text-blue-400">Bugün Devam Edeceğim</h4>
+                </div>
+                {dailySummary.today_in_progress.length > 0 ? (
+                  <ul className="space-y-2">
+                    {dailySummary.today_in_progress.slice(0, 5).map(task => (
+                      <li key={task.id} className="text-sm">
+                        <span className="font-medium">{task.title}</span>
+                        {task.project_name && (
+                          <span className="text-muted-foreground text-xs block">{task.project_name}</span>
+                        )}
+                      </li>
+                    ))}
+                    {dailySummary.today_in_progress.length > 5 && (
+                      <li className="text-xs text-muted-foreground">
+                        +{dailySummary.today_in_progress.length - 5} daha
+                      </li>
+                    )}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Devam eden görev yok</p>
+                )}
+              </div>
+
+              {/* Today Planned */}
+              <div className="p-4 rounded-lg bg-zinc-500/10 border border-zinc-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <ListTodo className="w-5 h-5 text-zinc-400" />
+                  <h4 className="font-semibold text-zinc-400">Bugün Başlayacağım</h4>
+                </div>
+                {dailySummary.today_planned.length > 0 ? (
+                  <ul className="space-y-2">
+                    {dailySummary.today_planned.slice(0, 5).map(task => (
+                      <li key={task.id} className="text-sm">
+                        <span className="font-medium">{task.title}</span>
+                        {task.project_name && (
+                          <span className="text-muted-foreground text-xs block">{task.project_name}</span>
+                        )}
+                      </li>
+                    ))}
+                    {dailySummary.today_planned.length > 5 && (
+                      <li className="text-xs text-muted-foreground">
+                        +{dailySummary.today_planned.length - 5} daha
+                      </li>
+                    )}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Planlanan görev yok</p>
+                )}
+              </div>
+
+              {/* Blocked */}
+              <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertOctagon className="w-5 h-5 text-orange-400" />
+                  <h4 className="font-semibold text-orange-400">Bloke Olan</h4>
+                </div>
+                {dailySummary.blocked_tasks.length > 0 ? (
+                  <ul className="space-y-2">
+                    {dailySummary.blocked_tasks.slice(0, 5).map(task => (
+                      <li key={task.id} className="text-sm">
+                        <span className="font-medium">{task.title}</span>
+                        {task.project_name && (
+                          <span className="text-muted-foreground text-xs block">{task.project_name}</span>
+                        )}
+                      </li>
+                    ))}
+                    {dailySummary.blocked_tasks.length > 5 && (
+                      <li className="text-xs text-muted-foreground">
+                        +{dailySummary.blocked_tasks.length - 5} daha
+                      </li>
+                    )}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Bloke görev yok ✓</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar */}
@@ -211,8 +376,8 @@ const CalendarPage = () => {
               components={{
                 DayContent: ({ date }) => {
                   const dayTasks = getTasksForDate(date);
-                  const hasActiveTasks = dayTasks.some(t => t.status !== "completed");
                   const hasBlockedTasks = dayTasks.some(t => t.status === "blocked");
+                  const hasInProgress = dayTasks.some(t => t.status === "in_progress");
                   
                   return (
                     <div className="flex flex-col items-center justify-center h-full">
@@ -222,10 +387,10 @@ const CalendarPage = () => {
                           {hasBlockedTasks && (
                             <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />
                           )}
-                          {hasActiveTasks && !hasBlockedTasks && (
+                          {hasInProgress && (
                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                           )}
-                          {dayTasks.length > 1 && (
+                          {dayTasks.length > 2 && (
                             <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
                           )}
                         </div>
@@ -249,12 +414,11 @@ const CalendarPage = () => {
             </CardTitle>
             <p className="text-sm text-muted-foreground">
               {sortedTasks.length} görev
-              {isSelectedToday && " (aktif görevler dahil)"}
             </p>
           </CardHeader>
           <CardContent>
             {sortedTasks.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
                 {sortedTasks.map((task) => {
                   const StatusIcon = statusConfig[task.status]?.icon || ListTodo;
                   return (
@@ -276,11 +440,6 @@ const CalendarPage = () => {
                           <p className="text-xs text-muted-foreground mt-1">
                             {getCategoryName(task.category_id)}
                           </p>
-                          {task.due_date && !isSelectedToday && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Deadline: {format(new Date(task.due_date), "d MMM", { locale: tr })}
-                            </p>
-                          )}
                         </div>
                         <Badge className={cn("text-xs shrink-0", statusConfig[task.status]?.color)}>
                           <StatusIcon className="w-3 h-3 mr-1" />
@@ -300,36 +459,6 @@ const CalendarPage = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Daily Summary for Today */}
-      {isSelectedToday && (
-        <Card className="border-border/50 bg-card">
-          <CardHeader>
-            <CardTitle className="font-heading flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary" />
-              Daily Özeti
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(statusConfig).map(([status, config]) => {
-                const count = tasks.filter(t => t.status === status).length;
-                const StatusIcon = config.icon;
-                return (
-                  <div key={status} className={cn(
-                    "p-4 rounded-lg text-center",
-                    config.color.replace("text-", "bg-").split(" ")[0]
-                  )}>
-                    <StatusIcon className="w-6 h-6 mx-auto mb-2" />
-                    <p className="text-2xl font-heading font-bold">{count}</p>
-                    <p className="text-xs">{config.label}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };
