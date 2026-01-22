@@ -236,6 +236,11 @@ const Tasks = () => {
     return project?.name || "";
   };
 
+  const getUserName = (userId) => {
+    const u = users.find(u => u.id === userId);
+    return u?.name || "";
+  };
+
   // Filter tasks
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -243,7 +248,17 @@ const Tasks = () => {
     const matchesCategory = filterCategory === "all" || task.category_id === filterCategory;
     const matchesPriority = filterPriority === "all" || task.priority === filterPriority;
     
-    return matchesSearch && matchesCategory && matchesPriority;
+    // Assignment filter
+    let matchesAssignment = true;
+    if (filterAssignment === "mine") {
+      matchesAssignment = task.user_id === user?.id && !task.assigned_to;
+    } else if (filterAssignment === "assigned_to_me") {
+      matchesAssignment = task.assigned_to === user?.id;
+    } else if (filterAssignment === "assigned_by_me") {
+      matchesAssignment = task.user_id === user?.id && task.assigned_to && task.assigned_to !== user?.id;
+    }
+    
+    return matchesSearch && matchesCategory && matchesPriority && matchesAssignment;
   });
 
   // Group tasks by status
