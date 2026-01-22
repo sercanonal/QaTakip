@@ -224,26 +224,29 @@ const CalendarPage = () => {
           <p className="text-muted-foreground">
             {isSelectedToday 
               ? "Bugünkü görevleriniz ve daily özeti"
-              : "Seçili tarihteki görevler"
+              : `${format(selectedDate, "d MMMM yyyy", { locale: tr })} için özet`
             }
           </p>
         </div>
-        {isSelectedToday && (
-          <Button onClick={copyDailyText} className="gap-2" data-testid="copy-daily-btn">
-            <Copy className="w-4 h-4" />
-            Daily Metnini Kopyala
-          </Button>
-        )}
+        <Button onClick={copyDailyText} className="gap-2" data-testid="copy-daily-btn">
+          <Copy className="w-4 h-4" />
+          Daily Metnini Kopyala
+        </Button>
       </div>
 
-      {/* Daily Standup Card - Only for Today */}
-      {isSelectedToday && dailySummary && (
+      {/* Daily Standup Card - For Selected Date */}
+      {dailySummary && (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader className="pb-3">
-            <CardTitle className="font-heading flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary" />
-              Daily Standup Özeti
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="font-heading flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-primary" />
+                {isSelectedToday ? "Daily Standup Özeti" : `${format(selectedDate, "d MMMM", { locale: tr })} Özeti`}
+              </CardTitle>
+              {summaryLoading && (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -251,7 +254,9 @@ const CalendarPage = () => {
               <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="w-5 h-5 text-green-400" />
-                  <h4 className="font-semibold text-green-400">Dün Tamamladım</h4>
+                  <h4 className="font-semibold text-green-400">
+                    {isSelectedToday ? "Dün Tamamladım" : "Önceki Gün"}
+                  </h4>
                 </div>
                 {dailySummary.yesterday_completed.length > 0 ? (
                   <ul className="space-y-2">
