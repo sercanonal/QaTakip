@@ -481,6 +481,19 @@ const Tasks = () => {
               />
             </div>
             <div className="flex gap-2 flex-wrap">
+              <Select value={filterAssignment} onValueChange={setFilterAssignment}>
+                <SelectTrigger className="w-[160px]" data-testid="filter-assignment">
+                  <Users className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Atama" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tüm Görevler</SelectItem>
+                  <SelectItem value="mine">Kendi Görevlerim</SelectItem>
+                  <SelectItem value="assigned_to_me">Bana Atananlar</SelectItem>
+                  <SelectItem value="assigned_by_me">Atadıklarım</SelectItem>
+                </SelectContent>
+              </Select>
+
               <Select value={filterCategory} onValueChange={setFilterCategory}>
                 <SelectTrigger className="w-[140px]" data-testid="filter-category">
                   <Filter className="w-4 h-4 mr-2" />
