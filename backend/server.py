@@ -695,7 +695,7 @@ async def update_task(task_id: str, task_update: TaskUpdate, user_id: Optional[s
         await db.commit()
         
         cursor = await db.execute(
-            "SELECT id, title, description, category_id, project_id, user_id, status, priority, due_date, created_at, completed_at FROM tasks WHERE id = ?",
+            "SELECT id, title, description, category_id, project_id, user_id, assigned_to, status, priority, due_date, created_at, completed_at FROM tasks WHERE id = ?",
             (task_id,)
         )
         row = await cursor.fetchone()
@@ -707,11 +707,12 @@ async def update_task(task_id: str, task_update: TaskUpdate, user_id: Optional[s
             "category_id": row[3],
             "project_id": row[4],
             "user_id": row[5],
-            "status": row[6],
-            "priority": row[7],
-            "due_date": row[8],
-            "created_at": row[9],
-            "completed_at": row[10]
+            "assigned_to": row[6],
+            "status": row[7],
+            "priority": row[8],
+            "due_date": row[9],
+            "created_at": row[10],
+            "completed_at": row[11]
         }
 
 @api_router.delete("/tasks/{task_id}")
