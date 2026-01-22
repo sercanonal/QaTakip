@@ -652,9 +652,11 @@ async def get_dashboard_stats(user_id: str):
         cursor = await db.execute("SELECT COUNT(*) FROM tasks WHERE user_id = ? AND status = ?", (user_id, TaskStatus.IN_PROGRESS.value))
         in_progress_tasks = (await cursor.fetchone())[0]
         
-        cursor = await db.execute("SELECT COUNT(*) FROM tasks WHERE user_id = ? AND status = ?", (user_id, TaskStatus.TODO.value))
+        cursor = await db.execute("SELECT COUNT(*) FROM tasks WHERE user_id = ? AND status IN (?, ?)", (user_id, TaskStatus.BACKLOG.value, TaskStatus.TODAY_PLANNED.value))
         todo_tasks = (await cursor.fetchone())[0]
         
+        cursor = await db.execute("SELECT COUNT(*) FROM tasks WHERE user_id = ? AND status = ?", (user_id, TaskStatus.TODAY_PLANNED.value))
+        today_planned_tasks = (await cursor.fetchone())[0]
         # Category stats
         cursor = await db.execute(
             "SELECT category_id, COUNT(*) FROM tasks WHERE user_id = ? GROUP BY category_id",
