@@ -535,10 +535,17 @@ async def get_tasks(
     status: Optional[str] = None,
     category_id: Optional[str] = None,
     project_id: Optional[str] = None,
-    priority: Optional[str] = None
+    priority: Optional[str] = None,
+    assigned_to_me: Optional[bool] = None
 ):
-    query = "SELECT id, title, description, category_id, project_id, user_id, status, priority, due_date, created_at, completed_at FROM tasks WHERE user_id = ?"
-    params = [user_id]
+    # If assigned_to_me is True, show tasks assigned to user (not created by them)
+    # Otherwise show tasks created by user OR assigned to them
+    if assigned_to_me:
+        query = "SELECT id, title, description, category_id, project_id, user_id, assigned_to, status, priority, due_date, created_at, completed_at FROM tasks WHERE assigned_to = ?"
+        params = [user_id]
+    else:
+        query = "SELECT id, title, description, category_id, project_id, user_id, assigned_to, status, priority, due_date, created_at, completed_at FROM tasks WHERE (user_id = ? OR assigned_to = ?)"
+        params = [user_id, user_id]
     
     if status:
         query += " AND status = ?"
@@ -557,6 +564,21 @@ async def get_tasks(
         cursor = await db.execute(query, params)
         rows = await cursor.fetchall()
         
+        # Get user names for assigned_to
+        user_ids = set()
+        for row in rows:
+            if row[5]:  # user_id
+                user_ids.add(row[5])
+            if row[6]:  # assigned_to
+                user_ids.add(row[6])
+        
+        user_map = {}
+        if user_ids:
+            placeholders = ','.join('?' * len(user_ids))
+            cursor = await db.execute(f"SELECT id, name FROM users WHERE id IN ({placeholders})", list(user_ids))
+            for u in await cursor.fetchall():
+                user_map[u[0]] = u[1]
+        
         return [
             {
                 "id": row[0],
@@ -565,11 +587,14 @@ async def get_tasks(
                 "category_id": row[3],
                 "project_id": row[4],
                 "user_id": row[5],
-                "status": row[6],
-                "priority": row[7],
-                "due_date": row[8],
-                "created_at": row[9],
-                "completed_at": row[10]
+                "assigned_to": row[6],
+                "assigned_to_name": user_map.get(row[6]) if row[6] else None,
+                "created_by_name": user_map.get(row[5]) if row[5] else None,
+                "status": row[7],
+                "priority": row[8],
+                "due_date": row[9],
+                "created_at": row[10],
+                "completed_at": row[11]
             }
             for row in rows
         ]
