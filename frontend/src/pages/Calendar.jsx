@@ -149,10 +149,47 @@ const CalendarPage = () => {
     return text.trim();
   };
 
-  const copyDailyText = () => {
+  const copyDailyText = async () => {
     const text = generateDailyText();
-    navigator.clipboard.writeText(text);
-    toast.success("Daily metni kopyalandı!");
+    
+    // Try modern Clipboard API first, then fallback to textarea method
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback for older browsers or non-secure contexts
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        textArea.remove();
+      }
+      toast.success("Daily metni kopyalandı!");
+    } catch (error) {
+      console.error("Copy error:", error);
+      // Final fallback - show text in a prompt
+      toast.info("Metni manuel olarak kopyalayın", {
+        description: "Ctrl+A ile seçip Ctrl+C ile kopyalayın",
+        duration: 5000
+      });
+      // Create a modal or prompt with the text
+      const modal = document.createElement("div");
+      modal.innerHTML = `
+        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;">
+          <div style="background:#1a1a1a;border-radius:8px;padding:20px;max-width:500px;max-height:80vh;overflow:auto;">
+            <h3 style="color:white;margin-bottom:10px;">Daily Metni</h3>
+            <textarea style="width:100%;min-height:200px;background:#2a2a2a;color:white;border:1px solid #444;border-radius:4px;padding:10px;" readonly>${text}</textarea>
+            <button onclick="this.parentElement.parentElement.remove()" style="margin-top:10px;padding:8px 16px;background:#e91e63;color:white;border:none;border-radius:4px;cursor:pointer;">Kapat</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
   };
 
   if (loading) {
