@@ -1,0 +1,140 @@
+{
+  "identity": {
+    "name": "E1",
+    "archetype": "The Performance Pro",
+    "mission": "Create a high-precision, dark-mode-first QA management tool that feels like a cockpit for engineers.",
+    "principles": [
+      "Fusion: Mix 'Linear' app minimalism with 'Bloomberg Terminal' data density.",
+      "Emotion: Confidence. Green means safe, Red means action. Every pixel reinforces control.",
+      "Content: Data is the art. Charts and lists must be beautiful in themselves.",
+      "Zoom In: Focus on the status of the test. The 'Pass/Fail' signal is the hero."
+    ]
+  },
+  "theme": {
+    "mode": "dark",
+    "strategy": "The 'Obsidian' Interface. Deep matte blacks, not grays. High contrast text.",
+    "colors": {
+      "background": "#09090B",
+      "surface": "#18181B",
+      "surface_highlight": "#27272A",
+      "border": "#27272A",
+      "primary": "#E11D48",
+      "primary_foreground": "#FFFFFF",
+      "secondary": "#27272A",
+      "accent": "#F43F5E",
+      "functional": {
+        "success": "#10B981",
+        "warning": "#F59E0B",
+        "error": "#EF4444",
+        "info": "#3B82F6",
+        "bug": "#F43F5E",
+        "feature": "#3B82F6",
+        "chore": "#A1A1AA"
+      }
+    }
+  },
+  "typography": {
+    "headings": {
+      "family": "Chivo, sans-serif",
+      "weights": ["700", "900"],
+      "usage": "Page titles, Section headers, Big metrics"
+    },
+    "body": {
+      "family": "Inter, sans-serif",
+      "weights": ["400", "500"],
+      "usage": "General UI text, descriptions"
+    },
+    "mono": {
+      "family": "JetBrains Mono, monospace",
+      "usage": "Test IDs, Code snippets, Logs, Dates"
+    }
+  },
+  "layout_strategy": {
+    "dashboard": {
+      "type": "Bento Grid",
+      "grid_cols": "grid-cols-1 md:grid-cols-4 lg:grid-cols-12",
+      "gap": "gap-4",
+      "modules": [
+        {
+          "name": "Weekly Regression Status",
+          "span": "col-span-full lg:col-span-8 row-span-2",
+          "style": "Hero Card with Big Progress Bar"
+        },
+        {
+          "name": "Quick Actions",
+          "span": "col-span-2 lg:col-span-4 row-span-1",
+          "style": "Grid of icon buttons"
+        },
+        {
+          "name": "Bug Ticker",
+          "span": "col-span-2 lg:col-span-4 row-span-1",
+          "style": "Scrolling list of critical bugs"
+        }
+      ]
+    },
+    "tasks_page": {
+      "type": "Dense Table",
+      "style": "Linear-style list. Row hover effects. Status pills. Keyboard navigable."
+    },
+    "spacing": {
+      "container_padding": "p-6 md:p-8",
+      "element_gap": "gap-4"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-white hover:bg-primary/90 shadow-[0_0_15px_rgba(225,29,72,0.3)]",
+      "secondary": "bg-secondary text-white hover:bg-secondary/80 border border-white/10",
+      "ghost": "hover:bg-white/5 text-zinc-400 hover:text-white"
+    },
+    "cards": {
+      "base": "bg-card border border-border/50 shadow-xl shadow-black/20 rounded-xl",
+      "hover": "hover:border-primary/50 transition-colors duration-300"
+    },
+    "status_pills": {
+      "pass": "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20",
+      "fail": "bg-red-500/10 text-red-500 border border-red-500/20",
+      "pending": "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20"
+    }
+  },
+  "motion": {
+    "page_transition": {
+      "initial": { "opacity": 0, "y": 10 },
+      "animate": { "opacity": 1, "y": 0 },
+      "exit": { "opacity": 0, "y": -10 },
+      "transition": { "duration": 0.2 }
+    },
+    "micro_interactions": "Active scale-95 on buttons. Hover lift on cards."
+  },
+  "assets": {
+    "images": [
+      {
+        "url": "https://images.pexels.com/photos/9951077/pexels-photo-9951077.jpeg",
+        "category": "login_bg",
+        "description": "Abstract dark data flow for login background"
+      },
+      {
+        "url": "https://images.pexels.com/photos/574070/pexels-photo-574070.jpeg",
+        "category": "dashboard_hero",
+        "description": "Coding workspace for empty states or hero"
+      }
+    ],
+    "icons": "Lucide React (default). Use 'Activity', 'Bug', 'CheckCircle2', 'XCircle', 'Play', 'Calendar' heavily."
+  },
+  "instructions_to_main_agent": {
+    "1": "Implement the 'Dark Mode' class in tailwind.config.js and ensure 'dark' class is on the html/body tag by default.",
+    "2": "Use 'Chivo' for all headings (h1-h4). Import it from Google Fonts.",
+    "3": "Create a 'Layout' component that handles the Sidebar (Collapsible) and Topbar.",
+    "4": "For the Dashboard, use the Bento Grid layout defined above. Don't just stack cards.",
+    "5": "Use 'Sonner' for all notifications (Success/Error toasts).",
+    "6": "Ensure the 'Login' page uses the 'login_bg' image with a glassmorphism overlay.",
+    "7": "Strictly follow the color palette. Do not use default blue for primary actions. Use the defined Crimson/Red.",
+    "8": "Add 'data-testid' to all interactive elements (buttons, inputs, rows)."
+  },
+  "universal_guidelines": [
+    "Avoid 'AI Slop': No generic gradients. Use sharp borders and deep blacks.",
+    "Contrast: Ensure text is legible on dark backgrounds. Use Zinc-400 for secondary text, White for primary.",
+    "Spacing: Use 'gap-6' or 'gap-8' between major sections.",
+    "Feedback: Every action (save, delete, run) must have a toast notification."
+  ]
+}
