@@ -235,7 +235,7 @@ class QATaskManagerTester:
         success, task_response = self.run_test(
             "Create Task",
             "POST",
-            "tasks",
+            f"tasks?user_id={self.user_id}",
             200,
             data=task_data
         )
