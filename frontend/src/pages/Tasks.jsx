@@ -506,8 +506,8 @@ const Tasks = () => {
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="h-6 w-6 text-destructive"
-                                      onClick={() => handleDelete(task.id)}
+                                      className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/20"
+                                      onClick={(e) => handleDelete(task.id, e)}
                                       data-testid={`task-delete-${task.id}`}
                                     >
                                       <Trash2 className="w-3 h-3" />
