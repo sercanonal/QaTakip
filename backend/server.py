@@ -301,7 +301,8 @@ async def create_task(task: TaskCreate, user_id: str):
     task_dict = task_obj.model_dump()
     
     await db.tasks.insert_one(task_dict)
-    return task_dict
+    # Return clean dict without MongoDB ObjectId
+    return {k: v for k, v in task_dict.items() if k != "_id"}
 
 @api_router.get("/tasks", response_model=List[dict])
 async def get_tasks(
