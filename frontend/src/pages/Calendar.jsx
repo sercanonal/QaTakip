@@ -40,36 +40,51 @@ const CalendarPage = () => {
   const [tasks, setTasks] = useState([]);
   const [dailySummary, setDailySummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
-    fetchData();
+    fetchTasks();
   }, []);
 
-  const fetchData = async () => {
+  // Fetch daily summary when selected date changes
+  useEffect(() => {
+    fetchDailySummary(selectedDate);
+  }, [selectedDate]);
+
+  const fetchTasks = async () => {
     try {
-      const [tasksRes, summaryRes] = await Promise.all([
-        api.get("/tasks"),
-        api.get("/daily-summary")
-      ]);
-      setTasks(tasksRes.data);
-      setDailySummary(summaryRes.data);
+      const response = await api.get("/tasks");
+      setTasks(response.data);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("Error fetching tasks:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchDailySummary = async (date) => {
+    setSummaryLoading(true);
+    try {
+      const dateStr = format(date, "yyyy-MM-dd");
+      const response = await api.get(`/daily-summary?target_date=${dateStr}`);
+      setDailySummary(response.data);
+    } catch (error) {
+      console.error("Error fetching daily summary:", error);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
   const getTasksForDate = (date) => {
-    const isSelectedToday = isToday(date);
+    const isDateToday = isToday(date);
     
     return tasks.filter(task => {
       if (task.due_date && isSameDay(new Date(task.due_date), date)) {
         return true;
       }
-      if (isSelectedToday && task.status !== "completed") {
+      if (isDateToday && task.status !== "completed") {
         return true;
       }
       return false;
