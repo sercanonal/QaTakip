@@ -453,10 +453,10 @@ const CalendarPage = () => {
               </div>
 
               {/* Today Planned */}
-              <div className="p-4 rounded-lg bg-zinc-500/10 border border-zinc-500/20">
+              <div className="p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
                 <div className="flex items-center gap-2 mb-3">
-                  <ListTodo className="w-5 h-5 text-zinc-400" />
-                  <h4 className="font-semibold text-zinc-400">
+                  <Target className="w-5 h-5 text-purple-400" />
+                  <h4 className="font-semibold text-purple-400">
                     {isSelectedToday ? "Bugün Başlayacağım" : "Planlanan"}
                   </h4>
                 </div>
