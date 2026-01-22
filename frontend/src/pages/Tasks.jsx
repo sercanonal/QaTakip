@@ -69,10 +69,12 @@ const Tasks = () => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
+  const [filterAssignment, setFilterAssignment] = useState("all"); // all, mine, assigned_to_me
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -82,6 +84,7 @@ const Tasks = () => {
     description: "",
     category_id: "",
     project_id: "",
+    assigned_to: "",
     priority: "medium",
     due_date: null
   });
@@ -89,6 +92,7 @@ const Tasks = () => {
   useEffect(() => {
     fetchTasks();
     fetchProjects();
+    fetchUsers();
   }, []);
 
   const fetchTasks = async () => {
@@ -108,6 +112,15 @@ const Tasks = () => {
       setProjects(response.data);
     } catch (error) {
       console.error("Error fetching projects:", error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get("/users");
+      setUsers(response.data);
+    } catch (error) {
+      console.error("Error fetching users:", error);
     }
   };
 
