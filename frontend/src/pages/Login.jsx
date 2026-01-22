@@ -15,17 +15,27 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    
+    if (!trimmedName) {
       toast.error("Lütfen adınızı girin");
+      return;
+    }
+    
+    if (trimmedName.length < 2) {
+      toast.error("İsim en az 2 karakter olmalı");
       return;
     }
 
     setLoading(true);
     try {
-      await register(name.trim());
+      await register(trimmedName);
       toast.success("Hoş geldiniz!");
     } catch (error) {
-      toast.error("Bir hata oluştu, tekrar deneyin");
+      // API interceptor'dan gelen kullanıcı dostu mesaj
+      const message = error.userMessage || error.response?.data?.detail || "Bir hata oluştu";
+      toast.error(message);
+      console.error("Login error:", error);
     } finally {
       setLoading(false);
     }
@@ -33,7 +43,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      {/* Content */}
       <div className="w-full max-w-md animate-fadeIn">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
@@ -70,6 +79,8 @@ const Login = () => {
                     className="pl-10 h-12 bg-secondary/50 border-border/50 focus:border-primary"
                     autoFocus
                     required
+                    minLength={2}
+                    maxLength={50}
                     data-testid="name-input"
                   />
                 </div>
@@ -94,7 +105,6 @@ const Login = () => {
           </CardContent>
         </Card>
 
-        {/* Footer */}
         <p className="text-center text-xs text-muted-foreground mt-6">
           © 2025 Intertech QA Task Manager
         </p>
