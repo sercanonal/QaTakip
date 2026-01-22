@@ -238,11 +238,145 @@ const CalendarPage = () => {
             }
           </p>
         </div>
-        <Button onClick={copyDailyText} className="gap-2" data-testid="copy-daily-btn">
-          <Copy className="w-4 h-4" />
-          Daily Metnini Kopyala
+        <Button onClick={() => setShowDailyPopup(true)} className="gap-2 btn-glow" data-testid="show-daily-popup-btn">
+          <FileText className="w-4 h-4" />
+          Daily Özetimi Görüntüle
         </Button>
       </div>
+
+      {/* Daily Summary Popup Dialog */}
+      <Dialog open={showDailyPopup} onOpenChange={setShowDailyPopup}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/20">
+                <CalendarIcon className="w-6 h-6 text-primary" />
+              </div>
+              {isSelectedToday ? "Daily Standup Özeti" : `${format(selectedDate, "d MMMM yyyy", { locale: tr })} Özeti`}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {dailySummary && (
+            <div className="space-y-6 mt-4">
+              {/* Dün Tamamladıklarım */}
+              <div className="rounded-xl bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-green-500/20">
+                    <CheckCircle2 className="w-5 h-5 text-green-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-green-400">
+                    {isSelectedToday ? "✅ Dün Tamamladım" : "✅ Önceki Gün Tamamlananlar"}
+                  </h3>
+                  <Badge className="bg-green-500/20 text-green-400">{dailySummary.yesterday_completed.length}</Badge>
+                </div>
+                {dailySummary.yesterday_completed.length > 0 ? (
+                  <ul className="space-y-3">
+                    {dailySummary.yesterday_completed.map(task => (
+                      <li key={task.id} className="flex items-start gap-3 p-3 rounded-lg bg-background/50">
+                        <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-medium">{task.title}</p>
+                          {task.project_name && (
+                            <p className="text-sm text-muted-foreground mt-1">{task.project_name}</p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground italic">Tamamlanan görev yok</p>
+                )}
+              </div>
+
+              {/* Bugün Devam Edeceğim */}
+              <div className="rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-blue-500/20">
+                    <Clock className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-blue-400">
+                    {isSelectedToday ? "🔄 Bugün Devam Edeceğim" : "🔄 Devam Eden Görevler"}
+                  </h3>
+                  <Badge className="bg-blue-500/20 text-blue-400">{dailySummary.today_in_progress.length}</Badge>
+                </div>
+                {dailySummary.today_in_progress.length > 0 ? (
+                  <ul className="space-y-3">
+                    {dailySummary.today_in_progress.map(task => (
+                      <li key={task.id} className="flex items-start gap-3 p-3 rounded-lg bg-background/50">
+                        <Clock className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-medium">{task.title}</p>
+                          {task.project_name && (
+                            <p className="text-sm text-muted-foreground mt-1">{task.project_name}</p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground italic">Devam eden görev yok</p>
+                )}
+              </div>
+
+              {/* Bugün Başlayacağım */}
+              <div className="rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-purple-500/20">
+                    <Target className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-purple-400">
+                    {isSelectedToday ? "📌 Bugün Başlamayı Planlıyorum" : "📌 Planlanan Görevler"}
+                  </h3>
+                  <Badge className="bg-purple-500/20 text-purple-400">{dailySummary.today_planned.length}</Badge>
+                </div>
+                {dailySummary.today_planned.length > 0 ? (
+                  <ul className="space-y-3">
+                    {dailySummary.today_planned.map(task => (
+                      <li key={task.id} className="flex items-start gap-3 p-3 rounded-lg bg-background/50">
+                        <Target className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-medium">{task.title}</p>
+                          {task.project_name && (
+                            <p className="text-sm text-muted-foreground mt-1">{task.project_name}</p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground italic">Planlanan görev yok</p>
+                )}
+              </div>
+
+              {/* Bloke Olan */}
+              {dailySummary.blocked_tasks.length > 0 && (
+                <div className="rounded-xl bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/20 p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 rounded-lg bg-orange-500/20">
+                      <AlertOctagon className="w-5 h-5 text-orange-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-orange-400">🚫 Bloke Olan</h3>
+                    <Badge className="bg-orange-500/20 text-orange-400">{dailySummary.blocked_tasks.length}</Badge>
+                  </div>
+                  <ul className="space-y-3">
+                    {dailySummary.blocked_tasks.map(task => (
+                      <li key={task.id} className="flex items-start gap-3 p-3 rounded-lg bg-background/50">
+                        <AlertOctagon className="w-4 h-4 text-orange-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-medium">{task.title}</p>
+                          {task.project_name && (
+                            <p className="text-sm text-muted-foreground mt-1">{task.project_name}</p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Daily Standup Card - For Selected Date */}
       {dailySummary && (
