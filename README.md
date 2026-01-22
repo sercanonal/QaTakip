@@ -1,6 +1,8 @@
 # QA Task Manager - Intertech
 
-Professional task management application for QA engineers.
+Professional task management for QA engineers.
+
+**No MongoDB required. No system dependencies. Just Python and Node.js.**
 
 ## Features
 
@@ -10,13 +12,13 @@ Professional task management application for QA engineers.
 - Smart "Today Focus" dashboard
 - Calendar view
 - Progress reports
-- Custom categories
 
 ## Requirements
 
 - **Node.js** ≥ 18
-- **Python** 3.10 or 3.11
-- **MongoDB** running locally
+- **Python** ≥ 3.10
+
+**That's it.** No MongoDB, no brew, no sudo, no system installs.
 
 ---
 
@@ -26,42 +28,27 @@ Professional task management application for QA engineers.
 
 ```bash
 cd backend
-python3.11 -m venv venv
+python3 -m venv venv
 source venv/bin/activate      # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env
 uvicorn server:app --reload --port 8001
 ```
-
-Backend: `http://localhost:8001`
 
 ### Frontend
 
 ```bash
 cd frontend
 npm install
-cp .env.example .env
 npm start
 ```
 
-Frontend: `http://localhost:3000`
-
 ---
 
-## Environment Variables
+## How It Works
 
-### Backend (`backend/.env`)
-
-```
-MONGO_URL=mongodb://127.0.0.1:27017
-DB_NAME=qa_task_manager
-```
-
-### Frontend (`frontend/.env`)
-
-```
-REACT_APP_API_URL=http://localhost:8001
-```
+- **Database**: SQLite (file-based, created automatically in `backend/data/`)
+- **No external services required**
+- Data persists in `backend/data/qa_tasks.db`
 
 ---
 
@@ -69,30 +56,29 @@ REACT_APP_API_URL=http://localhost:8001
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/api/health` | Health check |
 | POST | `/api/auth/register` | Register user |
 | GET | `/api/auth/check/{device_id}` | Check device |
 | GET | `/api/dashboard/stats` | Dashboard stats |
 | GET/POST | `/api/tasks` | Tasks |
 | GET/POST | `/api/projects` | Projects |
-| GET | `/api/health` | Health check |
 
 ---
 
-## Troubleshooting
+## Project Structure
 
-### MongoDB Connection
-```bash
-# macOS
-brew services start mongodb-community
-
-# Ubuntu
-sudo systemctl start mongod
 ```
-
-### Port Conflict
-```bash
-lsof -ti:8001 | xargs kill -9
-lsof -ti:3000 | xargs kill -9
+├── backend/
+│   ├── server.py          # FastAPI + SQLite
+│   ├── requirements.txt   # Python dependencies
+│   └── data/              # SQLite database (auto-created)
+│       └── qa_tasks.db
+│
+├── frontend/
+│   ├── src/
+│   └── package.json
+│
+└── README.md
 ```
 
 ---
