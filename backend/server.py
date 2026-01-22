@@ -785,6 +785,98 @@ async def get_dashboard_stats(user_id: str):
 
 # ============== NOTIFICATION ROUTES ==============
 
+@api_router.get("/daily-summary")
+async def get_daily_summary(user_id: str):
+    """Get daily summary for standup meetings - yesterday completed + today's work"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        now = datetime.now(timezone.utc)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday_start = today_start - timedelta(days=1)
+        
+        # Yesterday completed tasks (completed_at between yesterday 00:00 and today 00:00)
+        cursor = await db.execute(
+            """SELECT id, title, description, category_id, project_id, status, priority, completed_at 
+               FROM tasks 
+               WHERE user_id = ? AND status = ? AND completed_at >= ? AND completed_at < ?
+               ORDER BY completed_at DESC""",
+            (user_id, TaskStatus.COMPLETED.value, yesterday_start.isoformat(), today_start.isoformat())
+        )
+        yesterday_rows = await cursor.fetchall()
+        yesterday_completed = [
+            {"id": r[0], "title": r[1], "description": r[2], "category_id": r[3], 
+             "project_id": r[4], "status": r[5], "priority": r[6], "completed_at": r[7]}
+            for r in yesterday_rows
+        ]
+        
+        # Today's work - in_progress tasks
+        cursor = await db.execute(
+            """SELECT id, title, description, category_id, project_id, status, priority, due_date 
+               FROM tasks 
+               WHERE user_id = ? AND status = ?
+               ORDER BY priority DESC""",
+            (user_id, TaskStatus.IN_PROGRESS.value)
+        )
+        in_progress_rows = await cursor.fetchall()
+        today_in_progress = [
+            {"id": r[0], "title": r[1], "description": r[2], "category_id": r[3], 
+             "project_id": r[4], "status": r[5], "priority": r[6], "due_date": r[7]}
+            for r in in_progress_rows
+        ]
+        
+        # Blocked tasks
+        cursor = await db.execute(
+            """SELECT id, title, description, category_id, project_id, status, priority, due_date 
+               FROM tasks 
+               WHERE user_id = ? AND status = ?
+               ORDER BY priority DESC""",
+            (user_id, TaskStatus.BLOCKED.value)
+        )
+        blocked_rows = await cursor.fetchall()
+        blocked_tasks = [
+            {"id": r[0], "title": r[1], "description": r[2], "category_id": r[3], 
+             "project_id": r[4], "status": r[5], "priority": r[6], "due_date": r[7]}
+            for r in blocked_rows
+        ]
+        
+        # Today planned (todo with high priority or due today)
+        today_end = today_start + timedelta(days=1)
+        cursor = await db.execute(
+            """SELECT id, title, description, category_id, project_id, status, priority, due_date 
+               FROM tasks 
+               WHERE user_id = ? AND status = ? AND (priority IN ('high', 'critical') OR (due_date >= ? AND due_date < ?))
+               ORDER BY priority DESC, due_date ASC""",
+            (user_id, TaskStatus.TODO.value, today_start.isoformat(), today_end.isoformat())
+        )
+        planned_rows = await cursor.fetchall()
+        today_planned = [
+            {"id": r[0], "title": r[1], "description": r[2], "category_id": r[3], 
+             "project_id": r[4], "status": r[5], "priority": r[6], "due_date": r[7]}
+            for r in planned_rows
+        ]
+        
+        # Get project names
+        cursor = await db.execute("SELECT id, name FROM projects WHERE user_id = ?", (user_id,))
+        project_rows = await cursor.fetchall()
+        project_map = {r[0]: r[1] for r in project_rows}
+        
+        # Add project names to tasks
+        for task_list in [yesterday_completed, today_in_progress, blocked_tasks, today_planned]:
+            for task in task_list:
+                task["project_name"] = project_map.get(task.get("project_id"), None)
+        
+        return {
+            "yesterday_completed": yesterday_completed,
+            "today_in_progress": today_in_progress,
+            "blocked_tasks": blocked_tasks,
+            "today_planned": today_planned,
+            "summary": {
+                "yesterday_count": len(yesterday_completed),
+                "in_progress_count": len(today_in_progress),
+                "blocked_count": len(blocked_tasks),
+                "planned_count": len(today_planned)
+            }
+        }
+
 @api_router.get("/notifications", response_model=List[dict])
 async def get_notifications(user_id: str):
     async with aiosqlite.connect(DB_PATH) as db:
