@@ -786,11 +786,26 @@ async def get_dashboard_stats(user_id: str):
 # ============== NOTIFICATION ROUTES ==============
 
 @api_router.get("/daily-summary")
-async def get_daily_summary(user_id: str):
-    """Get daily summary for standup meetings - yesterday completed + today's work"""
+async def get_daily_summary(user_id: str, target_date: Optional[str] = None):
+    """Get daily summary for standup meetings - yesterday completed + today's work
+    
+    Args:
+        user_id: User ID
+        target_date: Target date in ISO format (YYYY-MM-DD). Defaults to today.
+    """
     async with aiosqlite.connect(DB_PATH) as db:
-        now = datetime.now(timezone.utc)
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        # Parse target date or use today
+        if target_date:
+            try:
+                target_dt = datetime.fromisoformat(target_date.replace("Z", "+00:00"))
+                if target_dt.tzinfo is None:
+                    target_dt = target_dt.replace(tzinfo=timezone.utc)
+            except:
+                target_dt = datetime.now(timezone.utc)
+        else:
+            target_dt = datetime.now(timezone.utc)
+        
+        today_start = target_dt.replace(hour=0, minute=0, second=0, microsecond=0)
         yesterday_start = today_start - timedelta(days=1)
         
         # Yesterday completed tasks (completed_at between yesterday 00:00 and today 00:00)
@@ -838,7 +853,7 @@ async def get_daily_summary(user_id: str):
             for r in blocked_rows
         ]
         
-        # Today planned (todo with high priority or due today)
+        # Today planned (todo with high priority or due on target date)
         today_end = today_start + timedelta(days=1)
         cursor = await db.execute(
             """SELECT id, title, description, category_id, project_id, status, priority, due_date 
@@ -865,6 +880,7 @@ async def get_daily_summary(user_id: str):
                 task["project_name"] = project_map.get(task.get("project_id"), None)
         
         return {
+            "target_date": today_start.isoformat(),
             "yesterday_completed": yesterday_completed,
             "today_in_progress": today_in_progress,
             "blocked_tasks": blocked_tasks,
