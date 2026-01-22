@@ -449,7 +449,7 @@ const Tasks = () => {
 
       {/* Kanban Board */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {COLUMNS.map((column) => (
             <div key={column.id} className="flex flex-col">
               <div className={cn(
@@ -457,7 +457,7 @@ const Tasks = () => {
                 column.color,
                 column.borderColor
               )}>
-                <h3 className="font-heading font-semibold">{column.title}</h3>
+                <h3 className="font-heading font-semibold text-sm">{column.title}</h3>
                 <Badge variant="secondary" className="font-mono">
                   {tasksByStatus[column.id]?.length || 0}
                 </Badge>
