@@ -312,7 +312,9 @@ const CalendarPage = () => {
               <div className="p-4 rounded-lg bg-zinc-500/10 border border-zinc-500/20">
                 <div className="flex items-center gap-2 mb-3">
                   <ListTodo className="w-5 h-5 text-zinc-400" />
-                  <h4 className="font-semibold text-zinc-400">Bugün Başlayacağım</h4>
+                  <h4 className="font-semibold text-zinc-400">
+                    {isSelectedToday ? "Bugün Başlayacağım" : "Planlanan"}
+                  </h4>
                 </div>
                 {dailySummary.today_planned.length > 0 ? (
                   <ul className="space-y-2">
