@@ -33,8 +33,217 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Create the main app
-app = FastAPI(title="QA Task Manager - Intertech")
+# ============== EMAIL REMINDER SYSTEM ==============
+
+async def send_reminder_email(to_email: str, subject: str, html_content: str) -> bool:
+    """Send email via Resend API"""
+    if not resend.api_key:
+        logger.warning("Resend API key not configured")
+        return False
+    
+    try:
+        params = {
+            "from": SENDER_EMAIL,
+            "to": [to_email],
+            "subject": subject,
+            "html": html_content
+        }
+        await asyncio.to_thread(resend.Emails.send, params)
+        logger.info(f"Email sent to {to_email}: {subject}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send email to {to_email}: {str(e)}")
+        return False
+
+def generate_upcoming_deadline_email(tasks: list, user_name: str) -> tuple:
+    """Generate email for upcoming deadlines (24 hours)"""
+    subject = f"⏰ Yarın Son Gün: {len(tasks)} Görev"
+    
+    tasks_html = ""
+    for task in tasks:
+        priority_tr = {"low": "Düşük", "medium": "Orta", "high": "Yüksek", "critical": "Kritik"}
+        tasks_html += f"""
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #27272A;">
+                <strong style="color: #FAFAFA;">{task['title']}</strong><br>
+                <span style="color: #A1A1AA; font-size: 13px;">
+                    Proje: {task.get('project_name', '-')} | 
+                    Öncelik: {priority_tr.get(task.get('priority', 'medium'), 'Orta')}
+                </span>
+            </td>
+            <td style="padding: 12px; border-bottom: 1px solid #27272A; text-align: right;">
+                <span style="color: #F59E0B; font-weight: 500;">Yarın</span>
+            </td>
+        </tr>
+        """
+    
+    html = f"""
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #09090B; color: #FAFAFA; padding: 24px; border-radius: 12px;">
+        <h2 style="color: #FAFAFA; margin-bottom: 8px;">Merhaba {user_name},</h2>
+        <p style="color: #A1A1AA; margin-bottom: 24px;">Aşağıdaki görevlerin deadline'ı yarın doluyor.</p>
+        
+        <table style="width: 100%; border-collapse: collapse; background: #18181B; border-radius: 8px; overflow: hidden;">
+            <thead>
+                <tr style="background: #27272A;">
+                    <th style="padding: 12px; text-align: left; color: #A1A1AA; font-weight: 500;">Görev</th>
+                    <th style="padding: 12px; text-align: right; color: #A1A1AA; font-weight: 500;">Deadline</th>
+                </tr>
+            </thead>
+            <tbody>
+                {tasks_html}
+            </tbody>
+        </table>
+        
+        <p style="color: #71717A; font-size: 13px; margin-top: 24px; text-align: center;">
+            QA Task Manager - Intertech
+        </p>
+    </div>
+    """
+    return subject, html
+
+def generate_overdue_email(tasks: list, user_name: str) -> tuple:
+    """Generate email for overdue tasks"""
+    subject = f"⚠️ Gecikmiş Görev: Aksiyon Gerekiyor"
+    
+    tasks_html = ""
+    for task in tasks:
+        priority_tr = {"low": "Düşük", "medium": "Orta", "high": "Yüksek", "critical": "Kritik"}
+        overdue_days = task.get('overdue_days', 1)
+        tasks_html += f"""
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #27272A;">
+                <strong style="color: #FAFAFA;">{task['title']}</strong><br>
+                <span style="color: #A1A1AA; font-size: 13px;">
+                    Proje: {task.get('project_name', '-')} | 
+                    Öncelik: {priority_tr.get(task.get('priority', 'medium'), 'Orta')}
+                </span>
+            </td>
+            <td style="padding: 12px; border-bottom: 1px solid #27272A; text-align: right;">
+                <span style="color: #EF4444; font-weight: 500;">{overdue_days} gün gecikmiş</span>
+            </td>
+        </tr>
+        """
+    
+    html = f"""
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #09090B; color: #FAFAFA; padding: 24px; border-radius: 12px;">
+        <h2 style="color: #FAFAFA; margin-bottom: 8px;">Merhaba {user_name},</h2>
+        <p style="color: #A1A1AA; margin-bottom: 24px;">Aşağıdaki görevlerin deadline'ı geçti ve hâlâ tamamlanmadı.</p>
+        
+        <table style="width: 100%; border-collapse: collapse; background: #18181B; border-radius: 8px; overflow: hidden;">
+            <thead>
+                <tr style="background: #27272A;">
+                    <th style="padding: 12px; text-align: left; color: #A1A1AA; font-weight: 500;">Görev</th>
+                    <th style="padding: 12px; text-align: right; color: #A1A1AA; font-weight: 500;">Durum</th>
+                </tr>
+            </thead>
+            <tbody>
+                {tasks_html}
+            </tbody>
+        </table>
+        
+        <p style="color: #71717A; font-size: 13px; margin-top: 24px; text-align: center;">
+            QA Task Manager - Intertech
+        </p>
+    </div>
+    """
+    return subject, html
+
+async def process_reminders():
+    """Main reminder processor - runs hourly"""
+    logger.info("Starting reminder check...")
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    tomorrow_end = (now + timedelta(days=1)).replace(hour=23, minute=59, second=59).isoformat()
+    
+    # Get all users
+    users = await db.users.find({}, {"_id": 0}).to_list(1000)
+    
+    for user in users:
+        user_id = user['id']
+        user_email = user['email']
+        user_name = user['name'].split()[0]
+        
+        # Get all projects for name lookup
+        projects = await db.projects.find({"user_id": user_id}, {"_id": 0}).to_list(100)
+        project_map = {p['id']: p['name'] for p in projects}
+        
+        # 1. UPCOMING DEADLINES (within 24 hours)
+        upcoming_tasks = await db.tasks.find({
+            "user_id": user_id,
+            "status": {"$ne": TaskStatus.COMPLETED},
+            "due_date": {"$gte": now.isoformat(), "$lte": tomorrow_end},
+            "$or": [
+                {"last_reminder_date": {"$exists": False}},
+                {"last_reminder_date": {"$lt": today_start}}
+            ]
+        }, {"_id": 0}).to_list(100)
+        
+        if upcoming_tasks:
+            for task in upcoming_tasks:
+                task['project_name'] = project_map.get(task.get('project_id'), '-')
+            
+            subject, html = generate_upcoming_deadline_email(upcoming_tasks, user_name)
+            sent = await send_reminder_email(user_email, subject, html)
+            
+            if sent:
+                # Update last_reminder_date for these tasks
+                task_ids = [t['id'] for t in upcoming_tasks]
+                await db.tasks.update_many(
+                    {"id": {"$in": task_ids}},
+                    {"$set": {"last_reminder_date": now.isoformat()}}
+                )
+        
+        # 2. OVERDUE TASKS
+        overdue_tasks = await db.tasks.find({
+            "user_id": user_id,
+            "status": {"$ne": TaskStatus.COMPLETED},
+            "due_date": {"$lt": now.isoformat(), "$ne": None},
+            "$or": [
+                {"last_reminder_date": {"$exists": False}},
+                {"last_reminder_date": {"$lt": today_start}}
+            ]
+        }, {"_id": 0}).to_list(100)
+        
+        if overdue_tasks:
+            for task in overdue_tasks:
+                task['project_name'] = project_map.get(task.get('project_id'), '-')
+                due_dt = datetime.fromisoformat(task['due_date'].replace('Z', '+00:00'))
+                task['overdue_days'] = (now - due_dt).days
+            
+            subject, html = generate_overdue_email(overdue_tasks, user_name)
+            sent = await send_reminder_email(user_email, subject, html)
+            
+            if sent:
+                task_ids = [t['id'] for t in overdue_tasks]
+                await db.tasks.update_many(
+                    {"id": {"$in": task_ids}},
+                    {"$set": {"last_reminder_date": now.isoformat()}}
+                )
+    
+    logger.info("Reminder check completed")
+
+async def reminder_scheduler():
+    """Background task that runs every hour"""
+    while True:
+        try:
+            await process_reminders()
+        except Exception as e:
+            logger.error(f"Reminder scheduler error: {str(e)}")
+        await asyncio.sleep(3600)  # 1 hour
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup and shutdown events"""
+    # Start background scheduler
+    task = asyncio.create_task(reminder_scheduler())
+    logger.info("Email reminder scheduler started")
+    yield
+    # Cleanup
+    task.cancel()
+    client.close()
+
+# Create the main app with lifespan
+app = FastAPI(title="QA Task Manager - Intertech", lifespan=lifespan)
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
