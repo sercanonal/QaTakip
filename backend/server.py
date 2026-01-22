@@ -8,7 +8,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 
 ROOT_DIR = Path(__file__).parent
@@ -400,6 +400,84 @@ async def get_dashboard_stats(user_id: str):
         "status": {"$ne": TaskStatus.COMPLETED}
     })
     
+    # === TODAY FOCUS: Akıllı önceliklendirme ===
+    now_dt = datetime.now(timezone.utc)
+    today_end = now_dt.replace(hour=23, minute=59, second=59).isoformat()
+    tomorrow_end = (now_dt.replace(hour=23, minute=59, second=59) + timedelta(days=1)).isoformat()
+    
+    # Tüm aktif görevleri al (tamamlanmamış)
+    active_tasks = await db.tasks.find({
+        "user_id": user_id,
+        "status": {"$ne": TaskStatus.COMPLETED}
+    }, {"_id": 0}).to_list(1000)
+    
+    # Her görev için risk ve aciliyet hesapla
+    focus_tasks = []
+    for task in active_tasks:
+        risk_score = 0
+        urgency_score = 0
+        labels = []
+        
+        # Öncelik puanı
+        priority_weights = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+        risk_score += priority_weights.get(task.get("priority", "medium"), 2)
+        
+        # Gecikme kontrolü
+        if task.get("due_date"):
+            due_dt = datetime.fromisoformat(task["due_date"].replace("Z", "+00:00"))
+            days_until = (due_dt - now_dt).days
+            
+            if days_until < 0:
+                # Gecikmiş
+                overdue_days = abs(days_until)
+                risk_score += min(overdue_days, 5) + 3  # Max +8
+                urgency_score = 10
+                labels.append(f"{overdue_days} gün gecikmiş")
+            elif days_until == 0:
+                # Bugün son gün
+                risk_score += 3
+                urgency_score = 8
+                labels.append("Bugün son gün")
+            elif days_until == 1:
+                # Yarın bitiyor
+                risk_score += 2
+                urgency_score = 6
+                labels.append("Yarın bitiyor")
+            elif days_until <= 3:
+                # 3 gün içinde
+                risk_score += 1
+                urgency_score = 4
+                labels.append(f"{days_until} gün kaldı")
+        
+        # Kritik veya yüksek öncelikli
+        if task.get("priority") in ["critical", "high"]:
+            if "Bugün son gün" not in labels and not any("gecikmiş" in l for l in labels):
+                labels.append("Yüksek öncelik")
+        
+        task["risk_score"] = risk_score
+        task["urgency_score"] = urgency_score
+        task["focus_labels"] = labels
+        
+        # Sadece dikkat gerektiren görevleri ekle
+        if risk_score >= 4 or urgency_score >= 4:
+            focus_tasks.append(task)
+    
+    # Risk skoruna göre sırala
+    focus_tasks.sort(key=lambda x: (x["urgency_score"], x["risk_score"]), reverse=True)
+    
+    # Özet mesajlar
+    overdue_list = [t for t in focus_tasks if any("gecikmiş" in l for l in t.get("focus_labels", []))]
+    critical_today = [t for t in focus_tasks if "Bugün son gün" in t.get("focus_labels", [])]
+    high_priority = [t for t in active_tasks if t.get("priority") in ["critical", "high"]]
+    
+    today_summary = []
+    if overdue_list:
+        today_summary.append(f"{len(overdue_list)} görev gecikmiş durumda")
+    if critical_today:
+        today_summary.append(f"{len(critical_today)} görevin bugün son günü")
+    if len(high_priority) > 0 and not overdue_list and not critical_today:
+        today_summary.append(f"{len(high_priority)} yüksek öncelikli görev bekliyor")
+    
     return {
         "total_tasks": total_tasks,
         "completed_tasks": completed_tasks,
@@ -409,7 +487,12 @@ async def get_dashboard_stats(user_id: str):
         "completion_rate": round((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0, 1),
         "category_stats": {stat["_id"]: stat["count"] for stat in category_stats},
         "priority_stats": {stat["_id"]: stat["count"] for stat in priority_stats},
-        "recent_tasks": recent_tasks
+        "recent_tasks": recent_tasks,
+        "today_focus": {
+            "tasks": focus_tasks[:5],  # En önemli 5 görev
+            "summary": today_summary,
+            "total_attention_needed": len(focus_tasks)
+        }
     }
 
 # Notification Routes
