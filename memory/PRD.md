@@ -51,6 +51,12 @@ Intertech şirketinde QA mühendisleri için profesyonel iş takip uygulaması. 
 - [x] Takvimde seçili güne göre Daily Summary gösterimi eklendi
 - [x] Kanban board 5 kolona genişletildi (Backlog, Bugün Başlamayı Planlıyorum, Devam Ediyor, Bloke, Tamamlandı)
 - [x] Daily Summary popup eklendi (büyük dialog ile detaylı görünüm)
+- [x] **Görev Atama Sistemi** - Ekip arkadaşlarına görev atama özelliği eklendi
+  - Tüm kullanıcılar listesi (/api/users)
+  - Görev formunda "Atanan Kişi" alanı
+  - Atama filtresi (Tüm Görevler, Kendi Görevlerim, Bana Atananlar, Atadıklarım)
+  - Atama yapıldığında bildirim gönderimi
+  - Kanban kartlarında atanan kişi gösterimi
 
 ## API Endpoints
 - `POST /api/auth/register` - Yeni kullanıcı kaydı
