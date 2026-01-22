@@ -52,6 +52,7 @@ const CalendarPage = () => {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDailyPopup, setShowDailyPopup] = useState(false);
 
   useEffect(() => {
     fetchTasks();
