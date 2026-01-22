@@ -95,7 +95,8 @@ async def init_db():
 # ============== Enums ==============
 
 class TaskStatus(str, Enum):
-    TODO = "todo"
+    BACKLOG = "backlog"  # Eski "todo" - Backlog
+    TODAY_PLANNED = "today_planned"  # Bugün Başlamayı Planlıyorum
     IN_PROGRESS = "in_progress"
     BLOCKED = "blocked"
     COMPLETED = "completed"
