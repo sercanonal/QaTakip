@@ -103,9 +103,6 @@ const Settings = () => {
             <User className="w-5 h-5 text-primary" />
             Profil Bilgileri
           </CardTitle>
-          <CardDescription>
-            Hesap bilgileriniz (salt okunur)
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-4">
@@ -116,10 +113,7 @@ const Settings = () => {
             </div>
             <div>
               <h3 className="font-heading text-lg font-bold">{user?.name}</h3>
-              <p className="text-muted-foreground flex items-center gap-2">
-                <Mail className="w-4 h-4" />
-                {user?.email}
-              </p>
+              <p className="text-sm text-muted-foreground">Bu cihaza kayıtlı</p>
             </div>
           </div>
         </CardContent>
