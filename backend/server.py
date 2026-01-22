@@ -242,7 +242,8 @@ async def create_project(project: ProjectBase, user_id: str):
     project_dict = project_obj.model_dump()
     
     await db.projects.insert_one(project_dict)
-    return project_dict
+    # Return clean dict without MongoDB ObjectId
+    return {k: v for k, v in project_dict.items() if k != "_id"}
 
 @api_router.get("/projects", response_model=List[dict])
 async def get_projects(user_id: str):
