@@ -283,7 +283,9 @@ const CalendarPage = () => {
               <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
                 <div className="flex items-center gap-2 mb-3">
                   <Clock className="w-5 h-5 text-blue-400" />
-                  <h4 className="font-semibold text-blue-400">Bugün Devam Edeceğim</h4>
+                  <h4 className="font-semibold text-blue-400">
+                    {isSelectedToday ? "Bugün Devam Edeceğim" : "Devam Eden"}
+                  </h4>
                 </div>
                 {dailySummary.today_in_progress.length > 0 ? (
                   <ul className="space-y-2">
