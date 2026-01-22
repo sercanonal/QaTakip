@@ -613,6 +613,25 @@ const Tasks = () => {
                                   )}
                                 </div>
                                 
+                                {/* Show assigned user */}
+                                {task.assigned_to && (
+                                  <div className="flex items-center gap-1 mt-2">
+                                    <User className="w-3 h-3 text-primary" />
+                                    <span className="text-xs text-primary">
+                                      {task.assigned_to === user?.id ? "Ben" : (task.assigned_to_name || getUserName(task.assigned_to))}
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {/* Show if task is assigned by someone else */}
+                                {task.user_id !== user?.id && !task.assigned_to && (
+                                  <div className="flex items-center gap-1 mt-2">
+                                    <span className="text-xs text-muted-foreground italic">
+                                      {task.created_by_name || "Başka kullanıcı"} tarafından
+                                    </span>
+                                  </div>
+                                )}
+                                
                                 {task.project_id && (
                                   <p className="text-xs text-muted-foreground mt-1 font-mono truncate">
                                     {getProjectName(task.project_id)}
