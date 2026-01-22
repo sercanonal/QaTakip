@@ -757,6 +757,13 @@ async def delete_notification(notification_id: str):
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
+# Manual trigger for testing reminders (can be removed in production)
+@api_router.post("/reminders/trigger")
+async def trigger_reminders():
+    """Manually trigger reminder check - for testing"""
+    await process_reminders()
+    return {"message": "Reminder check completed"}
+
 # Include the router in the main app
 app.include_router(api_router)
 
