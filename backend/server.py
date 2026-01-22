@@ -493,11 +493,25 @@ async def create_task(task: TaskCreate, user_id: str):
     
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            """INSERT INTO tasks (id, title, description, category_id, project_id, user_id, status, priority, due_date, created_at, completed_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO tasks (id, title, description, category_id, project_id, user_id, assigned_to, status, priority, due_date, created_at, completed_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (task_id, task.title, task.description or "", task.category_id, task.project_id, user_id, 
-             TaskStatus.BACKLOG.value, task.priority.value, task.due_date, created_at, None)
+             task.assigned_to, TaskStatus.BACKLOG.value, task.priority.value, task.due_date, created_at, None)
         )
+        
+        # Create notification if task is assigned to someone else
+        if task.assigned_to and task.assigned_to != user_id:
+            # Get assigner name
+            cursor = await db.execute("SELECT name FROM users WHERE id = ?", (user_id,))
+            assigner = await cursor.fetchone()
+            assigner_name = assigner[0] if assigner else "Birisi"
+            
+            notif_id = str(uuid.uuid4())
+            await db.execute(
+                "INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (notif_id, task.assigned_to, "Yeni Görev Atandı", f"{assigner_name} size bir görev atadı: {task.title}", "info", 0, created_at)
+            )
+        
         await db.commit()
     
     return {
@@ -507,6 +521,7 @@ async def create_task(task: TaskCreate, user_id: str):
         "category_id": task.category_id,
         "project_id": task.project_id,
         "user_id": user_id,
+        "assigned_to": task.assigned_to,
         "status": TaskStatus.BACKLOG.value,
         "priority": task.priority.value,
         "due_date": task.due_date,
