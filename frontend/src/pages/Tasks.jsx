@@ -150,15 +150,21 @@ const Tasks = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (taskId) => {
+  const handleDelete = async (taskId, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     if (!window.confirm("Bu görevi silmek istediğinize emin misiniz?")) return;
     
     try {
       await api.delete(`/tasks/${taskId}`);
       toast.success("Görev silindi");
-      fetchTasks();
+      setTasks(prev => prev.filter(t => t.id !== taskId));
     } catch (error) {
-      toast.error("Görev silinirken hata oluştu");
+      console.error("Delete error:", error);
+      toast.error(error.response?.data?.detail || "Görev silinirken hata oluştu");
     }
   };
 
