@@ -1,5 +1,5 @@
 # Backend Dependencies - QA Task Manager
-# Compatible with Python 3.10+
+# Compatible with Python 3.10+ / 3.11
 
 # Web Framework
 fastapi==0.110.1
