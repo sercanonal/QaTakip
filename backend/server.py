@@ -854,14 +854,13 @@ async def get_daily_summary(user_id: str, target_date: Optional[str] = None):
             for r in blocked_rows
         ]
         
-        # Today planned (todo with high priority or due on target date)
-        today_end = today_start + timedelta(days=1)
+        # Today planned - tasks with status "today_planned"
         cursor = await db.execute(
             """SELECT id, title, description, category_id, project_id, status, priority, due_date 
                FROM tasks 
-               WHERE user_id = ? AND status = ? AND (priority IN ('high', 'critical') OR (due_date >= ? AND due_date < ?))
+               WHERE user_id = ? AND status = ?
                ORDER BY priority DESC, due_date ASC""",
-            (user_id, TaskStatus.TODO.value, today_start.isoformat(), today_end.isoformat())
+            (user_id, TaskStatus.TODAY_PLANNED.value)
         )
         planned_rows = await cursor.fetchall()
         today_planned = [
