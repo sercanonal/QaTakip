@@ -15,10 +15,12 @@ from contextlib import asynccontextmanager
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# MongoDB connection with fallback defaults
+MONGO_URL = os.getenv('MONGO_URL', 'mongodb://127.0.0.1:27017')
+DB_NAME = os.getenv('DB_NAME', 'qa_task_manager')
+
+client = AsyncIOMotorClient(MONGO_URL)
+db = client[DB_NAME]
 
 # Configure logging
 logging.basicConfig(
@@ -30,7 +32,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
-    logger.info("QA Task Manager started")
+    logger.info(f"QA Task Manager started - DB: {DB_NAME}")
     yield
     client.close()
 
@@ -154,13 +156,19 @@ class Notification(BaseModel):
 @api_router.post("/auth/register", response_model=UserResponse)
 async def register(user_data: UserCreate):
     """Register new user with device_id"""
+    if not user_data.name or not user_data.name.strip():
+        raise HTTPException(status_code=400, detail="İsim boş olamaz")
+    
+    if not user_data.device_id:
+        raise HTTPException(status_code=400, detail="Cihaz kimliği gerekli")
+    
     # Check if device already registered
     existing = await db.users.find_one({"device_id": user_data.device_id})
     if existing:
         # Return existing user
         return UserResponse(**{k: v for k, v in existing.items() if k != "_id"})
     
-    user = User(name=user_data.name, device_id=user_data.device_id)
+    user = User(name=user_data.name.strip(), device_id=user_data.device_id)
     user_dict = user.model_dump()
     
     await db.users.insert_one(user_dict)
@@ -169,7 +177,7 @@ async def register(user_data: UserCreate):
     notification = Notification(
         user_id=user.id,
         title="Hoş Geldiniz!",
-        message=f"QA Task Manager'a hoş geldiniz, {user_data.name}!",
+        message=f"QA Task Manager'a hoş geldiniz, {user_data.name.strip()}!",
         type="success"
     )
     await db.notifications.insert_one(notification.model_dump())
@@ -179,6 +187,9 @@ async def register(user_data: UserCreate):
 @api_router.get("/auth/check/{device_id}", response_model=UserResponse)
 async def check_device(device_id: str):
     """Check if device is registered"""
+    if not device_id:
+        raise HTTPException(status_code=400, detail="Cihaz kimliği gerekli")
+    
     user = await db.users.find_one({"device_id": device_id}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=404, detail="Cihaz kayıtlı değil")
@@ -216,7 +227,6 @@ async def delete_category(user_id: str, category_id: str):
     if not user:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
     
-    # Check if category is default
     for cat in user.get("categories", []):
         if cat["id"] == category_id and cat.get("is_default"):
             raise HTTPException(status_code=400, detail="Varsayılan kategoriler silinemez")
@@ -366,27 +376,23 @@ async def get_dashboard_stats(user_id: str):
     in_progress_tasks = await db.tasks.count_documents({"user_id": user_id, "status": TaskStatus.IN_PROGRESS})
     todo_tasks = await db.tasks.count_documents({"user_id": user_id, "status": TaskStatus.TODO})
     
-    # Tasks by category
     pipeline = [
         {"$match": {"user_id": user_id}},
         {"$group": {"_id": "$category_id", "count": {"$sum": 1}}}
     ]
     category_stats = await db.tasks.aggregate(pipeline).to_list(100)
     
-    # Tasks by priority
     priority_pipeline = [
         {"$match": {"user_id": user_id}},
         {"$group": {"_id": "$priority", "count": {"$sum": 1}}}
     ]
     priority_stats = await db.tasks.aggregate(priority_pipeline).to_list(100)
     
-    # Recent tasks
     recent_tasks = await db.tasks.find(
         {"user_id": user_id},
         {"_id": 0}
     ).sort("created_at", -1).limit(5).to_list(5)
     
-    # Overdue tasks
     now = datetime.now(timezone.utc).isoformat()
     overdue_tasks = await db.tasks.count_documents({
         "user_id": user_id,
@@ -396,7 +402,6 @@ async def get_dashboard_stats(user_id: str):
     
     # === TODAY FOCUS ===
     now_dt = datetime.now(timezone.utc)
-    tomorrow_end = (now_dt + timedelta(days=1)).replace(hour=23, minute=59, second=59).isoformat()
     
     active_tasks = await db.tasks.find({
         "user_id": user_id,
@@ -413,26 +418,29 @@ async def get_dashboard_stats(user_id: str):
         risk_score += priority_weights.get(task.get("priority", "medium"), 2)
         
         if task.get("due_date"):
-            due_dt = datetime.fromisoformat(task["due_date"].replace("Z", "+00:00"))
-            days_until = (due_dt - now_dt).days
-            
-            if days_until < 0:
-                overdue_days = abs(days_until)
-                risk_score += min(overdue_days, 5) + 3
-                urgency_score = 10
-                labels.append(f"{overdue_days} gün gecikmiş")
-            elif days_until == 0:
-                risk_score += 3
-                urgency_score = 8
-                labels.append("Bugün son gün")
-            elif days_until == 1:
-                risk_score += 2
-                urgency_score = 6
-                labels.append("Yarın bitiyor")
-            elif days_until <= 3:
-                risk_score += 1
-                urgency_score = 4
-                labels.append(f"{days_until} gün kaldı")
+            try:
+                due_dt = datetime.fromisoformat(task["due_date"].replace("Z", "+00:00"))
+                days_until = (due_dt - now_dt).days
+                
+                if days_until < 0:
+                    overdue_days = abs(days_until)
+                    risk_score += min(overdue_days, 5) + 3
+                    urgency_score = 10
+                    labels.append(f"{overdue_days} gün gecikmiş")
+                elif days_until == 0:
+                    risk_score += 3
+                    urgency_score = 8
+                    labels.append("Bugün son gün")
+                elif days_until == 1:
+                    risk_score += 2
+                    urgency_score = 6
+                    labels.append("Yarın bitiyor")
+                elif days_until <= 3:
+                    risk_score += 1
+                    urgency_score = 4
+                    labels.append(f"{days_until} gün kaldı")
+            except:
+                pass
         
         if task.get("priority") in ["critical", "high"]:
             if not labels:
@@ -522,7 +530,7 @@ app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
