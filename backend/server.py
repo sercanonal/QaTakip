@@ -270,6 +270,20 @@ async def check_device(device_id: str):
 
 # ============== USER ROUTES ==============
 
+@api_router.get("/users", response_model=List[dict])
+async def get_all_users():
+    """Get all registered users for team assignment"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT id, name, created_at FROM users ORDER BY name ASC"
+        )
+        rows = await cursor.fetchall()
+        
+        return [
+            {"id": row[0], "name": row[1], "created_at": row[2]}
+            for row in rows
+        ]
+
 @api_router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(user_id: str):
     async with aiosqlite.connect(DB_PATH) as db:
