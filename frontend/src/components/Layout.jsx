@@ -227,7 +227,9 @@ const Layout = () => {
             {sidebarOpen && (
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{user?.name}</p>
-                <p className="text-xs text-muted-foreground truncate">QA Engineer</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {user?.role === "admin" ? "Admin" : user?.role === "manager" ? "Manager" : "QA Engineer"}
+                </p>
               </div>
             )}
           </div>
