@@ -268,9 +268,84 @@ async def get_db():
 
 # ============== AUTH ROUTES ==============
 
+@api_router.post("/auth/ldap-login", response_model=UserResponse)
+async def ldap_login(user_data: UserLogin):
+    """
+    LDAPS Authentication endpoint
+    Authenticates user against LDAP server, creates/updates local user record
+    """
+    if not LDAPS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="LDAPS authentication not configured")
+    
+    if not user_data.username or not user_data.password:
+        raise HTTPException(status_code=400, detail="Kullanıcı adı ve şifre gerekli")
+    
+    # Authenticate against LDAPS
+    ldap_user_info = ldaps_handler.authenticate_user(user_data.username, user_data.password)
+    
+    if not ldap_user_info:
+        raise HTTPException(status_code=401, detail="Geçersiz kullanıcı adı veya şifre")
+    
+    # Check/create user in local database
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Try to find by username or email
+        cursor = await db.execute(
+            "SELECT id, name, email, device_id, categories, created_at FROM users WHERE name = ? OR email = ?",
+            (user_data.username, user_data.email)
+        )
+        existing = await cursor.fetchone()
+        
+        if existing:
+            # Update last login and email if needed
+            await db.execute(
+                "UPDATE users SET email = ? WHERE id = ?",
+                (user_data.email, existing[0])
+            )
+            await db.commit()
+            
+            return UserResponse(
+                id=existing[0],
+                name=existing[1],
+                email=user_data.email,
+                device_id=existing[3],
+                categories=json.loads(existing[4]),
+                created_at=existing[5]
+            )
+        
+        # Create new user from LDAP info
+        user_id = str(uuid.uuid4())
+        device_id = str(uuid.uuid4())  # Generate device ID for LDAP users
+        created_at = datetime.now(timezone.utc).isoformat()
+        categories_json = json.dumps(DEFAULT_CATEGORIES)
+        
+        await db.execute(
+            "INSERT INTO users (id, name, email, device_id, categories, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, user_data.username, user_data.email, device_id, categories_json, created_at)
+        )
+        
+        # Create welcome notification
+        notif_id = str(uuid.uuid4())
+        await db.execute(
+            "INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (notif_id, user_id, "Hoş Geldiniz!", f"QA Task Manager'a hoş geldiniz, {user_data.username}!", "success", 0, created_at)
+        )
+        
+        await db.commit()
+        
+        logger.info(f"New LDAP user created: {user_data.username}")
+        
+        return UserResponse(
+            id=user_id,
+            name=user_data.username,
+            email=user_data.email,
+            device_id=device_id,
+            categories=DEFAULT_CATEGORIES,
+            created_at=created_at
+        )
+
 @api_router.post("/auth/register", response_model=UserResponse)
 async def register(user_data: UserCreate):
-    """Register new user with device_id"""
+    """Register new user with device_id (fallback for non-LDAP)"""
     if not user_data.name or not user_data.name.strip():
         raise HTTPException(status_code=400, detail="İsim boş olamaz")
     
@@ -280,7 +355,7 @@ async def register(user_data: UserCreate):
     async with aiosqlite.connect(DB_PATH) as db:
         # Check if device already registered
         cursor = await db.execute(
-            "SELECT id, name, device_id, categories, created_at FROM users WHERE device_id = ?",
+            "SELECT id, name, email, device_id, categories, created_at FROM users WHERE device_id = ?",
             (user_data.device_id,)
         )
         existing = await cursor.fetchone()
@@ -289,9 +364,10 @@ async def register(user_data: UserCreate):
             return UserResponse(
                 id=existing[0],
                 name=existing[1],
-                device_id=existing[2],
-                categories=json.loads(existing[3]),
-                created_at=existing[4]
+                email=existing[2],
+                device_id=existing[3],
+                categories=json.loads(existing[4]),
+                created_at=existing[5]
             )
         
         # Create new user
@@ -300,8 +376,8 @@ async def register(user_data: UserCreate):
         categories_json = json.dumps(DEFAULT_CATEGORIES)
         
         await db.execute(
-            "INSERT INTO users (id, name, device_id, categories, created_at) VALUES (?, ?, ?, ?, ?)",
-            (user_id, user_data.name.strip(), user_data.device_id, categories_json, created_at)
+            "INSERT INTO users (id, name, email, device_id, categories, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, user_data.name.strip(), user_data.email, user_data.device_id, categories_json, created_at)
         )
         
         # Create welcome notification
