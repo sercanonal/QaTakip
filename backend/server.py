@@ -623,7 +623,7 @@ async def check_device(device_id: str):
     
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            "SELECT id, name, email, device_id, categories, created_at FROM users WHERE device_id = ?",
+            "SELECT id, name, email, device_id, categories, created_at, role FROM users WHERE device_id = ?",
             (device_id,)
         )
         user = await cursor.fetchone()
@@ -637,7 +637,8 @@ async def check_device(device_id: str):
             email=user[2],
             device_id=user[3],
             categories=json.loads(user[4]),
-            created_at=user[5]
+            created_at=user[5],
+            role=user[6] or "user"
         )
 
 # ============== USER ROUTES ==============
