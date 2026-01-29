@@ -104,6 +104,18 @@ async def init_db():
         except:
             pass  # Column already exists
         
+        # Add email column to users if not exists
+        try:
+            await db.execute('ALTER TABLE users ADD COLUMN email TEXT')
+        except:
+            pass  # Column already exists
+        
+        # Add password_hash column for LDAPS fallback (optional)
+        try:
+            await db.execute('ALTER TABLE users ADD COLUMN password_hash TEXT')
+        except:
+            pass  # Column already exists
+        
         # Projects table
         await db.execute('''
             CREATE TABLE IF NOT EXISTS projects (
