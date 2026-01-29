@@ -49,6 +49,7 @@ const AdminPanel = () => {
   const [loading, setLoading] = useState(true);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [updatingRole, setUpdatingRole] = useState(null);
+  const [clearingLogs, setClearingLogs] = useState(false);
 
   useEffect(() => {
     // Check if user is admin
