@@ -371,6 +371,44 @@ async def get_db():
     """Get database connection"""
     return await aiosqlite.connect(DB_PATH)
 
+async def get_current_user(request: Request, user_id: Optional[str] = None) -> dict:
+    """Get current user with role information"""
+    if not user_id:
+        # Try to get from query params or headers
+        user_id = request.query_params.get('user_id') or request.headers.get('X-User-Id')
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID required")
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT id, name, email, role FROM users WHERE id = ?",
+            (user_id,)
+        )
+        user = await cursor.fetchone()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {
+            "id": user[0],
+            "name": user[1],
+            "email": user[2],
+            "role": user[3] or "user"
+        }
+
+def require_role(*allowed_roles: str):
+    """Decorator to require specific roles"""
+    async def role_checker(request: Request, user_id: str):
+        user = await get_current_user(request, user_id)
+        if user["role"] not in allowed_roles:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Access denied. Required role: {', '.join(allowed_roles)}"
+            )
+        return user
+    return role_checker
+
 # ============== AUTH ROUTES ==============
 
 @api_router.post("/auth/ldap-login", response_model=UserResponse)
