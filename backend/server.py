@@ -139,6 +139,76 @@ async def init_db():
         except:
             pass  # Column already exists
         
+        # Add role column to users
+        try:
+            await db.execute('ALTER TABLE users ADD COLUMN role TEXT DEFAULT "user"')
+        except:
+            pass  # Column already exists
+        
+        # Audit Logs table
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                resource_type TEXT NOT NULL,
+                resource_id TEXT,
+                details TEXT,
+                ip_address TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create index for faster audit log queries
+        try:
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit_logs(user_id)')
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_logs(created_at)')
+        except:
+            pass
+        
+        # User Jira Mapping table
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS user_jira_mapping (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                jira_username TEXT,
+                jira_email TEXT,
+                jira_account_id TEXT,
+                last_synced TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ''')
+        
+        # Jira Tasks Cache table
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS jira_tasks_cache (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                jira_key TEXT NOT NULL,
+                jira_id TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                description TEXT,
+                status TEXT NOT NULL,
+                priority TEXT,
+                assignee TEXT,
+                issue_type TEXT,
+                jira_url TEXT,
+                raw_data TEXT,
+                last_synced TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ''')
+        
+        # Create index for Jira cache
+        try:
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_jira_user_id ON jira_tasks_cache(user_id)')
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_jira_key ON jira_tasks_cache(jira_key)')
+        except:
+            pass
+        
         # Projects table
         await db.execute('''
             CREATE TABLE IF NOT EXISTS projects (
