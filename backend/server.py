@@ -2017,6 +2017,11 @@ async def export_report(request_data: ReportExportRequest):
         logger.info(f"Gathering report data for user {user_id}")
         
         async with aiosqlite.connect(DB_PATH) as db:
+            # Get user name
+            cursor = await db.execute("SELECT name FROM users WHERE id = ?", (user_id,))
+            user_row = await cursor.fetchone()
+            report_data['user_name'] = user_row[0] if user_row else 'Kullanıcı'
+            
             # Get stats
             if include_stats:
                 cursor = await db.execute("SELECT COUNT(*) FROM tasks WHERE user_id = ?", (user_id,))
