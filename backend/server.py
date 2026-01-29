@@ -2376,6 +2376,208 @@ async def bugbagla_bind(request: Request):
     
     return StreamingResponse(generate(), media_type="text/event-stream")
 
+# ============== CYCLES & PROJECTS API ==============
+
+# JSON dosya yolları
+CYCLES_FILE = os.path.join(os.path.dirname(__file__), "data", "cycles.json")
+PROJECTS_FILE = os.path.join(os.path.dirname(__file__), "data", "projects.json")
+
+def ensure_data_files():
+    """Data klasörü ve dosyalarını oluştur"""
+    data_dir = os.path.join(os.path.dirname(__file__), "data")
+    os.makedirs(data_dir, exist_ok=True)
+    
+    if not os.path.exists(CYCLES_FILE):
+        with open(CYCLES_FILE, "w") as f:
+            json.dump({"cycles": []}, f)
+    
+    if not os.path.exists(PROJECTS_FILE):
+        with open(PROJECTS_FILE, "w") as f:
+            json.dump({"projects": []}, f)
+
+ensure_data_files()
+
+@api_router.get("/cycles")
+async def get_cycles():
+    """Get all cycles"""
+    try:
+        with open(CYCLES_FILE, "r") as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        logger.error(f"Cycles okuma hatası: {e}")
+        return {"cycles": []}
+
+@api_router.post("/cycles")
+async def add_cycle(request: Request):
+    """Add a new cycle"""
+    try:
+        body = await request.json()
+        key = body.get("key")
+        name = body.get("name")
+        
+        if not key or not name:
+            raise HTTPException(status_code=400, detail="key ve name gerekli!")
+        
+        with open(CYCLES_FILE, "r") as f:
+            data = json.load(f)
+        
+        if any(c["key"] == key for c in data["cycles"]):
+            raise HTTPException(status_code=400, detail="Bu cycle key zaten mevcut!")
+        
+        data["cycles"].append({"key": key, "name": name})
+        
+        with open(CYCLES_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+        
+        return {"success": True, "cycle": {"key": key, "name": name}}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Cycle ekleme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.put("/cycles/{key}")
+async def update_cycle(key: str, request: Request):
+    """Update a cycle"""
+    try:
+        body = await request.json()
+        new_key = body.get("key")
+        name = body.get("name")
+        
+        if not new_key or not name:
+            raise HTTPException(status_code=400, detail="key ve name gerekli!")
+        
+        with open(CYCLES_FILE, "r") as f:
+            data = json.load(f)
+        
+        index = next((i for i, c in enumerate(data["cycles"]) if c["key"] == key), None)
+        if index is None:
+            raise HTTPException(status_code=404, detail="Cycle bulunamadı!")
+        
+        data["cycles"][index] = {"key": new_key, "name": name}
+        
+        with open(CYCLES_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+        
+        return {"success": True, "cycle": {"key": new_key, "name": name}}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Cycle güncelleme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/cycles/{key}")
+async def delete_cycle(key: str):
+    """Delete a cycle"""
+    try:
+        with open(CYCLES_FILE, "r") as f:
+            data = json.load(f)
+        
+        data["cycles"] = [c for c in data["cycles"] if c["key"] != key]
+        
+        with open(CYCLES_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+        
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Cycle silme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/projects")
+async def get_projects():
+    """Get all projects"""
+    try:
+        with open(PROJECTS_FILE, "r") as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        logger.error(f"Projeler okuma hatası: {e}")
+        return {"projects": []}
+
+@api_router.post("/projects")
+async def add_project(request: Request):
+    """Add a new project"""
+    try:
+        body = await request.json()
+        name = body.get("name")
+        icon = body.get("icon", "📦")
+        links = body.get("links", {})
+        
+        if not name:
+            raise HTTPException(status_code=400, detail="name gerekli!")
+        
+        with open(PROJECTS_FILE, "r") as f:
+            data = json.load(f)
+        
+        if any(p["name"] == name for p in data["projects"]):
+            raise HTTPException(status_code=400, detail="Bu proje adı zaten mevcut!")
+        
+        new_project = {
+            "name": name,
+            "icon": icon,
+            "links": links
+        }
+        data["projects"].append(new_project)
+        
+        with open(PROJECTS_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+        
+        return {"success": True, "project": new_project}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Proje ekleme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.put("/projects/{name}")
+async def update_project(name: str, request: Request):
+    """Update a project"""
+    try:
+        body = await request.json()
+        new_name = body.get("name")
+        icon = body.get("icon")
+        links = body.get("links", {})
+        
+        if not new_name or not icon:
+            raise HTTPException(status_code=400, detail="name ve icon gerekli!")
+        
+        with open(PROJECTS_FILE, "r") as f:
+            data = json.load(f)
+        
+        index = next((i for i, p in enumerate(data["projects"]) if p["name"] == name), None)
+        if index is None:
+            raise HTTPException(status_code=404, detail="Proje bulunamadı!")
+        
+        data["projects"][index] = {"name": new_name, "icon": icon, "links": links}
+        
+        with open(PROJECTS_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+        
+        return {"success": True, "project": data["projects"][index]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Proje güncelleme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/projects/{name}")
+async def delete_project(name: str):
+    """Delete a project"""
+    try:
+        with open(PROJECTS_FILE, "r") as f:
+            data = json.load(f)
+        
+        data["projects"] = [p for p in data["projects"] if p["name"] != name]
+        
+        with open(PROJECTS_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+        
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Proje silme hatası: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ============== ANALYSIS API ==============
 
 @api_router.get("/analysis/projects")
