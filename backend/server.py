@@ -2043,6 +2043,53 @@ async def export_report(
         logger.error(f"Error generating report: {e}")
         raise HTTPException(status_code=500, detail=f"Rapor oluşturulurken hata: {str(e)}")
 
+@api_router.get("/debug/user-info")
+async def debug_user_info(user_id: Optional[str] = None, device_id: Optional[str] = None, name: Optional[str] = None):
+    """Debug endpoint to check user data including role"""
+    try:
+        async with aiosqlite.connect(DB_PATH) as db:
+            if user_id:
+                cursor = await db.execute(
+                    "SELECT id, name, email, device_id, role, created_at FROM users WHERE id = ?",
+                    (user_id,)
+                )
+            elif device_id:
+                cursor = await db.execute(
+                    "SELECT id, name, email, device_id, role, created_at FROM users WHERE device_id = ?",
+                    (device_id,)
+                )
+            elif name:
+                cursor = await db.execute(
+                    "SELECT id, name, email, device_id, role, created_at FROM users WHERE name = ?",
+                    (name,)
+                )
+            else:
+                # Get all users with roles
+                cursor = await db.execute(
+                    "SELECT id, name, email, device_id, role, created_at FROM users"
+                )
+            
+            rows = await cursor.fetchall()
+            
+            users_data = []
+            for row in rows:
+                users_data.append({
+                    "id": row[0],
+                    "name": row[1],
+                    "email": row[2],
+                    "device_id": row[3],
+                    "role": row[4],
+                    "created_at": row[5]
+                })
+            
+            return {
+                "success": True,
+                "count": len(users_data),
+                "users": users_data
+            }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 # Health check
 @api_router.get("/health")
 async def health_check():
