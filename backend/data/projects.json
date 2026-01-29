@@ -1,1 +1,9 @@
-{"projects":[]}
+{
+  "projects": [
+    {
+      "name": "FraudNG.UITests",
+      "icon": "\ud83d\ude80",
+      "links": {}
+    }
+  ]
+}
