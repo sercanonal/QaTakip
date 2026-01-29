@@ -38,6 +38,8 @@ const navItems = [
   { to: "/tasks", icon: CheckSquare, label: "Görevler" },
   { to: "/projects", icon: FolderKanban, label: "Projeler" },
   { to: "/calendar", icon: Calendar, label: "Takvim" },
+  { to: "/jira-tools", icon: Sparkles, label: "Jira Araçları", gradient: "from-purple-500 to-pink-500" },
+  { to: "/analysis", icon: Activity, label: "Analiz", gradient: "from-blue-500 to-cyan-500" },
   { to: "/reports", icon: BarChart3, label: "Raporlar" },
   { to: "/settings", icon: Settings, label: "Ayarlar" },
 ];
