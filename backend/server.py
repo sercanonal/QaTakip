@@ -339,7 +339,24 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     await init_db()
     logger.info("QA Task Manager started - Using SQLite (no MongoDB required)")
+    
+    # Start background jobs
+    if BACKGROUND_JOBS_AVAILABLE:
+        try:
+            start_background_jobs()
+            logger.info("Background jobs started")
+        except Exception as e:
+            logger.error(f"Failed to start background jobs: {e}")
+    
     yield
+    
+    # Cleanup on shutdown
+    if BACKGROUND_JOBS_AVAILABLE:
+        try:
+            stop_background_jobs()
+            logger.info("Background jobs stopped")
+        except Exception as e:
+            logger.error(f"Failed to stop background jobs: {e}")
 
 app = FastAPI(title="QA Task Manager - Intertech", lifespan=lifespan)
 api_router = APIRouter(prefix="/api")
