@@ -126,6 +126,11 @@ const Settings = () => {
       return;
     }
     
+    if (editingProject.isMobile && !editingProject.platform) {
+      toast.error("Mobil projeler için platform seçimi gerekli!");
+      return;
+    }
+    
     setProjectSaving(true);
     try {
       await api.put(`/qa-projects/${encodeURIComponent(editingProject.originalName)}`, editingProject);
