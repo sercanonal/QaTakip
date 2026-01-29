@@ -292,6 +292,26 @@ const Tasks = () => {
   // Group tasks by status
   const tasksByStatus = COLUMNS.reduce((acc, col) => {
     acc[col.id] = filteredTasks.filter(t => t.status === col.id);
+    
+    // Add Jira tasks to backlog column
+    if (col.id === "backlog" && jiraTasks.length > 0) {
+      const jiraTasksFormatted = jiraTasks.map(jt => ({
+        id: `jira-${jt.key}`,
+        title: `[JIRA] ${jt.summary}`,
+        description: jt.description,
+        status: "backlog",
+        priority: jt.priority?.toLowerCase() || "medium",
+        category_id: "jira-task",
+        jira_key: jt.key,
+        jira_url: jt.jira_url,
+        is_jira: true,
+        assigned_to_name: jt.assignee,
+        created_at: jt.created,
+        updated_at: jt.updated
+      }));
+      acc[col.id] = [...jiraTasksFormatted, ...acc[col.id]];
+    }
+    
     return acc;
   }, {});
 
