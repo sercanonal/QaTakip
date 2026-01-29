@@ -258,6 +258,119 @@ const Analysis = () => {
     }
   };
 
+  // API Analizi handler
+  const handleApiAnalyze = async () => {
+    if (apiSelectedProjects.length === 0) {
+      toast.error("En az bir proje seçin!");
+      return;
+    }
+
+    if (!apiForm.jiraTeamId) {
+      toast.error("Team ID gerekli!");
+      return;
+    }
+
+    // Tarih formatını dönüştür: GG/AA/YYYY -> YYYY-MM-DD
+    const dateParts = apiForm.reportDate.split('/');
+    if (dateParts.length !== 3) {
+      toast.error("Tarih formatı hatalı! GG/AA/YYYY formatında girin.");
+      return;
+    }
+    const [day, month, year] = dateParts;
+    const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+
+    setApiLoading(true);
+    setApiOutput("");
+    setApiResults([]);
+    setApiStats({ total: 0, testedInReport: 0, notTestedInReport: 0, notInReport: 0, onlyInReport: 0, passed: 0, failed: 0, externalEndpoints: 0 });
+    setApiMetrics({ raporEndpointSayisi: 0, raporaYansiyanTest: 0, coverageOrani: "0", otomasyondaAmaRapordaYok: 0, passedAmaNegatifSayisi: 0, failedEtkilenenEndpointSayisi: 0, tahminiGuncelPass: 0, tahminiGuncelCoverage: "0" });
+
+    try {
+      const response = await fetch(`${API_URL}/api/analysis/apianaliz`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jiraTeamId: parseInt(apiForm.jiraTeamId),
+          reportDate: formattedDate,
+          projectNames: apiSelectedProjects,
+          days: parseInt(apiForm.days) || 1,
+          time: apiForm.time || "00:00",
+        }),
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const jsonStr = line.substring(6);
+            if (!jsonStr.trim()) continue;
+
+            try {
+              const eventData = JSON.parse(jsonStr);
+              if (eventData.log) {
+                setApiOutput(prev => prev + eventData.log + "\n");
+              } else if (eventData.error) {
+                toast.error(eventData.error);
+              } else if (eventData.success && eventData.tableData) {
+                setApiResults(eventData.tableData);
+                setApiStats(eventData.stats);
+                if (eventData.managementMetrics) {
+                  setApiMetrics(eventData.managementMetrics);
+                }
+                toast.success("API Analizi tamamlandı!");
+              }
+            } catch (e) {
+              console.error("JSON parse error:", e);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      toast.error("Bağlantı hatası: " + error.message);
+    } finally {
+      setApiLoading(false);
+    }
+  };
+
+  const toggleApiProject = (name) => {
+    setApiSelectedProjects(prev => 
+      prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name]
+    );
+  };
+
+  // API Filtering
+  const filteredApiResults = apiResults.filter(row => {
+    const matchesSearch = !apiSearchText || 
+      row.key?.toLowerCase().includes(apiSearchText.toLowerCase()) ||
+      row.name?.toLowerCase().includes(apiSearchText.toLowerCase()) ||
+      row.app?.toLowerCase().includes(apiSearchText.toLowerCase()) ||
+      row.endpoint?.toLowerCase().includes(apiSearchText.toLowerCase());
+    
+    const matchesStatus = !apiStatusFilter || row.status === apiStatusFilter;
+    
+    let matchesRapor = true;
+    if (apiRaporFilter === "true") matchesRapor = row.rapor === true;
+    else if (apiRaporFilter === "false") matchesRapor = row.rapor === false;
+    else if (apiRaporFilter === "notest") matchesRapor = row.rapor === "notest";
+    else if (apiRaporFilter === "null") matchesRapor = row.rapor === null;
+    
+    let matchesExternal = true;
+    if (apiExternalFilter === "true") matchesExternal = row.external === true;
+    else if (apiExternalFilter === "false") matchesExternal = row.external === false;
+    
+    return matchesSearch && matchesStatus && matchesRapor && matchesExternal;
+  });
+
   // Filtering logic
   const filteredResults = analysisResults.filter(row => {
     const matchesSearch = !searchText || 
