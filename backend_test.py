@@ -12,7 +12,7 @@ import os
 from datetime import datetime, timezone
 
 # Get backend URL from environment
-BACKEND_URL = "https://jiraqa-connect.preview.emergentagent.com"
+BACKEND_URL = "https://testcenter-1.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 class Colors:
