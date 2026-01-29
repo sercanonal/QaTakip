@@ -533,10 +533,13 @@ async def ldap_login(user_data: UserLogin, request: Request):
         )
 
 @api_router.post("/auth/register", response_model=UserResponse)
-async def register(user_data: UserCreate):
-    """Register new user with device_id (fallback for non-LDAP)"""
+async def register(user_data: UserCreate, request: Request):
+    """Register new user with device_id"""
     if not user_data.name or not user_data.name.strip():
         raise HTTPException(status_code=400, detail="İsim boş olamaz")
+    
+    if not user_data.email or not user_data.email.strip():
+        raise HTTPException(status_code=400, detail="Email boş olamaz")
     
     if not user_data.device_id:
         raise HTTPException(status_code=400, detail="Cihaz kimliği gerekli")
@@ -544,19 +547,27 @@ async def register(user_data: UserCreate):
     async with aiosqlite.connect(DB_PATH) as db:
         # Check if device already registered
         cursor = await db.execute(
-            "SELECT id, name, email, device_id, categories, created_at FROM users WHERE device_id = ?",
+            "SELECT id, name, email, device_id, categories, created_at, role FROM users WHERE device_id = ?",
             (user_data.device_id,)
         )
         existing = await cursor.fetchone()
         
         if existing:
+            # Audit log
+            await log_audit(
+                existing[0], "login", "user", existing[0],
+                f"Login: {existing[1]}",
+                request.client.host if request.client else None
+            )
+            
             return UserResponse(
                 id=existing[0],
                 name=existing[1],
                 email=existing[2],
                 device_id=existing[3],
                 categories=json.loads(existing[4]),
-                created_at=existing[5]
+                created_at=existing[5],
+                role=existing[6] or "user"
             )
         
         # Create new user
@@ -564,19 +575,35 @@ async def register(user_data: UserCreate):
         created_at = datetime.now(timezone.utc).isoformat()
         categories_json = json.dumps(DEFAULT_CATEGORIES)
         
+        # Only SERCANO is admin by default
+        role = "admin" if user_data.name.upper() == "SERCANO" else "user"
+        
         await db.execute(
-            "INSERT INTO users (id, name, email, device_id, categories, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (user_id, user_data.name.strip(), user_data.email, user_data.device_id, categories_json, created_at)
+            "INSERT INTO users (id, name, email, device_id, categories, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (user_id, user_data.name.strip(), user_data.email, user_data.device_id, categories_json, role, created_at)
         )
         
         # Create welcome notification
         notif_id = str(uuid.uuid4())
+        welcome_msg = f"QA Task Manager'a hoş geldiniz, {user_data.name}!"
+        if role == "admin":
+            welcome_msg += " Admin yetkileriniz bulunmaktadır."
+        
         await db.execute(
             "INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (notif_id, user_id, "Hoş Geldiniz!", f"QA Task Manager'a hoş geldiniz, {user_data.name.strip()}!", "success", 0, created_at)
+            (notif_id, user_id, "Hoş Geldiniz!", welcome_msg, "success", 0, created_at)
         )
         
         await db.commit()
+        
+        # Audit log
+        await log_audit(
+            user_id, "register", "user", user_id,
+            f"New user registered: {user_data.name}, Role: {role}",
+            request.client.host if request.client else None
+        )
+        
+        logger.info(f"New user created: {user_data.name} (Role: {role})")
         
         return UserResponse(
             id=user_id,
@@ -584,7 +611,8 @@ async def register(user_data: UserCreate):
             email=user_data.email,
             device_id=user_data.device_id,
             categories=DEFAULT_CATEGORIES,
-            created_at=created_at
+            created_at=created_at,
+            role=role
         )
 
 @api_router.get("/auth/check/{device_id}", response_model=UserResponse)
