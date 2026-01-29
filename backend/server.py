@@ -88,15 +88,15 @@ try:
     logger.info("Report exporter loaded successfully")
 except Exception as e:
     logger.warning(f"Report exporter not available (optional): {e}")
-    REPORTS_AVAILABLE = False
-    logger.warning(f"Report exporter not available: {e}")
 
+# Background Jobs (optional)
+BACKGROUND_JOBS_AVAILABLE = False
 try:
     from background_jobs import start_background_jobs, stop_background_jobs
     BACKGROUND_JOBS_AVAILABLE = True
+    logger.info("Background jobs loaded successfully")
 except Exception as e:
-    BACKGROUND_JOBS_AVAILABLE = False
-    logger.warning(f"Background jobs not available: {e}")
+    logger.warning(f"Background jobs not available (optional): {e}")
 
 ROOT_DIR = Path(__file__).parent
 DATA_DIR = ROOT_DIR / "data"
