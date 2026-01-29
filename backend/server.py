@@ -8,13 +8,19 @@ import json
 import aiosqlite
 import io
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 from contextlib import asynccontextmanager
 import asyncio
+
+# Optional email validator
+try:
+    from pydantic import EmailStr
+except ImportError:
+    EmailStr = str  # Fallback to string
 
 # Configure logging first
 logging.basicConfig(
@@ -23,31 +29,56 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Import custom handlers
+# ============== OPTIONAL IMPORTS (graceful fallback) ==============
+
+# LDAP Integration (optional)
+LDAPS_AVAILABLE = False
 try:
     from ldaps_handler import ldaps_handler
     LDAPS_AVAILABLE = True
+    logger.info("LDAPS handler loaded successfully")
 except Exception as e:
-    LDAPS_AVAILABLE = False
-    logger.warning(f"LDAPS not available: {e}")
+    logger.warning(f"LDAPS not available (optional): {e}")
 
+# Jira Client (optional)
+JIRA_AVAILABLE = False
 try:
     from jira_client import jira_client
     JIRA_AVAILABLE = True
+    logger.info("Jira client loaded successfully")
 except Exception as e:
-    JIRA_AVAILABLE = False
-    logger.warning(f"Jira client not available: {e}")
+    logger.warning(f"Jira client not available (optional): {e}")
 
-# Import new clients for QA Hub integration
+# Jira API Client for QA Hub (optional)
+JIRA_API_AVAILABLE = False
 try:
     import jira_api_client
     JIRA_API_AVAILABLE = True
+    logger.info("Jira API client loaded successfully")
 except Exception as e:
-    JIRA_API_AVAILABLE = False
-    logger.warning(f"Jira API client not available: {e}")
+    logger.warning(f"Jira API client not available (optional): {e}")
 
+# MSSQL Client (optional)
+MSSQL_AVAILABLE = False
 try:
     import mssql_client
+    MSSQL_AVAILABLE = True
+    logger.info("MSSQL client loaded successfully")
+except Exception as e:
+    logger.warning(f"MSSQL client not available (optional): {e}")
+
+# ReportLab for PDF export (optional)
+REPORTLAB_AVAILABLE = False
+try:
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    REPORTLAB_AVAILABLE = True
+    logger.info("ReportLab loaded successfully")
+except Exception as e:
+    logger.warning(f"ReportLab not available (optional - PDF export disabled): {e}")
     MSSQL_AVAILABLE = True
 except Exception as e:
     MSSQL_AVAILABLE = False
