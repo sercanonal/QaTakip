@@ -92,34 +92,6 @@ const AdminPanel = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const fetchUsers = async () => {
-    try {
-      const response = await api.get("/users/roles", {
-        params: { admin_user_id: user.id }
-      });
-      setUsers(response.data);
-    } catch (error) {
-      toast.error("Kullanıcılar yüklenemedi");
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAuditLogs = async () => {
-    setLoadingLogs(true);
-    try {
-      const response = await api.get("/audit-logs", {
-        params: { admin_user_id: user.id, limit: 50 }
-      });
-      setAuditLogs(response.data.logs);
-    } catch (error) {
-      console.error("Audit logs error:", error);
-    } finally {
-      setLoadingLogs(false);
-    }
-  };
-
   const clearAuditLogs = async () => {
     setClearingLogs(true);
     try {
