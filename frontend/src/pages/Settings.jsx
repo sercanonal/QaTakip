@@ -48,10 +48,133 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   
+  // QA Projects State
+  const [qaProjects, setQaProjects] = useState([]);
+  const [cycles, setCycles] = useState([]);
+  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
+  const [isCycleDialogOpen, setIsCycleDialogOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
+  const [editingCycle, setEditingCycle] = useState(null);
+  const [projectSaving, setProjectSaving] = useState(false);
+  const [cycleSaving, setCycleSaving] = useState(false);
+  
+  const [newProject, setNewProject] = useState({ name: "", icon: "📦" });
+  const [newCycle, setNewCycle] = useState({ key: "", name: "" });
+  
   const [newCategory, setNewCategory] = useState({
     name: "",
     color: "#3B82F6"
   });
+
+  // Emoji list for project icons
+  const emojiList = ["📦", "🖥️", "💻", "🚀", "⚙️", "🔧", "📱", "🌐", "💡", "📊", "🎯", "✅", "⚡", "🔥", "💰", "🎨", "📝", "📌", "🔐", "⭐"];
+
+  // Load QA Projects and Cycles on mount
+  useEffect(() => {
+    loadQaProjects();
+    loadCycles();
+  }, []);
+
+  const loadQaProjects = async () => {
+    try {
+      const response = await api.get("/qa-projects");
+      setQaProjects(response.data.projects || []);
+    } catch (error) {
+      console.error("QA Projects yüklenemedi:", error);
+    }
+  };
+
+  const loadCycles = async () => {
+    try {
+      const response = await api.get("/cycles");
+      setCycles(response.data.cycles || []);
+    } catch (error) {
+      console.error("Cycles yüklenemedi:", error);
+    }
+  };
+
+  const handleAddProject = async () => {
+    if (!newProject.name.trim()) {
+      toast.error("Proje adı gerekli!");
+      return;
+    }
+    
+    setProjectSaving(true);
+    try {
+      await api.post("/qa-projects", newProject);
+      toast.success("Proje eklendi!");
+      setNewProject({ name: "", icon: "📦" });
+      setIsProjectDialogOpen(false);
+      loadQaProjects();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Proje eklenemedi");
+    } finally {
+      setProjectSaving(false);
+    }
+  };
+
+  const handleUpdateProject = async () => {
+    if (!editingProject || !editingProject.name.trim()) {
+      toast.error("Proje adı gerekli!");
+      return;
+    }
+    
+    setProjectSaving(true);
+    try {
+      await api.put(`/qa-projects/${encodeURIComponent(editingProject.originalName)}`, editingProject);
+      toast.success("Proje güncellendi!");
+      setEditingProject(null);
+      loadQaProjects();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Proje güncellenemedi");
+    } finally {
+      setProjectSaving(false);
+    }
+  };
+
+  const handleDeleteProject = async (name) => {
+    if (!window.confirm(`"${name}" projesini silmek istediğinize emin misiniz?`)) return;
+    
+    try {
+      await api.delete(`/qa-projects/${encodeURIComponent(name)}`);
+      toast.success("Proje silindi!");
+      loadQaProjects();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Proje silinemedi");
+    }
+  };
+
+  const handleAddCycle = async () => {
+    if (!newCycle.key.trim() || !newCycle.name.trim()) {
+      toast.error("Cycle key ve adı gerekli!");
+      return;
+    }
+    
+    setCycleSaving(true);
+    try {
+      await api.post("/cycles", newCycle);
+      toast.success("Cycle eklendi!");
+      setNewCycle({ key: "", name: "" });
+      setIsCycleDialogOpen(false);
+      loadCycles();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Cycle eklenemedi");
+    } finally {
+      setCycleSaving(false);
+    }
+  };
+
+  const handleDeleteCycle = async (key) => {
+    if (!window.confirm(`"${key}" cycle'ını silmek istediğinize emin misiniz?`)) return;
+    
+    try {
+      await api.delete(`/cycles/${encodeURIComponent(key)}`);
+      toast.success("Cycle silindi!");
+      loadCycles();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Cycle silinemedi");
+    }
+  };
 
   const handleAddCategory = async (e) => {
     e.preventDefault();
