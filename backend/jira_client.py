@@ -55,41 +55,50 @@ class JiraClient:
         return issues
     
     async def _search_issues(self, jql: str, max_results: int) -> List[Dict[str, Any]]:
-        """Execute JQL search"""
-        try:
-            async with httpx.AsyncClient(verify=False) as client:  # Note: verify=False for self-signed certs
-                response = await client.get(
-                    f"{self.base_url}{self.api_path}/search",
-                    headers=self.headers,
-                    params={
-                        "jql": jql,
-                        "maxResults": max_results,
-                        "fields": "key,summary,status,assignee,created,updated,priority,issuetype,description"
-                    },
-                    timeout=30.0,
-                )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    issues = data.get('issues', [])
-                    logger.info(f"Fetched {len(issues)} issues from Jira")
-                    return issues
-                elif response.status_code == 401:
-                    logger.error("Jira authentication failed - check API token")
-                    return []
-                elif response.status_code == 400:
-                    logger.warning(f"Invalid JQL query: {jql}")
-                    return []
-                else:
-                    logger.error(f"Jira API error: {response.status_code}")
-                    return []
+        """Execute JQL search with retry logic"""
+        last_error = None
         
-        except httpx.TimeoutException:
-            logger.error("Timeout communicating with Jira API")
-            return []
-        except Exception as e:
-            logger.error(f"Jira request error: {e}")
-            return []
+        for attempt in range(self.config.MAX_RETRIES):
+            try:
+                async with httpx.AsyncClient(verify=False, timeout=self.config.REQUEST_TIMEOUT) as client:
+                    response = await client.get(
+                        f"{self.base_url}{self.api_path}/search",
+                        headers=self.headers,
+                        params={
+                            "jql": jql,
+                            "maxResults": max_results,
+                            "fields": "key,summary,status,assignee,created,updated,priority,issuetype,description"
+                        },
+                    )
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        issues = data.get('issues', [])
+                        logger.info(f"Fetched {len(issues)} issues from Jira (attempt {attempt + 1})")
+                        return issues
+                    elif response.status_code == 401:
+                        logger.error("Jira authentication failed - check API token")
+                        return []
+                    elif response.status_code == 400:
+                        logger.warning(f"Invalid JQL query: {jql}")
+                        return []
+                    else:
+                        logger.error(f"Jira API error: {response.status_code}")
+                        last_error = f"HTTP {response.status_code}"
+            
+            except httpx.TimeoutException:
+                last_error = "Timeout"
+                logger.warning(f"Jira API timeout (attempt {attempt + 1}/{self.config.MAX_RETRIES})")
+                if attempt < self.config.MAX_RETRIES - 1:
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+            except Exception as e:
+                last_error = str(e)
+                logger.error(f"Jira request error (attempt {attempt + 1}): {e}")
+                if attempt < self.config.MAX_RETRIES - 1:
+                    await asyncio.sleep(2 ** attempt)
+        
+        logger.error(f"Failed to fetch Jira issues after {self.config.MAX_RETRIES} attempts. Last error: {last_error}")
+        return []
     
     async def get_user_by_identifier(self, identifier: str) -> Optional[Dict[str, Any]]:
         """Find Jira user by username or email"""
