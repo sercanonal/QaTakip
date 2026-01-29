@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 
 class QATaskManagerTester:
-    def __init__(self, base_url="https://intertask.preview.emergentagent.com"):
+    def __init__(self, base_url="https://user-task-manager-2.preview.emergentagent.com"):
         self.base_url = base_url
         self.user_id = None
         self.device_id = str(uuid.uuid4())
