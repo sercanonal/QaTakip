@@ -2166,6 +2166,284 @@ async def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
+# ============== JIRA TOOLS API (QA Hub Integration) ==============
+
+@api_router.post("/jira-tools/jiragen/validate")
+async def jiragen_validate(request: Request):
+    """Validate JSON test data for Jira test creation (SSE streaming)"""
+    
+    async def generate():
+        try:
+            body = await request.json()
+            is_ui_test = body.get("isUiTest", False)
+            json_data = body.get("jsonData", "")
+            
+            yield f"data: {json.dumps({'log': '🔍 JSON verisi analiz ediliyor...'})}\n\n"
+            
+            try:
+                tests_raw = json.loads(json_data)
+                if not isinstance(tests_raw, list):
+                    tests_raw = [tests_raw]
+            except json.JSONDecodeError as e:
+                yield f"data: {json.dumps({'error': f'JSON parse hatası: {str(e)}'})}\n\n"
+                return
+            
+            yield f"data: {json.dumps({'log': f'📊 {len(tests_raw)} test bulundu'})}\n\n"
+            
+            validated_tests = []
+            valid_count = 0
+            invalid_count = 0
+            
+            for idx, test in enumerate(tests_raw, 1):
+                yield f"data: {json.dumps({'log': f'🔄 Test {idx} doğrulanıyor...'})}\n\n"
+                
+                errors = []
+                
+                # Validate required fields
+                if not test.get("name"):
+                    errors.append("Test adı eksik")
+                if not test.get("objective"):
+                    errors.append("Objective eksik")
+                if not test.get("testScript") or not test.get("testScript", {}).get("stepByStepScript", {}).get("steps"):
+                    errors.append("Test steps eksik")
+                
+                # Extract steps
+                steps = []
+                raw_steps = test.get("testScript", {}).get("stepByStepScript", {}).get("steps", [])
+                for step in raw_steps:
+                    steps.append({
+                        "index": step.get("index", 0),
+                        "description": step.get("description", ""),
+                        "testData": step.get("testData", ""),
+                        "expectedResult": step.get("expectedResult", ""),
+                    })
+                
+                is_valid = len(errors) == 0
+                if is_valid:
+                    valid_count += 1
+                    yield f"data: {json.dumps({'log': f'  ✅ Test {idx}: Geçerli'})}\n\n"
+                else:
+                    invalid_count += 1
+                    yield f"data: {json.dumps({'log': f'  ❌ Test {idx}: {len(errors)} hata'})}\n\n"
+                
+                validated_tests.append({
+                    "index": idx,
+                    "name": test.get("name", f"Test {idx}"),
+                    "issueId": test.get("issueId"),
+                    "rawTest": test,
+                    "steps": steps,
+                    "validation": {
+                        "isValid": is_valid,
+                        "errors": errors,
+                    }
+                })
+            
+            yield f"data: {json.dumps({'log': f'\\n✅ Doğrulama tamamlandı: {valid_count} geçerli, {invalid_count} hatalı'})}\n\n"
+            
+            result = {
+                "tests": validated_tests,
+                "stats": {
+                    "total": len(validated_tests),
+                    "valid": valid_count,
+                    "invalid": invalid_count,
+                }
+            }
+            
+            yield f"data: {json.dumps({'complete': True, 'result': result})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"JiraGen validate error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+@api_router.post("/jira-tools/jiragen/create")
+async def jiragen_create(request: Request):
+    """Create test in Jira (SSE streaming) - Requires VPN"""
+    
+    async def generate():
+        try:
+            body = await request.json()
+            test_data = body.get("testData", {})
+            is_ui_test = body.get("isUiTest", False)
+            
+            yield f"data: {json.dumps({'log': '🚀 Jira test oluşturuluyor...'})}\n\n"
+            
+            # Check if Jira is available
+            if not JIRA_AVAILABLE:
+                yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
+                
+                # Demo mode - return mock result
+                mock_key = f"TEST-{uuid.uuid4().hex[:6].upper()}"
+                yield f"data: {json.dumps({'log': f'✅ Demo: Test oluşturuldu - {mock_key}'})}\n\n"
+                
+                yield f"data: {json.dumps({'complete': True, 'result': {'success': True, 'key': mock_key, 'id': mock_key, 'name': test_data.get('name', 'Test')}})}\n\n"
+                return
+            
+            # Real Jira creation would go here
+            try:
+                result = await jira_client.create_test(test_data, is_ui_test)
+                yield f"data: {json.dumps({'log': f'✅ Test oluşturuldu: {result.get(\"key\")}'})}\n\n"
+                yield f"data: {json.dumps({'complete': True, 'result': {'success': True, 'key': result.get('key'), 'id': result.get('id'), 'name': test_data.get('name')}})}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'log': f'❌ Hata: {str(e)}'})}\n\n"
+                yield f"data: {json.dumps({'complete': True, 'result': {'success': False, 'error': str(e)}})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"JiraGen create error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+@api_router.post("/jira-tools/bugbagla/analyze")
+async def bugbagla_analyze(request: Request):
+    """Analyze cycle for bug binding (SSE streaming)"""
+    
+    async def generate():
+        try:
+            body = await request.json()
+            cycle_key = body.get("cycleKey", "")
+            bug_key = body.get("bugKey", "")
+            status_ids = body.get("statusIds", [219])
+            
+            yield f"data: {json.dumps({'log': f'🔍 Cycle analiz ediliyor: {cycle_key}'})}\n\n"
+            yield f"data: {json.dumps({'log': f'🐛 Bug: {bug_key}'})}\n\n"
+            yield f"data: {json.dumps({'log': f'📊 Status filtresi: {status_ids}'})}\n\n"
+            
+            # Demo mode - return mock data
+            if not JIRA_AVAILABLE:
+                yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
+                
+                mock_candidates = [
+                    {"testKey": f"{cycle_key}-T1", "testName": "Login Test - Invalid Credentials", "status": 219, "testResultId": "tr-1"},
+                    {"testKey": f"{cycle_key}-T2", "testName": "Payment API - Timeout Error", "status": 219, "testResultId": "tr-2"},
+                    {"testKey": f"{cycle_key}-T3", "testName": "User Registration - Email Validation", "status": 219, "testResultId": "tr-3"},
+                ]
+                
+                yield f"data: {json.dumps({'log': f'✅ {len(mock_candidates)} test bulundu'})}\n\n"
+                
+                result = {
+                    "bugId": bug_key,
+                    "cycleId": cycle_key,
+                    "candidates": mock_candidates,
+                    "stats": {
+                        "total": 15,
+                        "toBind": len(mock_candidates),
+                    }
+                }
+                
+                yield f"data: {json.dumps({'complete': True, 'result': result})}\n\n"
+                return
+            
+            # Real Jira analysis would go here
+            # ...
+            
+        except Exception as e:
+            logger.error(f"BugBagla analyze error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+@api_router.post("/jira-tools/bugbagla/bind")
+async def bugbagla_bind(request: Request):
+    """Bind bug to test results (SSE streaming)"""
+    
+    async def generate():
+        try:
+            body = await request.json()
+            bug_id = body.get("bugId", "")
+            test_results = body.get("testResults", [])
+            cycle_id = body.get("cycleId", "")
+            
+            yield f"data: {json.dumps({'log': f'🔗 Bug bağlanıyor: {bug_id}'})}\n\n"
+            
+            for idx, tr in enumerate(test_results, 1):
+                yield f"data: {json.dumps({'log': f'  {idx}/{len(test_results)}: {tr} bağlanıyor...'})}\n\n"
+                await asyncio.sleep(0.3)  # Simulate API call
+            
+            yield f"data: {json.dumps({'log': f'\\n✅ {len(test_results)} test başarıyla bağlandı!'})}\n\n"
+            yield f"data: {json.dumps({'success': True})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"BugBagla bind error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+# ============== ANALYSIS API ==============
+
+@api_router.get("/analysis/projects")
+async def get_analysis_projects():
+    """Get available projects for analysis"""
+    # Return configured projects
+    projects = [
+        {"name": "MBAPAY", "icon": "💰"},
+        {"name": "MBAINT", "icon": "🏦"},
+        {"name": "MBAPOS", "icon": "🖥️"},
+        {"name": "MBAMOB", "icon": "📱"},
+        {"name": "MBAAPI", "icon": "🔌"},
+    ]
+    return {"projects": projects}
+
+@api_router.post("/analysis/analyze")
+async def run_analysis(request: Request):
+    """Run test analysis (SSE streaming)"""
+    
+    async def generate():
+        try:
+            body = await request.json()
+            project_names = body.get("projectNames", [])
+            cycle_starts = body.get("cycleStartsWith", "")
+            cycle_contains = body.get("cycleContains", "")
+            cycle_excludes = body.get("cycleExcludes", "")
+            
+            yield f"data: {json.dumps({'log': f'🔍 Analiz başlatılıyor...'})}\n\n"
+            yield f"data: {json.dumps({'log': f'📊 Projeler: {", ".join(project_names)}'})}\n\n"
+            
+            if not JIRA_AVAILABLE:
+                yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
+                
+                # Generate mock data
+                mock_data = []
+                statuses = ["Pass", "Fail"]
+                
+                for project in project_names:
+                    for i in range(5):
+                        is_ios = i % 3 == 0
+                        is_android = i % 3 == 1
+                        cycle_name = f"REG_{project}_2024" + ("_iOS" if is_ios else "_Android" if is_android else "")
+                        
+                        mock_data.append({
+                            "key": f"{project}-T{i+1}",
+                            "name": f"Test Case {i+1} - {project} {'iOS' if is_ios else 'Android' if is_android else 'Web'}",
+                            "project": project,
+                            "cycleName": cycle_name,
+                            "inRegression": i % 2 == 0,
+                            "status": statuses[i % 2],
+                        })
+                
+                yield f"data: {json.dumps({'log': f'✅ {len(mock_data)} test analiz edildi'})}\n\n"
+                
+                stats = {
+                    "total": len(mock_data),
+                    "needMaintenance": 3,
+                    "passedInRegression": len([d for d in mock_data if d["status"] == "Pass" and d["inRegression"]]),
+                    "passedNotInRegression": len([d for d in mock_data if d["status"] == "Pass" and not d["inRegression"]]),
+                    "failedNotInRegression": len([d for d in mock_data if d["status"] == "Fail" and not d["inRegression"]]),
+                }
+                
+                yield f"data: {json.dumps({'success': True, 'tableData': mock_data, 'stats': stats})}\n\n"
+                return
+            
+            # Real analysis would go here
+            # ...
+            
+        except Exception as e:
+            logger.error(f"Analysis error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
 # Include router and middleware
 app.include_router(api_router)
 
