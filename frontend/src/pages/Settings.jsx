@@ -533,6 +533,8 @@ const Settings = () => {
                 <TableRow>
                   <TableHead className="w-16">İkon</TableHead>
                   <TableHead>Proje Adı</TableHead>
+                  <TableHead>Team ID</TableHead>
+                  <TableHead>Platform</TableHead>
                   <TableHead className="w-24 text-right">İşlemler</TableHead>
                 </TableRow>
               </TableHeader>
@@ -541,6 +543,21 @@ const Settings = () => {
                   <TableRow key={project.name}>
                     <TableCell className="text-2xl">{project.icon}</TableCell>
                     <TableCell className="font-medium">{project.name}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground font-mono">
+                      {project.teamRemoteId || "-"}
+                    </TableCell>
+                    <TableCell>
+                      {project.isMobile ? (
+                        <Badge variant="outline" className={cn(
+                          "text-xs",
+                          project.platform === "ios" ? "border-blue-500 text-blue-400" : "border-green-500 text-green-400"
+                        )}>
+                          {project.platform === "ios" ? "🍎 iOS" : "🤖 Android"}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">Web</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button
