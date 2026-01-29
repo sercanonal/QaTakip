@@ -5,12 +5,11 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { toast } from "sonner";
-import { CheckSquare, User, ArrowRight, Loader2, Mail, Lock } from "lucide-react";
+import { CheckSquare, User, ArrowRight, Loader2, Mail } from "lucide-react";
 
 const Login = () => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
 
@@ -30,11 +29,6 @@ const Login = () => {
       return;
     }
     
-    if (!password) {
-      toast.error("Lütfen şifrenizi girin");
-      return;
-    }
-    
     if (trimmedUsername.length < 2) {
       toast.error("Kullanıcı adı en az 2 karakter olmalı");
       return;
@@ -42,10 +36,9 @@ const Login = () => {
 
     setLoading(true);
     try {
-      await register(trimmedUsername, trimmedEmail, password);
+      await register(trimmedUsername, trimmedEmail);
       toast.success("Hoş geldiniz!");
     } catch (error) {
-      // API interceptor'dan gelen kullanıcı dostu mesaj
       const message = error.userMessage || error.response?.data?.detail || "Bir hata oluştu";
       toast.error(message);
       console.error("Login error:", error);
@@ -74,7 +67,7 @@ const Login = () => {
               Başlayalım
             </CardTitle>
             <CardDescription>
-              Intertech kimlik bilgileriniz ile giriş yapın
+              Kullanıcı bilgileriniz ile giriş yapın
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -116,24 +109,6 @@ const Login = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Şifre</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 h-12 bg-secondary/50 border-border/50 focus:border-primary"
-                    required
-                    minLength={4}
-                    data-testid="password-input"
-                  />
-                </div>
-              </div>
-
               <Button
                 type="submit"
                 className="w-full h-12 btn-glow font-semibold"
@@ -144,7 +119,7 @@ const Login = () => {
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <>
-                    LDAPS ile Giriş Yap
+                    Giriş Yap
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </>
                 )}
