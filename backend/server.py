@@ -396,31 +396,28 @@ async def create_project(project: ProjectBase, user_id: str):
 @api_router.get("/projects", response_model=List[dict])
 async def get_projects(user_id: str):
     async with aiosqlite.connect(DB_PATH) as db:
+        # Single query with LEFT JOIN to avoid N+1 problem
         cursor = await db.execute(
-            "SELECT id, name, description, user_id, created_at FROM projects WHERE user_id = ?",
+            """SELECT p.id, p.name, p.description, p.user_id, p.created_at, COUNT(t.id) as task_count
+               FROM projects p
+               LEFT JOIN tasks t ON p.id = t.project_id
+               WHERE p.user_id = ?
+               GROUP BY p.id, p.name, p.description, p.user_id, p.created_at""",
             (user_id,)
         )
         rows = await cursor.fetchall()
         
-        projects = []
-        for row in rows:
-            # Count tasks for this project
-            task_cursor = await db.execute(
-                "SELECT COUNT(*) FROM tasks WHERE project_id = ?",
-                (row[0],)
-            )
-            task_count = (await task_cursor.fetchone())[0]
-            
-            projects.append({
+        return [
+            {
                 "id": row[0],
                 "name": row[1],
                 "description": row[2],
                 "user_id": row[3],
                 "created_at": row[4],
-                "task_count": task_count
-            })
-        
-        return projects
+                "task_count": row[5]
+            }
+            for row in rows
+        ]
 
 @api_router.get("/projects/{project_id}", response_model=dict)
 async def get_project(project_id: str):
