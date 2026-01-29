@@ -2936,14 +2936,33 @@ async def run_analysis(request: Request):
             try:
                 # Get cycle ID
                 yield f"data: {json.dumps({'log': f'🔍 Cycle ID alınıyor: {cycle_name}'})}\n\n"
-                cycle_run = await jira_api_client.get_test_run(cycle_name)
-                cycle_id = cycle_run.get("id")
-                yield f"data: {json.dumps({'log': f'✅ Cycle ID bulundu: {cycle_id}'})}\n\n"
+                try:
+                    cycle_run = await asyncio.wait_for(
+                        jira_api_client.get_test_run(cycle_name),
+                        timeout=15.0
+                    )
+                    cycle_id = cycle_run.get("id")
+                    yield f"data: {json.dumps({'log': f'✅ Cycle ID bulundu: {cycle_id}'})}\n\n"
+                except asyncio.TimeoutError:
+                    yield f"data: {json.dumps({'log': '❌ Jira bağlantısı zaman aşımı - VPN bağlantınızı kontrol edin'})}\n\n"
+                    yield f"data: {json.dumps({'error': 'Jira bağlantısı zaman aşımı'})}\n\n"
+                    return
+                except Exception as e:
+                    err_msg = str(e)
+                    yield f"data: {json.dumps({'log': f'❌ Jira hatası: {err_msg}'})}\n\n"
+                    yield f"data: {json.dumps({'error': f'Jira bağlantı hatası: {err_msg}'})}\n\n"
+                    return
                 
                 # Get all tests from DB
                 yield f"data: {json.dumps({'log': '🗄️ Tüm testler veritabanından alınıyor...'})}\n\n"
-                test_names = mssql_client.get_all_tests(days, time, project_names)
-                yield f"data: {json.dumps({'log': f'✅ {len(test_names)} test bulundu'})}\n\n"
+                try:
+                    test_names = mssql_client.get_all_tests(days, time, project_names)
+                    yield f"data: {json.dumps({'log': f'✅ {len(test_names)} test bulundu'})}\n\n"
+                except Exception as e:
+                    err_msg = str(e)
+                    yield f"data: {json.dumps({'log': f'❌ MSSQL hatası: {err_msg}'})}\n\n"
+                    yield f"data: {json.dumps({'error': f'Veritabanı bağlantı hatası: {err_msg}'})}\n\n"
+                    return
                 
                 # Get passed tests
                 yield f"data: {json.dumps({'log': '✅ Başarılı testler alınıyor...'})}\n\n"
