@@ -2403,8 +2403,9 @@ async def run_analysis(request: Request):
             cycle_contains = body.get("cycleContains", "")
             cycle_excludes = body.get("cycleExcludes", "")
             
-            yield f"data: {json.dumps({'log': f'🔍 Analiz başlatılıyor...'})}\n\n"
-            yield f"data: {json.dumps({'log': f'📊 Projeler: {", ".join(project_names)}'})}\n\n"
+            yield f"data: {json.dumps({'log': '🔍 Analiz başlatılıyor...'})}\n\n"
+            projects_str = ", ".join(project_names)
+            yield f"data: {json.dumps({'log': f'📊 Projeler: {projects_str}'})}\n\n"
             
             if not JIRA_AVAILABLE:
                 yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
