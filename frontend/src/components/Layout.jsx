@@ -174,10 +174,10 @@ const Layout = () => {
         <div className="h-16 flex items-center justify-between px-4 border-b border-border">
           {sidebarOpen && (
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <CheckSquare className="w-5 h-5 text-primary-foreground" />
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/20">
+                <Zap className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="font-heading font-bold text-lg">QA Manager</span>
+              <span className="font-heading font-bold text-lg bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">QA Hub</span>
             </div>
           )}
           <Button
