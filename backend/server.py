@@ -2363,7 +2363,8 @@ async def bugbagla_bind(request: Request):
                 yield f"data: {json.dumps({'log': f'  {idx}/{len(test_results)}: {tr} bağlanıyor...'})}\n\n"
                 await asyncio.sleep(0.3)  # Simulate API call
             
-            yield f"data: {json.dumps({'log': f'\\n✅ {len(test_results)} test başarıyla bağlandı!'})}\n\n"
+            bind_msg = f"\n✅ {len(test_results)} test başarıyla bağlandı!"
+            yield f"data: {json.dumps({'log': bind_msg})}\n\n"
             yield f"data: {json.dumps({'success': True})}\n\n"
             
         except Exception as e:
