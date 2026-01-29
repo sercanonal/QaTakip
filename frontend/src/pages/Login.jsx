@@ -67,13 +67,13 @@ const Login = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Adınız</Label>
+                <Label htmlFor="name">Intertech Kullanıcı Adı</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
                     id="name"
                     type="text"
-                    placeholder="Sercan Önal"
+                    placeholder="SERCANO"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="pl-10 h-12 bg-secondary/50 border-border/50 focus:border-primary"
