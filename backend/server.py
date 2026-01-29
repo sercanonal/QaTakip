@@ -2580,19 +2580,6 @@ async def delete_project(name: str):
 
 # ============== ANALYSIS API ==============
 
-@api_router.get("/analysis/projects")
-async def get_analysis_projects():
-    """Get available projects for analysis"""
-    # Return configured projects
-    projects = [
-        {"name": "MBAPAY", "icon": "💰"},
-        {"name": "MBAINT", "icon": "🏦"},
-        {"name": "MBAPOS", "icon": "🖥️"},
-        {"name": "MBAMOB", "icon": "📱"},
-        {"name": "MBAAPI", "icon": "🔌"},
-    ]
-    return {"projects": projects}
-
 @api_router.post("/analysis/analyze")
 async def run_analysis(request: Request):
     """Run test analysis (SSE streaming)"""
