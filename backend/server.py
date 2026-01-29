@@ -2285,10 +2285,13 @@ async def jiragen_create(request: Request):
             # Real Jira creation would go here
             try:
                 result = await jira_client.create_test(test_data, is_ui_test)
-                yield f"data: {json.dumps({'log': f'✅ Test oluşturuldu: {result.get(\"key\")}'})}\n\n"
-                yield f"data: {json.dumps({'complete': True, 'result': {'success': True, 'key': result.get('key'), 'id': result.get('id'), 'name': test_data.get('name')}})}\n\n"
+                jira_key = result.get('key')
+                log_created = f'✅ Test oluşturuldu: {jira_key}'
+                yield f"data: {json.dumps({'log': log_created})}\n\n"
+                yield f"data: {json.dumps({'complete': True, 'result': {'success': True, 'key': jira_key, 'id': result.get('id'), 'name': test_data.get('name')}})}\n\n"
             except Exception as e:
-                yield f"data: {json.dumps({'log': f'❌ Hata: {str(e)}'})}\n\n"
+                err_msg = f'❌ Hata: {str(e)}'
+                yield f"data: {json.dumps({'log': err_msg})}\n\n"
                 yield f"data: {json.dumps({'complete': True, 'result': {'success': False, 'error': str(e)}})}\n\n"
             
         except Exception as e:
