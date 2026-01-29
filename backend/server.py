@@ -38,6 +38,21 @@ except Exception as e:
     JIRA_AVAILABLE = False
     logger.warning(f"Jira client not available: {e}")
 
+# Import new clients for QA Hub integration
+try:
+    import jira_api_client
+    JIRA_API_AVAILABLE = True
+except Exception as e:
+    JIRA_API_AVAILABLE = False
+    logger.warning(f"Jira API client not available: {e}")
+
+try:
+    import mssql_client
+    MSSQL_AVAILABLE = True
+except Exception as e:
+    MSSQL_AVAILABLE = False
+    logger.warning(f"MSSQL client not available: {e}")
+
 try:
     from report_exporter import report_exporter
     REPORTS_AVAILABLE = True
