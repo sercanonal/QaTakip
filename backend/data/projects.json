@@ -4,6 +4,11 @@
       "name": "FraudNG.UITests",
       "icon": "\ud83d\ude80",
       "links": {}
+    },
+    {
+      "name": "TestProject",
+      "icon": "\ud83e\uddea",
+      "links": {}
     }
   ]
 }
