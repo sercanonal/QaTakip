@@ -68,9 +68,11 @@ const priorityColors = {
 const Tasks = () => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
+  const [jiraTasks, setJiraTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingJira, setLoadingJira] = useState(false);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
@@ -93,6 +95,7 @@ const Tasks = () => {
     fetchTasks();
     fetchProjects();
     fetchUsers();
+    fetchJiraTasks();
   }, []);
 
   const fetchTasks = async () => {
@@ -103,6 +106,31 @@ const Tasks = () => {
       toast.error("Görevler yüklenirken hata oluştu");
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const fetchJiraTasks = async () => {
+    if (!user) return;
+    
+    setLoadingJira(true);
+    try {
+      const response = await api.get("/jira/issues", {
+        params: {
+          user_id: user.id,
+          username: user.name,
+          email: user.email
+        }
+      });
+      
+      if (response.data && response.data.issues) {
+        setJiraTasks(response.data.issues);
+        toast.success(`${response.data.total} Jira görevi yüklendi`);
+      }
+    } catch (error) {
+      console.error("Error fetching Jira tasks:", error);
+      // Don't show error toast - Jira might not be configured
+    } finally {
+      setLoadingJira(false);
     }
   };
 
