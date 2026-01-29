@@ -1084,6 +1084,169 @@ async def delete_notification(notification_id: str):
         
         return {"message": "Bildirim silindi"}
 
+@api_router.get("/notifications/stream")
+async def notification_stream(request: Request, user_id: str):
+    """Server-Sent Events endpoint for real-time notifications"""
+    
+    async def event_generator():
+        queue = await notification_manager.connect(user_id)
+        try:
+            # Send initial connection message
+            yield f"data: {json.dumps({'type': 'connected', 'message': 'SSE bağlantısı kuruldu'})}\n\n"
+            
+            while True:
+                # Check if client disconnected
+                if await request.is_disconnected():
+                    break
+                
+                try:
+                    # Wait for notification with timeout
+                    notification = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    yield f"data: {json.dumps(notification)}\n\n"
+                except asyncio.TimeoutError:
+                    # Send heartbeat to keep connection alive
+                    yield f": heartbeat\n\n"
+                except Exception as e:
+                    logger.error(f"Error in SSE stream: {e}")
+                    break
+        finally:
+            notification_manager.disconnect(user_id, queue)
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+# ============== ADMIN ROUTES ==============
+
+@api_router.get("/admin/users", response_model=List[dict])
+async def admin_get_all_users():
+    """Admin endpoint: Get all users with full details"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT id, name, device_id, created_at FROM users ORDER BY created_at DESC"
+        )
+        rows = await cursor.fetchall()
+        
+        result = []
+        for row in rows:
+            user_id = row[0]
+            # Get task count for each user
+            cursor2 = await db.execute(
+                "SELECT COUNT(*) FROM tasks WHERE user_id = ?", (user_id,)
+            )
+            task_count = (await cursor2.fetchone())[0]
+            
+            result.append({
+                "id": user_id,
+                "name": row[1],
+                "device_id": row[2],
+                "created_at": row[3],
+                "task_count": task_count
+            })
+        
+        return result
+
+@api_router.post("/admin/users", response_model=UserResponse)
+async def admin_create_user(user_data: UserCreate):
+    """Admin endpoint: Manually create a new user"""
+    if not user_data.name or not user_data.name.strip():
+        raise HTTPException(status_code=400, detail="İsim boş olamaz")
+    
+    if not user_data.device_id:
+        raise HTTPException(status_code=400, detail="Cihaz kimliği gerekli")
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Check if device already exists
+        cursor = await db.execute(
+            "SELECT id FROM users WHERE device_id = ?", (user_data.device_id,)
+        )
+        existing = await cursor.fetchone()
+        
+        if existing:
+            raise HTTPException(status_code=400, detail="Bu cihaz kimliği zaten kayıtlı")
+        
+        # Create new user
+        user_id = str(uuid.uuid4())
+        created_at = datetime.now(timezone.utc).isoformat()
+        categories_json = json.dumps(DEFAULT_CATEGORIES)
+        
+        await db.execute(
+            "INSERT INTO users (id, name, device_id, categories, created_at) VALUES (?, ?, ?, ?, ?)",
+            (user_id, user_data.name.strip(), user_data.device_id, categories_json, created_at)
+        )
+        await db.commit()
+        
+        return UserResponse(
+            id=user_id,
+            name=user_data.name.strip(),
+            device_id=user_data.device_id,
+            categories=DEFAULT_CATEGORIES,
+            created_at=created_at
+        )
+
+@api_router.put("/admin/users/{user_id}", response_model=UserResponse)
+async def admin_update_user(user_id: str, name: str):
+    """Admin endpoint: Update user name"""
+    if not name or not name.strip():
+        raise HTTPException(status_code=400, detail="İsim boş olamaz")
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT id, name, device_id, categories, created_at FROM users WHERE id = ?",
+            (user_id,)
+        )
+        user = await cursor.fetchone()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+        
+        await db.execute(
+            "UPDATE users SET name = ? WHERE id = ?",
+            (name.strip(), user_id)
+        )
+        await db.commit()
+        
+        return UserResponse(
+            id=user[0],
+            name=name.strip(),
+            device_id=user[2],
+            categories=json.loads(user[3]),
+            created_at=user[4]
+        )
+
+@api_router.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str):
+    """Admin endpoint: Delete a user and all their data"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Check if user exists
+        cursor = await db.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+        user = await cursor.fetchone()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+        
+        # Delete user's tasks
+        await db.execute("DELETE FROM tasks WHERE user_id = ?", (user_id,))
+        
+        # Delete user's projects
+        await db.execute("DELETE FROM projects WHERE user_id = ?", (user_id,))
+        
+        # Delete user's notifications
+        await db.execute("DELETE FROM notifications WHERE user_id = ?", (user_id,))
+        
+        # Delete user
+        await db.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        
+        await db.commit()
+        
+        return {"message": f"Kullanıcı ve tüm verileri silindi"}
+
 # Health check
 @api_router.get("/health")
 async def health_check():
