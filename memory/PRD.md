@@ -79,7 +79,8 @@ Intertech şirketinde QA mühendisleri için profesyonel iş takip uygulaması. 
 ## Bug Fixes (29 Ocak 2026)
 - [x] **Admin Panel Hatası** - `/users/roles` endpoint'i route sıralaması düzeltildi (artık `/users/{user_id}`'dan önce tanımlı)
 - [x] **Rapor Dışa Aktarma Hatası** - `/reports/export` endpoint'i Pydantic model ile request body kabul edecek şekilde güncellendi
-- [x] **Görev Atama Listesi** - Sadece giriş yapmış kullanıcılar listede görünüyor
+- [x] **Görev Atama Listesi** - SERCANO dışındaki tüm kullanıcılar silindi, sadece yeni giriş yapan kullanıcılar listede görünecek
+- [x] **Rapor Görünümü İyileştirmesi** - Profesyonel sunum kalitesinde raporlar: kategori analizi, aylık performans metrikleri, görsel tablolar
 
 ## Yeni Özellikler (29 Ocak 2026)
 - [x] **Rol Bazlı Erişim Kontrolü (RBAC)** - Admin, Manager, User rolleri
