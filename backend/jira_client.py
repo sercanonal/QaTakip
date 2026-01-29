@@ -13,9 +13,12 @@ logger = logging.getLogger(__name__)
 class JiraConfig:
     """Jira Configuration"""
     BASE_URL = "https://jira.intertech.com.tr"
-    API_PATH = "/rest/api/2"  # Using API v2 for broader compatibility
+    API_PATH = "/rest/api/2"  # Standard Jira REST API v2
     # Token from user: Basic aW50ZWdyYXRpb25fdXNlcjpkMkBDQig1ZA==
     AUTH_TOKEN = os.getenv("JIRA_AUTH_TOKEN", "Basic aW50ZWdyYXRpb25fdXNlcjpkMkBDQig1ZA==")
+    # Timeout settings
+    REQUEST_TIMEOUT = 30.0
+    MAX_RETRIES = 3
 
 class JiraClient:
     """HTTP client for Jira REST API communication"""
