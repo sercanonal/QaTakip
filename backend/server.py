@@ -299,7 +299,7 @@ DEFAULT_CATEGORIES = [
 
 class UserCreate(BaseModel):
     name: str
-    email: str
+    email: Optional[str] = None  # Email artık opsiyonel
     device_id: str
 
 class UserLogin(BaseModel):
