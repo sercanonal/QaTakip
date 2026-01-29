@@ -7,7 +7,7 @@ import requests
 import os
 import uuid
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://testcenter-1.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://jiraqahelper.preview.emergentagent.com').rstrip('/')
 
 class TestQAProjectsAPI:
     """QA Projects CRUD API tests"""
