@@ -16,6 +16,13 @@ from enum import Enum
 from contextlib import asynccontextmanager
 import asyncio
 
+# Configure logging first
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 # Import custom handlers
 try:
     from ldaps_handler import ldaps_handler
@@ -50,13 +57,6 @@ DATA_DIR = ROOT_DIR / "data"
 DB_PATH = DATA_DIR / "qa_tasks.db"
 
 load_dotenv(ROOT_DIR / '.env')
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 # ============== SQLite Database Setup ==============
 
