@@ -13,7 +13,7 @@ JIRA_BASE_URL = "https://jira.intertech.com.tr"
 JIRA_API_URL = f"{JIRA_BASE_URL}/rest/tests/1.0/"
 JIRA_AUTH_TOKEN = "Basic aW50ZWdyYXRpb25fdXNlcjpkMkBDQig1ZA=="
 
-# HTTP client with timeout settings
+# HTTP client with SHORT timeout for fast failure detection
 def get_client():
     return httpx.AsyncClient(
         base_url=JIRA_API_URL,
@@ -21,7 +21,7 @@ def get_client():
             "Authorization": JIRA_AUTH_TOKEN,
             "Content-Type": "application/json"
         },
-        timeout=httpx.Timeout(30.0, connect=10.0),
+        timeout=httpx.Timeout(10.0, connect=5.0),  # Short timeout for fast failure
         verify=False  # VPN arkasında SSL sorunları için
     )
 
