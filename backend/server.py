@@ -2536,10 +2536,11 @@ async def bugbagla_bind(request: Request):
                 yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
                 
                 for binding in bindings:
-                    yield f"data: {json.dumps({'log': f'✅ {binding.get(\"testKey\")} - Bug bağlandı (Demo)'})}\n\n"
+                    test_key = binding.get("testKey", "")
+                    yield f"data: {json.dumps({'log': f'✅ {test_key} - Bug bağlandı (Demo)'})}\n\n"
                     await asyncio.sleep(0.2)
                 
-                yield f"data: {json.dumps({'log': f'✨ Bağlama Tamamlandı! (Demo)'})}\n\n"
+                yield f"data: {json.dumps({'log': '✨ Bağlama Tamamlandı! (Demo)'})}\n\n"
                 yield f"data: {json.dumps({'log': f'   • Başarılı: {len(bindings)}'})}\n\n"
                 yield f"data: {json.dumps({'success': True, 'linked': len(bindings), 'failed': 0})}\n\n"
                 return
@@ -2557,7 +2558,8 @@ async def bugbagla_bind(request: Request):
                     for bug_id in binding.get("bugIds", []):
                         try:
                             await jira_api_client.link_bug_to_test_result(binding["testResultId"], bug_id, 3)
-                            yield f"data: {json.dumps({'log': f'✅ {binding.get(\"testKey\")} - Bug bağlandı (ID: {bug_id})'})}\n\n"
+                            test_key = binding.get("testKey", "")
+                            yield f"data: {json.dumps({'log': f'✅ {test_key} - Bug bağlandı (ID: {bug_id})'})}\n\n"
                             linked_count += 1
                         except Exception as e:
                             yield f"data: {json.dumps({'log': f'❌ {binding.get(\"testKey\")} - Bug bağlanırken hata: {str(e)}'})}\n\n"
