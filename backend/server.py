@@ -185,6 +185,7 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     id: str
     name: str
+    email: Optional[str] = None
     device_id: str
     created_at: str
     categories: List[dict]
