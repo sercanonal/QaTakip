@@ -2562,7 +2562,9 @@ async def bugbagla_bind(request: Request):
                             yield f"data: {json.dumps({'log': f'✅ {test_key} - Bug bağlandı (ID: {bug_id})'})}\n\n"
                             linked_count += 1
                         except Exception as e:
-                            yield f"data: {json.dumps({'log': f'❌ {binding.get(\"testKey\")} - Bug bağlanırken hata: {str(e)}'})}\n\n"
+                            test_key = binding.get("testKey", "")
+                            err_msg = str(e)
+                            yield f"data: {json.dumps({'log': f'❌ {test_key} - Bug bağlanırken hata: {err_msg}'})}\n\n"
                             failed_count += 1
                 
                 # Refresh cache
