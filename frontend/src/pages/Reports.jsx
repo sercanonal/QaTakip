@@ -52,6 +52,7 @@ const Reports = () => {
   const [stats, setStats] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -69,6 +70,41 @@ const Reports = () => {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExport = async (format) => {
+    setExporting(true);
+    try {
+      const response = await api.post('/reports/export', 
+        {
+          format,
+          user_id: user.id,
+          include_tasks: true,
+          include_stats: true
+        },
+        {
+          responseType: 'blob'
+        }
+      );
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const extensions = { pdf: 'pdf', excel: 'xlsx', word: 'docx' };
+      link.setAttribute('download', `qa_report_${Date.now()}.${extensions[format]}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success(`Rapor ${format.toUpperCase()} formatında indirildi`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Rapor dışa aktarılırken hata oluştu');
+    } finally {
+      setExporting(false);
     }
   };
 
