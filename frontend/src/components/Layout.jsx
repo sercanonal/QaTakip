@@ -15,7 +15,10 @@ import {
   X,
   ChevronLeft,
   Check,
-  Shield
+  Shield,
+  Sparkles,
+  Activity,
+  Zap,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
