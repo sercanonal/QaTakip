@@ -3,7 +3,14 @@ import { useAuth } from "../context/AuthContext";
 import api from "../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 import { 
   BarChart3,
   TrendingUp,
@@ -11,9 +18,15 @@ import {
   Clock,
   ListTodo,
   AlertTriangle,
-  PieChart
+  PieChart,
+  Download,
+  FileText,
+  FileSpreadsheet,
+  FileImage,
+  Loader2
 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { toast } from "sonner";
 import {
   BarChart,
   Bar,
