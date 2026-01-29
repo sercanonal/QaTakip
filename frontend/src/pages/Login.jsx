@@ -52,12 +52,12 @@ const Login = () => {
       <div className="w-full max-w-md animate-fadeIn">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/30">
             <CheckSquare className="w-7 h-7 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="font-heading text-2xl font-bold">QA Task Manager</h1>
-            <p className="text-sm text-muted-foreground">Intertech QA Ekibi</p>
+            <h1 className="font-heading text-2xl font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">QA Hub</h1>
+            <p className="text-sm text-muted-foreground">Intertech QA Platform</p>
           </div>
         </div>
 
