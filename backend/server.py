@@ -2561,9 +2561,9 @@ async def update_qa_project(name: str, request: Request):
         logger.error(f"Proje güncelleme hatası: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.delete("/projects/{name}")
-async def delete_project(name: str):
-    """Delete a project"""
+@api_router.delete("/qa-projects/{name}")
+async def delete_qa_project(name: str):
+    """Delete a QA project"""
     try:
         with open(PROJECTS_FILE, "r") as f:
             data = json.load(f)
