@@ -730,10 +730,22 @@ async def update_task(task_id: str, task_update: TaskUpdate, user_id: Optional[s
             assigner_name = assigner[0] if assigner else "Birisi"
             
             notif_id = str(uuid.uuid4())
+            notif_created_at = datetime.now(timezone.utc).isoformat()
             await db.execute(
                 "INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (notif_id, new_assigned, "Görev Atandı", f"{assigner_name} size bir görev atadı: {task_title}", "info", 0, datetime.now(timezone.utc).isoformat())
+                (notif_id, new_assigned, "Görev Atandı", f"{assigner_name} size bir görev atadı: {task_title}", "info", 0, notif_created_at)
             )
+            
+            # Send real-time notification via SSE
+            await notification_manager.send_notification(new_assigned, {
+                "id": notif_id,
+                "user_id": new_assigned,
+                "title": "Görev Atandı",
+                "message": f"{assigner_name} size bir görev atadı: {task_title}",
+                "type": "info",
+                "is_read": False,
+                "created_at": notif_created_at
+            })
         await db.commit()
         
         cursor = await db.execute(
