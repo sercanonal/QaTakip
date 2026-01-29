@@ -2317,46 +2317,202 @@ async def jiragen_create(request: Request):
 
 @api_router.post("/jira-tools/bugbagla/analyze")
 async def bugbagla_analyze(request: Request):
-    """Analyze cycle for bug binding (SSE streaming)"""
+    """Analyze cycle for bug binding (SSE streaming) - Port from bugbagla.js"""
     
     async def generate():
         try:
             body = await request.json()
-            cycle_key = body.get("cycleKey", "")
-            bug_key = body.get("bugKey", "")
-            status_ids = body.get("statusIds", [219])
+            current_cycle_key = body.get("currentCycleKey", "")
+            base_cycle_key = body.get("baseCycleKey", "")
+            status_ids = body.get("statusIds", [219])  # Default: Fail
             
-            yield f"data: {json.dumps({'log': f'🔍 Cycle analiz ediliyor: {cycle_key}'})}\n\n"
-            yield f"data: {json.dumps({'log': f'🐛 Bug: {bug_key}'})}\n\n"
-            yield f"data: {json.dumps({'log': f'📊 Status filtresi: {status_ids}'})}\n\n"
+            yield f"data: {json.dumps({'log': '🔍 Bug Bağlama Analizi Başlıyor'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   • Mevcut Cycle: {current_cycle_key}'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   • Base Cycle: {base_cycle_key}'})}\n\n"
             
-            # Demo mode - return mock data
-            if not JIRA_AVAILABLE:
+            status_names = [jira_api_client.get_status_name(sid) for sid in status_ids]
+            yield f"data: {json.dumps({'log': f'   • Seçilen Statusler: {", ".join(status_names)}'})}\n\n"
+            
+            if not JIRA_API_AVAILABLE:
                 yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
                 
-                mock_candidates = [
-                    {"testKey": f"{cycle_key}-T1", "testName": "Login Test - Invalid Credentials", "status": 219, "testResultId": "tr-1"},
-                    {"testKey": f"{cycle_key}-T2", "testName": "Payment API - Timeout Error", "status": 219, "testResultId": "tr-2"},
-                    {"testKey": f"{cycle_key}-T3", "testName": "User Registration - Email Validation", "status": 219, "testResultId": "tr-3"},
+                # Demo data
+                mock_will_bind = [
+                    {"testKey": f"TEST-001", "testName": "Login Test - Invalid", "status": 219, "testResultId": 1001, "bugIds": [5001], "bugKeys": ["BUG-101"]},
+                    {"testKey": f"TEST-002", "testName": "Payment Flow - Timeout", "status": 219, "testResultId": 1002, "bugIds": [5002], "bugKeys": ["BUG-102"]},
+                ]
+                mock_will_skip = [
+                    {"testKey": "TEST-003", "testName": "Dashboard Load", "status": 218, "reason": "Status filtresi dışında (Pass)"},
+                    {"testKey": "TEST-004", "testName": "Profile Update", "status": 219, "reason": "Base cycle'da test bulunamadı"},
                 ]
                 
-                yield f"data: {json.dumps({'log': f'✅ {len(mock_candidates)} test bulundu'})}\n\n"
+                yield f"data: {json.dumps({'log': f'📊 Analiz Tamamlandı! (Demo)'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   • Toplam: 10'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   • Bağlanacak: {len(mock_will_bind)}'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   • Atlanacak: {len(mock_will_skip)}'})}\n\n"
                 
                 result = {
-                    "bugId": bug_key,
-                    "cycleId": cycle_key,
-                    "candidates": mock_candidates,
+                    "success": True,
+                    "cycleId": 12345,
+                    "baseRunId": 12346,
+                    "willBind": mock_will_bind,
+                    "willSkip": mock_will_skip,
                     "stats": {
-                        "total": 15,
-                        "toBind": len(mock_candidates),
+                        "total": 10,
+                        "toBind": len(mock_will_bind),
+                        "toSkip": len(mock_will_skip)
                     }
                 }
-                
                 yield f"data: {json.dumps({'complete': True, 'result': result})}\n\n"
                 return
             
-            # Real Jira analysis would go here
-            # ...
+            # Real implementation using jira_api_client
+            try:
+                status_set = set(status_ids)
+                
+                # Get current cycle
+                yield f"data: {json.dumps({'log': '📋 Mevcut cycle bilgileri alınıyor...'})}\n\n"
+                current_run = await jira_api_client.get_test_run(current_cycle_key)
+                current_run_id = current_run.get("id")
+                
+                if not current_run_id:
+                    yield f"data: {json.dumps({'error': f'Mevcut cycle ID alınamadı: {current_cycle_key}'})}\n\n"
+                    return
+                
+                yield f"data: {json.dumps({'log': f'✅ Mevcut Cycle ID: {current_run_id}'})}\n\n"
+                
+                # Get current items
+                yield f"data: {json.dumps({'log': '📥 Mevcut cycle items alınıyor...'})}\n\n"
+                current_items = await jira_api_client.get_test_run_items(current_run_id)
+                yield f"data: {json.dumps({'log': f'✅ {len(current_items)} test bulundu'})}\n\n"
+                
+                # Build case map from base cycle
+                yield f"data: {json.dumps({'log': f'📋 Base cycle bilgileri alınıyor: {base_cycle_key}'})}\n\n"
+                base_run = await jira_api_client.get_test_run(base_cycle_key)
+                base_run_id = base_run.get("id")
+                
+                if not base_run_id:
+                    yield f"data: {json.dumps({'error': f'Base cycle ID alınamadı: {base_cycle_key}'})}\n\n"
+                    return
+                
+                yield f"data: {json.dumps({'log': f'✅ Base cycle ID: {base_run_id}'})}\n\n"
+                
+                yield f"data: {json.dumps({'log': '📥 Base cycle items alınıyor...'})}\n\n"
+                base_items = await jira_api_client.get_test_run_items(base_run_id)
+                yield f"data: {json.dumps({'log': f'✅ {len(base_items)} test bulundu'})}\n\n"
+                
+                # Build case map
+                case_map = {}
+                for item in base_items:
+                    lr = item.get("$lastTestResult", {})
+                    key = lr.get("testCase", {}).get("key")
+                    item_id = item.get("id")
+                    if key and item_id:
+                        case_map[key] = item_id
+                
+                yield f"data: {json.dumps({'log': f'✅ {len(case_map)} test için mapping oluşturuldu'})}\n\n"
+                
+                # Filter and analyze
+                yield f"data: {json.dumps({'log': '🔄 Testler analiz ediliyor...'})}\n\n"
+                
+                will_bind = []
+                will_skip = []
+                
+                for item in current_items:
+                    lr = item.get("$lastTestResult", {})
+                    if not lr:
+                        continue
+                    
+                    test_key = lr.get("testCase", {}).get("key")
+                    test_name = lr.get("testCase", {}).get("name", "")
+                    test_result_id = lr.get("id")
+                    status = lr.get("testResultStatusId")
+                    
+                    if not test_key or not test_result_id:
+                        continue
+                    
+                    # Status check
+                    if status not in status_set:
+                        will_skip.append({
+                            "testKey": test_key,
+                            "testName": test_name,
+                            "status": status,
+                            "reason": f"Status filtresi dışında ({jira_api_client.get_status_name(status)})"
+                        })
+                        continue
+                    
+                    # Check base
+                    base_item_id = case_map.get(test_key)
+                    if not base_item_id:
+                        will_skip.append({
+                            "testKey": test_key,
+                            "testName": test_name,
+                            "status": status,
+                            "reason": "Base cycle'da test bulunamadı"
+                        })
+                        continue
+                    
+                    # Get bugs from base
+                    try:
+                        base_results = await jira_api_client.get_test_results_by_item_id(base_run_id, base_item_id)
+                        first_result = base_results[0] if base_results else {}
+                        trace_links = first_result.get("traceLinks", [])
+                        issue_ids = [t.get("issueId") for t in trace_links if t.get("issueId")]
+                        
+                        if not issue_ids:
+                            will_skip.append({
+                                "testKey": test_key,
+                                "testName": test_name,
+                                "status": status,
+                                "reason": "Base cycle'da bağlı bug yok"
+                            })
+                            continue
+                        
+                        # Get bug keys
+                        bug_keys = []
+                        for issue_id in issue_ids:
+                            bug_key = await jira_api_client.get_issue_key(issue_id)
+                            bug_keys.append(bug_key)
+                        
+                        will_bind.append({
+                            "testKey": test_key,
+                            "testName": test_name,
+                            "status": status,
+                            "testResultId": test_result_id,
+                            "bugIds": issue_ids,
+                            "bugKeys": bug_keys
+                        })
+                        
+                    except Exception as e:
+                        will_skip.append({
+                            "testKey": test_key,
+                            "testName": test_name,
+                            "status": status,
+                            "reason": f"Analiz hatası: {str(e)}"
+                        })
+                
+                yield f"data: {json.dumps({'log': '📊 Analiz Tamamlandı!'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   • Toplam: {len(current_items)}'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   • Bağlanacak: {len(will_bind)}'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   • Atlanacak: {len(will_skip)}'})}\n\n"
+                
+                result = {
+                    "success": True,
+                    "cycleId": current_run_id,
+                    "baseRunId": base_run_id,
+                    "caseMap": case_map,
+                    "willBind": will_bind,
+                    "willSkip": will_skip,
+                    "stats": {
+                        "total": len(current_items),
+                        "toBind": len(will_bind),
+                        "toSkip": len(will_skip)
+                    }
+                }
+                yield f"data: {json.dumps({'complete': True, 'result': result})}\n\n"
+                
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
             
         except Exception as e:
             logger.error(f"BugBagla analyze error: {e}")
