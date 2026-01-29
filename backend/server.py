@@ -1541,7 +1541,7 @@ async def admin_update_user(user_id: str, name: str):
     
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            "SELECT id, name, device_id, categories, created_at FROM users WHERE id = ?",
+            "SELECT id, name, email, device_id, categories, created_at, role FROM users WHERE id = ?",
             (user_id,)
         )
         user = await cursor.fetchone()
@@ -1558,9 +1558,11 @@ async def admin_update_user(user_id: str, name: str):
         return UserResponse(
             id=user[0],
             name=name.strip(),
-            device_id=user[2],
-            categories=json.loads(user[3]),
-            created_at=user[4]
+            email=user[2],
+            device_id=user[3],
+            categories=json.loads(user[4]),
+            created_at=user[5],
+            role=user[6] or "user"
         )
 
 @api_router.delete("/admin/users/{user_id}")
