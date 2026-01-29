@@ -259,6 +259,11 @@ class TaskPriority(str, Enum):
     HIGH = "high"
     CRITICAL = "critical"
 
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    MANAGER = "manager"
+    USER = "user"
+
 # Default categories
 DEFAULT_CATEGORIES = [
     {"id": "api-test", "name": "API Testi", "color": "#3B82F6", "is_default": True},
