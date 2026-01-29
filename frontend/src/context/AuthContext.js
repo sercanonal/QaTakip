@@ -60,13 +60,12 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   };
 
-  const register = async (username, email) => {
+  const register = async (username) => {
     const deviceId = getDeviceId();
     
-    // Simple device-based registration
+    // Simple device-based registration - username only
     const response = await api.post("/auth/register", { 
       name: username.trim(),
-      email: email.trim(),
       device_id: deviceId 
     });
     
