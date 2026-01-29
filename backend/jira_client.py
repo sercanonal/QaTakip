@@ -37,23 +37,51 @@ class JiraClient:
     async def get_issues_by_assignee(
         self, 
         assignee_identifier: str,  # Can be username or email
-        max_results: int = 50
+        max_results: int = 100  # Increased from 50
     ) -> List[Dict[str, Any]]:
         """
         Fetch issues assigned to a specific user by username or email
+        Handles multiple projects and pagination
         """
-        # Try with username first, then email
-        jql_username = f'assignee = {assignee_identifier} ORDER BY updated DESC'
-        jql_email = f'assignee = "{assignee_identifier}" ORDER BY updated DESC'
+        all_issues = []
         
-        # Try username first
-        issues = await self._search_issues(jql_username, max_results)
+        # Try different JQL queries
+        jql_queries = [
+            # Query 1: Exact username match
+            f'assignee = "{assignee_identifier}" ORDER BY updated DESC',
+            # Query 2: Case-insensitive username
+            f'assignee = {assignee_identifier} ORDER BY updated DESC',
+            # Query 3: Display name search
+            f'assignee in ({assignee_identifier}) ORDER BY updated DESC',
+        ]
         
-        # If no results and looks like email, try email search
-        if not issues and '@' in assignee_identifier:
+        # Try each query until we get results
+        for jql in jql_queries:
+            logger.info(f"Trying JQL query: {jql}")
+            issues = await self._search_issues(jql, max_results)
+            
+            if issues:
+                all_issues.extend(issues)
+                logger.info(f"Found {len(issues)} issues with query: {jql}")
+                break  # Stop if we got results
+        
+        # If no results with username, try with email
+        if not all_issues and '@' in assignee_identifier:
+            logger.info(f"No results with username, trying email: {assignee_identifier}")
+            jql_email = f'assignee = "{assignee_identifier}" ORDER BY updated DESC'
             issues = await self._search_issues(jql_email, max_results)
+            if issues:
+                all_issues.extend(issues)
         
-        return issues
+        # Remove duplicates (by issue key)
+        unique_issues = {}
+        for issue in all_issues:
+            key = issue.get('key')
+            if key and key not in unique_issues:
+                unique_issues[key] = issue
+        
+        logger.info(f"Total unique issues found: {len(unique_issues)}")
+        return list(unique_issues.values())
     
     async def _search_issues(self, jql: str, max_results: int) -> List[Dict[str, Any]]:
         """Execute JQL search with retry logic"""
