@@ -45,13 +45,54 @@ const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [sseConnected, setSseConnected] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    
+    // Establish SSE connection for real-time notifications
+    if (user?.id) {
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
+      const eventSource = new EventSource(
+        `${backendUrl}/api/notifications/stream?user_id=${user.id}`
+      );
+
+      eventSource.onopen = () => {
+        console.log("SSE connection established");
+        setSseConnected(true);
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.type === 'connected') {
+            console.log("SSE:", data.message);
+          } else {
+            // New notification received
+            console.log("New notification received:", data);
+            setNotifications(prev => [data, ...prev]);
+            
+            // Show toast notification (if you have toast)
+            // toast.info(data.title, { description: data.message });
+          }
+        } catch (error) {
+          console.error("Error parsing SSE message:", error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error("SSE error:", error);
+        setSseConnected(false);
+        eventSource.close();
+      };
+
+      return () => {
+        eventSource.close();
+        setSseConnected(false);
+      };
+    }
+  }, [user?.id]);
 
   const fetchNotifications = async () => {
     try {
