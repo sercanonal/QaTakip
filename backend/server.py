@@ -2484,9 +2484,9 @@ async def delete_cycle(key: str):
         logger.error(f"Cycle silme hatası: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.get("/projects")
-async def get_projects():
-    """Get all projects"""
+@api_router.get("/qa-projects")
+async def get_qa_projects():
+    """Get all QA projects for tools"""
     try:
         with open(PROJECTS_FILE, "r") as f:
             data = json.load(f)
