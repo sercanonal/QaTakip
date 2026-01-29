@@ -101,11 +101,16 @@ const Settings = () => {
       return;
     }
     
+    if (newProject.isMobile && !newProject.platform) {
+      toast.error("Mobil projeler için platform seçimi gerekli!");
+      return;
+    }
+    
     setProjectSaving(true);
     try {
       await api.post("/qa-projects", newProject);
       toast.success("Proje eklendi!");
-      setNewProject({ name: "", icon: "📦" });
+      setNewProject({ name: "", icon: "📦", teamRemoteId: "", isMobile: false, platform: null });
       setIsProjectDialogOpen(false);
       loadQaProjects();
     } catch (error) {
