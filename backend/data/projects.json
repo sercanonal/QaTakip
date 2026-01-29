@@ -9,6 +9,14 @@
       "name": "TestProject",
       "icon": "\ud83e\uddea",
       "links": {}
+    },
+    {
+      "name": "MobileApp.iOS",
+      "icon": "\ud83d\udcf1",
+      "links": {},
+      "teamRemoteId": "12345",
+      "isMobile": true,
+      "platform": "ios"
     }
   ]
 }
