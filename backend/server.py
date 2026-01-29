@@ -2813,60 +2813,535 @@ async def delete_qa_project(name: str):
 
 @api_router.post("/analysis/analyze")
 async def run_analysis(request: Request):
-    """Run test analysis (SSE streaming)"""
+    """Run test analysis (SSE streaming) - Port from analiz.js"""
     
     async def generate():
         try:
             body = await request.json()
-            project_names = body.get("projectNames", [])
-            cycle_starts = body.get("cycleStartsWith", "")
-            cycle_contains = body.get("cycleContains", "")
-            cycle_excludes = body.get("cycleExcludes", "")
+            cycle_name = body.get("cycleName", "")
+            days = int(body.get("days", 1))
+            time = body.get("time", "00:00")
+            project_names = body.get("projectNames", ["FraudNG.UITests", "Intertech.FraudNG", "Inter.Fraud.UITests"])
             
-            yield f"data: {json.dumps({'log': '🔍 Analiz başlatılıyor...'})}\n\n"
-            projects_str = ", ".join(project_names)
-            yield f"data: {json.dumps({'log': f'📊 Projeler: {projects_str}'})}\n\n"
+            yield f"data: {json.dumps({'log': '📊 Analiz başlatılıyor...'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   • Cycle: {cycle_name}'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   • Kaç günlük: {days} gün'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   • Saat filtresi: {time}'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   • Projeler: {", ".join(project_names)}'})}\n\n"
             
-            if not JIRA_AVAILABLE:
+            if not MSSQL_AVAILABLE or not JIRA_API_AVAILABLE:
                 yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
                 
-                # Generate mock data
+                # Generate demo data
                 mock_data = []
                 statuses = ["Pass", "Fail"]
                 
                 for project in project_names:
-                    for i in range(5):
-                        is_ios = i % 3 == 0
-                        is_android = i % 3 == 1
-                        cycle_name = f"REG_{project}_2024" + ("_iOS" if is_ios else "_Android" if is_android else "")
-                        
+                    for i in range(8):
                         mock_data.append({
-                            "key": f"{project}-T{i+1}",
-                            "name": f"Test Case {i+1} - {project} {'iOS' if is_ios else 'Android' if is_android else 'Web'}",
+                            "key": f"{project[:5].upper()}-T{i+1}",
+                            "name": f"Test Case {i+1} - {project}",
                             "project": project,
-                            "cycleName": cycle_name,
                             "inRegression": i % 2 == 0,
                             "status": statuses[i % 2],
                         })
                 
-                yield f"data: {json.dumps({'log': f'✅ {len(mock_data)} test analiz edildi'})}\n\n"
+                yield f"data: {json.dumps({'log': f'✅ {len(mock_data)} test analiz edildi (Demo)'})}\n\n"
+                
+                maint = [d for d in mock_data if d["inRegression"] and d["status"] == "Fail"]
+                pass_no_reg = [d for d in mock_data if not d["inRegression"] and d["status"] == "Pass"]
+                fail_no_reg = [d for d in mock_data if not d["inRegression"] and d["status"] == "Fail"]
+                pass_in_reg = [d for d in mock_data if d["inRegression"] and d["status"] == "Pass"]
                 
                 stats = {
                     "total": len(mock_data),
-                    "needMaintenance": 3,
-                    "passedInRegression": len([d for d in mock_data if d["status"] == "Pass" and d["inRegression"]]),
-                    "passedNotInRegression": len([d for d in mock_data if d["status"] == "Pass" and not d["inRegression"]]),
-                    "failedNotInRegression": len([d for d in mock_data if d["status"] == "Fail" and not d["inRegression"]]),
+                    "needMaintenance": len(maint),
+                    "passedInRegression": len(pass_in_reg),
+                    "passedNotInRegression": len(pass_no_reg),
+                    "failedNotInRegression": len(fail_no_reg),
                 }
                 
                 yield f"data: {json.dumps({'success': True, 'tableData': mock_data, 'stats': stats})}\n\n"
                 return
             
-            # Real analysis would go here
-            # ...
+            # Real implementation
+            try:
+                # Get cycle ID
+                yield f"data: {json.dumps({'log': f'🔍 Cycle ID alınıyor: {cycle_name}'})}\n\n"
+                cycle_run = await jira_api_client.get_test_run(cycle_name)
+                cycle_id = cycle_run.get("id")
+                yield f"data: {json.dumps({'log': f'✅ Cycle ID bulundu: {cycle_id}'})}\n\n"
+                
+                # Get all tests from DB
+                yield f"data: {json.dumps({'log': '🗄️ Tüm testler veritabanından alınıyor...'})}\n\n"
+                test_names = mssql_client.get_all_tests(days, time, project_names)
+                yield f"data: {json.dumps({'log': f'✅ {len(test_names)} test bulundu'})}\n\n"
+                
+                # Get passed tests
+                yield f"data: {json.dumps({'log': '✅ Başarılı testler alınıyor...'})}\n\n"
+                db_items = mssql_client.get_passed_tests(days, time, project_names)
+                yield f"data: {json.dumps({'log': f'✅ {len(db_items)} başarılı test bulundu'})}\n\n"
+                
+                # Get regression cycle info
+                yield f"data: {json.dumps({'log': f'📋 Regression cycle bilgileri alınıyor (ID: {cycle_id})...'})}\n\n"
+                all_tests = await jira_api_client.get_cycle_info(cycle_id)
+                test_run_items = all_tests.get("testRunItems", [])
+                yield f"data: {json.dumps({'log': f'✅ {len(test_run_items)} test regression da'})}\n\n"
+                
+                # Process data
+                yield f"data: {json.dumps({'log': '🔄 Veriler işleniyor...'})}\n\n"
+                
+                # Regression check
+                for item in test_run_items:
+                    lr = item.get("$lastTestResult", {})
+                    key = lr.get("testCase", {}).get("key")
+                    item_t = next((t for t in test_names if t["key"] == key), None)
+                    if item_t:
+                        item_t["inRegression"] = True
+                
+                # Status update
+                for item in db_items:
+                    test = next((t for t in test_names if t["key"] == item["key"] and t["name"] == item["name"]), None)
+                    if test:
+                        test["status"] = "Pass"
+                
+                # Calculate stats
+                maint = [t for t in test_names if t["inRegression"] and t["status"] == "Fail"]
+                pass_no_reg = [t for t in test_names if not t["inRegression"] and t["status"] == "Pass"]
+                fail_no_reg = [t for t in test_names if not t["inRegression"] and t["status"] == "Fail"]
+                pass_in_reg = [t for t in test_names if t["inRegression"] and t["status"] == "Pass"]
+                
+                yield f"data: {json.dumps({'log': '📈 İstatistikler:'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   🔴 Bakıma ihtiyacı olan (Regression da + Fail): {len(maint)}'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   🟢 Başarılı ama Regression da yok: {len(pass_no_reg)}'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   🟠 Başarısız ve Regression da yok: {len(fail_no_reg)}'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   ✅ Başarılı ve Regression da: {len(pass_in_reg)}'})}\n\n"
+                
+                yield f"data: {json.dumps({'log': '✨ Analiz tamamlandı!'})}\n\n"
+                
+                stats = {
+                    "total": len(test_names),
+                    "needMaintenance": len(maint),
+                    "passedInRegression": len(pass_in_reg),
+                    "passedNotInRegression": len(pass_no_reg),
+                    "failedNotInRegression": len(fail_no_reg),
+                }
+                
+                yield f"data: {json.dumps({'success': True, 'tableData': test_names, 'stats': stats})}\n\n"
+                
+            except Exception as e:
+                logger.error(f"Analysis error: {e}")
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
             
         except Exception as e:
             logger.error(f"Analysis error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+@api_router.post("/analysis/apianaliz")
+async def run_api_analysis(request: Request):
+    """Run API analysis (SSE streaming) - Port from apianaliz.js"""
+    
+    async def generate():
+        try:
+            body = await request.json()
+            jira_team_id = int(body.get("jiraTeamId", 0))
+            report_date = body.get("reportDate", "")
+            project_names = body.get("projectNames", [])
+            days = int(body.get("days", 1))
+            time = body.get("time", "00:00")
+            
+            yield f"data: {json.dumps({'log': '📊 API Analiz başlatılıyor...'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   Team ID: {jira_team_id}'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   Tarih: {report_date}'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   Projeler: {", ".join(project_names)}'})}\n\n"
+            
+            if not MSSQL_AVAILABLE:
+                yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
+                
+                # Demo data
+                mock_tests = []
+                apps = ["FraudAPI", "PaymentService", "UserService"]
+                endpoints = ["/login", "/transfer", "/balance", "/profile"]
+                
+                for app in apps:
+                    for ep in endpoints:
+                        mock_tests.append({
+                            "key": f"API-{len(mock_tests)+1}",
+                            "name": f"API Test - {app}{ep}",
+                            "app": app,
+                            "endpoint": ep,
+                            "status": "Passed" if len(mock_tests) % 3 != 0 else "Failed",
+                            "detail": "",
+                            "rapor": len(mock_tests) % 2 == 0,
+                            "external": len(mock_tests) % 4 == 0
+                        })
+                
+                stats = {
+                    "total": len(mock_tests),
+                    "testedInReport": sum(1 for t in mock_tests if t["rapor"]),
+                    "notTestedInReport": sum(1 for t in mock_tests if not t["rapor"]),
+                    "notInReport": 0,
+                    "onlyInReport": 0,
+                    "passed": sum(1 for t in mock_tests if t["status"] == "Passed"),
+                    "failed": sum(1 for t in mock_tests if t["status"] == "Failed"),
+                    "externalEndpoints": sum(1 for t in mock_tests if t["external"])
+                }
+                
+                management_metrics = {
+                    "raporEndpointSayisi": 20,
+                    "raporaYansiyanTest": 15,
+                    "coverageOrani": "75.00",
+                    "otomasyondaAmaRapordaYok": 3,
+                    "passedAmaNegatifSayisi": 2,
+                    "failedEtkilenenEndpointSayisi": 1,
+                    "tahminiGuncelPass": 18,
+                    "tahminiGuncelCoverage": "90.00"
+                }
+                
+                yield f"data: {json.dumps({'log': f'✅ {len(mock_tests)} test analiz edildi (Demo)'})}\n\n"
+                yield f"data: {json.dumps({'success': True, 'tableData': mock_tests, 'stats': stats, 'managementMetrics': management_metrics})}\n\n"
+                return
+            
+            # Real implementation
+            try:
+                yield f"data: {json.dumps({'log': '📋 Rapor verileri alınıyor...'})}\n\n"
+                rapor_data = mssql_client.get_rapor_data(jira_team_id, report_date)
+                yield f"data: {json.dumps({'log': f'✅ {len(rapor_data)} endpoint bulundu (Rapordan)'})}\n\n"
+                
+                yield f"data: {json.dumps({'log': '🧪 Test sonuçları alınıyor...'})}\n\n"
+                tests = mssql_client.get_all_api_tests(project_names, days, time)
+                yield f"data: {json.dumps({'log': f'✅ {len(tests)} test sonucu bulundu'})}\n\n"
+                
+                yield f"data: {json.dumps({'log': '🔄 Veriler eşleştiriliyor...'})}\n\n"
+                
+                # Match tests with report
+                for test in tests:
+                    rapor_item = next(
+                        (r for r in rapor_data if 
+                         r["app"].lower() == (test.get("app") or "").lower() and 
+                         r["endpoint"].lower() == (test.get("endpoint") or "").lower()),
+                        None
+                    )
+                    
+                    if rapor_item:
+                        test["rapor"] = rapor_item["test"]
+                        test["raporapp"] = rapor_item["app"]
+                        test["raporendpoint"] = rapor_item["endpoint"]
+                        test["external"] = rapor_item["external"]
+                    else:
+                        test["rapor"] = None
+                        test["raporapp"] = None
+                        test["raporendpoint"] = None
+                        test["external"] = None
+                
+                # Find endpoints in report but not tested
+                not_tested_endpoints = []
+                for rapor_item in rapor_data:
+                    test_exists = any(
+                        t.get("app", "").lower() == rapor_item["app"].lower() and
+                        t.get("endpoint", "").lower() == rapor_item["endpoint"].lower()
+                        for t in tests
+                    )
+                    
+                    if not test_exists:
+                        not_tested_endpoints.append({
+                            "key": "-",
+                            "name": "-",
+                            "app": rapor_item["app"],
+                            "status": "None",
+                            "endpoint": rapor_item["endpoint"],
+                            "detail": "-",
+                            "rapor": "notest",
+                            "raporapp": rapor_item["app"],
+                            "raporendpoint": rapor_item["endpoint"],
+                            "external": rapor_item["external"]
+                        })
+                
+                tests.extend(not_tested_endpoints)
+                
+                # Calculate metrics
+                rapor_endpoint_sayisi = sum(1 for r in rapor_data if r["external"] == False)
+                rapora_yansıyan_test = sum(1 for r in rapor_data if r["external"] == False and r["test"] == True)
+                coverage_orani = round((rapora_yansıyan_test / rapor_endpoint_sayisi * 100), 2) if rapor_endpoint_sayisi > 0 else 0
+                
+                otomasyonda_ama_raporda_yok = sum(1 for t in tests if t["rapor"] is None and t.get("status") != "None")
+                
+                passed_ama_negatif = set()
+                for t in tests:
+                    if t.get("status") == "Passed" and t["rapor"] == False:
+                        passed_ama_negatif.add(f"{t.get('app')}|{t.get('endpoint')}")
+                
+                failed_ve_negatif = set()
+                for t in tests:
+                    if t.get("status") == "Failed" and t["rapor"] == False:
+                        failed_ve_negatif.add(f"{t.get('app')}|{t.get('endpoint')}")
+                
+                unique_passed = set()
+                for t in tests:
+                    if t.get("status") == "Passed" and t.get("status") != "None":
+                        unique_passed.add(f"{t.get('app')}|{t.get('endpoint')}")
+                
+                tahmini_guncel_pass = len(unique_passed)
+                tahmini_guncel_coverage = round((tahmini_guncel_pass / rapor_endpoint_sayisi * 100), 2) if rapor_endpoint_sayisi > 0 else 0
+                
+                stats = {
+                    "total": len(tests),
+                    "testedInReport": sum(1 for t in tests if t["rapor"] == True),
+                    "notTestedInReport": sum(1 for t in tests if t["rapor"] == False),
+                    "notInReport": sum(1 for t in tests if t["rapor"] is None),
+                    "onlyInReport": len(not_tested_endpoints),
+                    "passed": sum(1 for t in tests if t.get("status") == "Passed"),
+                    "failed": sum(1 for t in tests if t.get("status") == "Failed"),
+                    "externalEndpoints": sum(1 for t in tests if t.get("external") == True)
+                }
+                
+                management_metrics = {
+                    "raporEndpointSayisi": rapor_endpoint_sayisi,
+                    "raporaYansiyanTest": rapora_yansıyan_test,
+                    "coverageOrani": str(coverage_orani),
+                    "otomasyondaAmaRapordaYok": otomasyonda_ama_raporda_yok,
+                    "passedAmaNegatifSayisi": len(passed_ama_negatif),
+                    "failedEtkilenenEndpointSayisi": len(failed_ve_negatif),
+                    "tahminiGuncelPass": tahmini_guncel_pass,
+                    "tahminiGuncelCoverage": str(tahmini_guncel_coverage)
+                }
+                
+                yield f"data: {json.dumps({'log': '✨ API Analiz tamamlandı!'})}\n\n"
+                yield f"data: {json.dumps({'success': True, 'tableData': tests, 'stats': stats, 'managementMetrics': management_metrics})}\n\n"
+                
+            except Exception as e:
+                logger.error(f"API Analysis error: {e}")
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"API Analysis error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+# ============== CYCLE ADD API ==============
+
+@api_router.post("/jira-tools/cycleadd/analyze")
+async def cycleadd_analyze(request: Request):
+    """Analyze tests for cycle add (SSE streaming) - Port from cycleadd.js"""
+    
+    async def generate():
+        try:
+            body = await request.json()
+            cycle_key = body.get("cycleKey", "")
+            add_items = body.get("addItems", [])
+            
+            yield f"data: {json.dumps({'log': f'🔍 Cycle ID alınıyor: {cycle_key}'})}\n\n"
+            
+            if not JIRA_API_AVAILABLE:
+                yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
+                
+                # Demo data
+                will_be_added = []
+                will_be_skipped = []
+                
+                for idx, item in enumerate(add_items):
+                    if idx % 3 == 0:
+                        will_be_skipped.append({
+                            "key": item,
+                            "name": f"Test - {item}",
+                            "reason": "Zaten cycle'da mevcut"
+                        })
+                    else:
+                        will_be_added.append({
+                            "key": item,
+                            "name": f"Test - {item}",
+                            "testId": 10000 + idx
+                        })
+                
+                yield f"data: {json.dumps({'log': f'✅ Cycle ID bulundu: 12345 (Demo)'})}\n\n"
+                yield f"data: {json.dumps({'log': f'📋 {len(add_items)} test analiz ediliyor...'})}\n\n"
+                yield f"data: {json.dumps({'log': f'📊 Analiz tamamlandı!'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   Eklenecek: {len(will_be_added)} test'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   Atlanacak: {len(will_be_skipped)} test'})}\n\n"
+                
+                # Build demo save body
+                added_items = []
+                for idx, test in enumerate(will_be_added):
+                    added_items.append({
+                        "index": idx,
+                        "lastTestResult": {
+                            "assignedTo": "JIRAUSER85314",
+                            "plannedEndDate": "2019-10-24T12:58:18.383Z",
+                            "plannedStartDate": "2019-10-24T12:58:18.383Z",
+                            "testCaseId": test["testId"]
+                        }
+                    })
+                
+                save_body = {
+                    "addedTestRunItems": added_items,
+                    "autoReorder": False,
+                    "deletedTestRunItems": [],
+                    "testRunId": 12345,
+                    "updatedTestRunItems": [],
+                    "updatedTestRunItemsIndexes": []
+                }
+                
+                result = {
+                    "success": True,
+                    "cycleId": 12345,
+                    "willBeAdded": will_be_added,
+                    "willBeSkipped": will_be_skipped,
+                    "saveBody": save_body,
+                    "stats": {
+                        "total": len(add_items),
+                        "toAdd": len(will_be_added),
+                        "toSkip": len(will_be_skipped)
+                    }
+                }
+                
+                yield f"data: {json.dumps({'complete': True, 'result': result})}\n\n"
+                return
+            
+            # Real implementation
+            try:
+                cycle_run = await jira_api_client.get_test_run(cycle_key)
+                cycle_id = cycle_run.get("id")
+                yield f"data: {json.dumps({'log': f'✅ Cycle ID bulundu: {cycle_id}'})}\n\n"
+                
+                yield f"data: {json.dumps({'log': '📋 Mevcut test sonuçları alınıyor...'})}\n\n"
+                last_test_result = await jira_api_client.get_last_test_results(cycle_id)
+                yield f"data: {json.dumps({'log': f'✅ {len(last_test_result)} test sonucu bulundu'})}\n\n"
+                
+                will_be_added = []
+                will_be_skipped = []
+                
+                yield f"data: {json.dumps({'log': f'🔄 {len(add_items)} test analiz ediliyor...'})}\n\n"
+                
+                for item in add_items:
+                    try:
+                        test = await jira_api_client.get_test_case(item)
+                        test_id = test.get("id")
+                        
+                        already_exist = next(
+                            (r for r in last_test_result if r.get("lastTestResult", {}).get("testCaseId") == test_id),
+                            None
+                        )
+                        
+                        if not already_exist:
+                            will_be_added.append({
+                                "key": item,
+                                "name": test.get("name", ""),
+                                "testId": test_id
+                            })
+                        else:
+                            will_be_skipped.append({
+                                "key": item,
+                                "name": test.get("name", ""),
+                                "reason": "Zaten cycle'da mevcut"
+                            })
+                        
+                        await asyncio.sleep(0.1)
+                    except Exception as e:
+                        will_be_skipped.append({
+                            "key": item,
+                            "reason": str(e)
+                        })
+                
+                yield f"data: {json.dumps({'log': '📊 Analiz tamamlandı!'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   Eklenecek: {len(will_be_added)} test'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   Atlanacak: {len(will_be_skipped)} test'})}\n\n"
+                
+                # Build save body
+                yield f"data: {json.dumps({'log': '📦 Kayıt paketi hazırlanıyor...'})}\n\n"
+                
+                added_items = []
+                for idx, test in enumerate(will_be_added):
+                    added_items.append({
+                        "index": idx,
+                        "lastTestResult": {
+                            "assignedTo": "JIRAUSER85314",
+                            "plannedEndDate": "2019-10-24T12:58:18.383Z",
+                            "plannedStartDate": "2019-10-24T12:58:18.383Z",
+                            "testCaseId": test["testId"]
+                        }
+                    })
+                
+                cnt = len(added_items)
+                updated_items = []
+                
+                for item in last_test_result:
+                    updated_items.append({
+                        "index": item.get("index", 0) + cnt,
+                        "id": item.get("id")
+                    })
+                
+                save_body = {
+                    "addedTestRunItems": added_items,
+                    "autoReorder": False,
+                    "deletedTestRunItems": [],
+                    "testRunId": cycle_id,
+                    "updatedTestRunItems": [],
+                    "updatedTestRunItemsIndexes": updated_items
+                }
+                
+                yield f"data: {json.dumps({'log': '✅ Kayıt paketi hazır!'})}\n\n"
+                
+                result = {
+                    "success": True,
+                    "cycleId": cycle_id,
+                    "willBeAdded": will_be_added,
+                    "willBeSkipped": will_be_skipped,
+                    "saveBody": save_body,
+                    "stats": {
+                        "total": len(add_items),
+                        "toAdd": len(will_be_added),
+                        "toSkip": len(will_be_skipped)
+                    }
+                }
+                
+                yield f"data: {json.dumps({'complete': True, 'result': result})}\n\n"
+                
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"CycleAdd analyze error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+@api_router.post("/jira-tools/cycleadd/execute")
+async def cycleadd_execute(request: Request):
+    """Execute cycle add (SSE streaming) - Port from cycleadd.js executeCycleAdd"""
+    
+    async def generate():
+        try:
+            body = await request.json()
+            save_body = body.get("saveBody", {})
+            
+            added_count = len(save_body.get("addedTestRunItems", []))
+            yield f"data: {json.dumps({'log': f'🚀 Cycle güncelleniyor...'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   Eklenecek test sayısı: {added_count}'})}\n\n"
+            
+            if not JIRA_API_AVAILABLE:
+                yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
+                yield f"data: {json.dumps({'log': f'✅ İşlem tamamlandı! (Demo)'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   Eklenen: {added_count} test'})}\n\n"
+                yield f"data: {json.dumps({'success': True, 'added': added_count, 'message': f'{added_count} test başarıyla eklendi! (Demo)'})}\n\n"
+                return
+            
+            # Real implementation
+            try:
+                await jira_api_client.save_cycle(save_body)
+                
+                yield f"data: {json.dumps({'log': '✅ İşlem tamamlandı!'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   Eklenen: {added_count} test'})}\n\n"
+                
+                yield f"data: {json.dumps({'success': True, 'added': added_count, 'message': f'{added_count} test başarıyla eklendi!'})}\n\n"
+                
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"CycleAdd execute error: {e}")
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
     
     return StreamingResponse(generate(), media_type="text/event-stream")
