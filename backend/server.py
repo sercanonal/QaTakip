@@ -2331,7 +2331,8 @@ async def bugbagla_analyze(request: Request):
             yield f"data: {json.dumps({'log': f'   • Base Cycle: {base_cycle_key}'})}\n\n"
             
             status_names = [jira_api_client.get_status_name(sid) for sid in status_ids]
-            yield f"data: {json.dumps({'log': f'   • Seçilen Statusler: {", ".join(status_names)}'})}\n\n"
+            status_names_str = ", ".join(status_names)
+            yield f"data: {json.dumps({'log': f'   • Seçilen Statusler: {status_names_str}'})}\n\n"
             
             if not JIRA_API_AVAILABLE:
                 yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
