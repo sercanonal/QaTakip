@@ -166,7 +166,7 @@ const JiraTools = () => {
 
   const loadProjects = async () => {
     try {
-      const response = await api.get("/projects");
+      const response = await api.get("/qa-projects");
       setProjects(response.data.projects || []);
     } catch (error) {
       console.error("Projeler yüklenemedi:", error);
