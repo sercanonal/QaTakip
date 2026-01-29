@@ -30,6 +30,38 @@ logger = logging.getLogger(__name__)
 
 # ============== SQLite Database Setup ==============
 
+# Global SSE connections manager
+class NotificationManager:
+    def __init__(self):
+        self.active_connections: dict[str, List[asyncio.Queue]] = {}
+    
+    async def connect(self, user_id: str) -> asyncio.Queue:
+        """Add a new SSE connection for a user"""
+        queue = asyncio.Queue()
+        if user_id not in self.active_connections:
+            self.active_connections[user_id] = []
+        self.active_connections[user_id].append(queue)
+        logger.info(f"SSE client connected for user {user_id}")
+        return queue
+    
+    def disconnect(self, user_id: str, queue: asyncio.Queue):
+        """Remove an SSE connection"""
+        if user_id in self.active_connections:
+            if queue in self.active_connections[user_id]:
+                self.active_connections[user_id].remove(queue)
+            if not self.active_connections[user_id]:
+                del self.active_connections[user_id]
+        logger.info(f"SSE client disconnected for user {user_id}")
+    
+    async def send_notification(self, user_id: str, notification: dict):
+        """Send notification to all connected clients of a user"""
+        if user_id in self.active_connections:
+            for queue in self.active_connections[user_id]:
+                await queue.put(notification)
+            logger.info(f"Notification sent to {len(self.active_connections[user_id])} clients for user {user_id}")
+
+notification_manager = NotificationManager()
+
 async def init_db():
     """Initialize SQLite database with required tables"""
     DATA_DIR.mkdir(exist_ok=True)
