@@ -10,14 +10,14 @@ import time
 
 logger = logging.getLogger(__name__)
 
-# MSSQL Configuration
+# MSSQL Configuration - SHORT timeouts for fast failure
 MSSQL_CONFIG = {
     "server": "WIPREDB31.intertech.com.tr",
     "user": "quantra",
     "password": "quantra2",
     "database": "TEST_DATA_MANAGEMENT",
-    "timeout": 30,
-    "login_timeout": 30,
+    "timeout": 10,  # Short timeout
+    "login_timeout": 5,  # Very short login timeout for fast failure
     "charset": "UTF-8",
     "as_dict": True
 }
