@@ -90,29 +90,51 @@ class JiraClient:
         for attempt in range(self.config.MAX_RETRIES):
             try:
                 async with httpx.AsyncClient(verify=False, timeout=self.config.REQUEST_TIMEOUT) as client:
+                    url = f"{self.base_url}{self.api_path}/search"
+                    params = {
+                        "jql": jql,
+                        "maxResults": max_results,
+                        "fields": "key,summary,status,assignee,created,updated,priority,issuetype,description,project"
+                    }
+                    
+                    logger.info(f"Jira API request: {url}")
+                    logger.info(f"JQL: {jql}")
+                    logger.info(f"Headers: Authorization={self.headers['Authorization'][:20]}...")
+                    
                     response = await client.get(
-                        f"{self.base_url}{self.api_path}/search",
+                        url,
                         headers=self.headers,
-                        params={
-                            "jql": jql,
-                            "maxResults": max_results,
-                            "fields": "key,summary,status,assignee,created,updated,priority,issuetype,description"
-                        },
+                        params=params,
                     )
+                    
+                    logger.info(f"Jira API response status: {response.status_code}")
                     
                     if response.status_code == 200:
                         data = response.json()
                         issues = data.get('issues', [])
-                        logger.info(f"Fetched {len(issues)} issues from Jira (attempt {attempt + 1})")
+                        total = data.get('total', 0)
+                        logger.info(f"Success! Fetched {len(issues)} issues out of {total} total (attempt {attempt + 1})")
+                        
+                        # Log first few issue keys for debugging
+                        if issues:
+                            keys = [issue.get('key') for issue in issues[:5]]
+                            logger.info(f"Sample issue keys: {keys}")
+                        
                         return issues
+                    
                     elif response.status_code == 401:
                         logger.error("Jira authentication failed - check API token")
+                        logger.error(f"Response: {response.text[:200]}")
                         return []
+                    
                     elif response.status_code == 400:
-                        logger.warning(f"Invalid JQL query: {jql}")
+                        logger.error(f"Invalid JQL query: {jql}")
+                        logger.error(f"Response: {response.text[:200]}")
                         return []
+                    
                     else:
                         logger.error(f"Jira API error: {response.status_code}")
+                        logger.error(f"Response: {response.text[:200]}")
                         last_error = f"HTTP {response.status_code}"
             
             except httpx.TimeoutException:
@@ -120,6 +142,13 @@ class JiraClient:
                 logger.warning(f"Jira API timeout (attempt {attempt + 1}/{self.config.MAX_RETRIES})")
                 if attempt < self.config.MAX_RETRIES - 1:
                     await asyncio.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+            
+            except httpx.ConnectError as e:
+                last_error = f"Connection error: {str(e)}"
+                logger.error(f"Cannot connect to Jira (attempt {attempt + 1}): {e}")
+                if attempt < self.config.MAX_RETRIES - 1:
+                    await asyncio.sleep(2 ** attempt)
+            
             except Exception as e:
                 last_error = str(e)
                 logger.error(f"Jira request error (attempt {attempt + 1}): {e}")
