@@ -51,6 +51,17 @@ const Layout = () => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [sseConnected, setSseConnected] = useState(false);
 
+  // Debug: Log user info
+  useEffect(() => {
+    if (user) {
+      console.log("=== USER INFO DEBUG ===");
+      console.log("User object:", user);
+      console.log("User role:", user.role);
+      console.log("Is admin?", user.role === "admin");
+      console.log("=======================");
+    }
+  }, [user]);
+
   useEffect(() => {
     fetchNotifications();
     
