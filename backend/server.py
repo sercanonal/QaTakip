@@ -2238,7 +2238,9 @@ async def jiragen_validate(request: Request):
                     }
                 })
             
-            yield f"data: {json.dumps({'log': f'\\n✅ Doğrulama tamamlandı: {valid_count} geçerli, {invalid_count} hatalı'})}\n\n"
+            newline = "\n"
+            log_msg = f'{newline}✅ Doğrulama tamamlandı: {valid_count} geçerli, {invalid_count} hatalı'
+            yield f"data: {json.dumps({'log': log_msg})}\n\n"
             
             result = {
                 "tests": validated_tests,
