@@ -715,7 +715,7 @@ async def add_category(user_id: str, category: Category):
 async def delete_category(user_id: str, category_id: str):
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            "SELECT id, name, device_id, categories, created_at FROM users WHERE id = ?",
+            "SELECT id, name, email, device_id, categories, created_at, role FROM users WHERE id = ?",
             (user_id,)
         )
         user = await cursor.fetchone()
@@ -723,7 +723,7 @@ async def delete_category(user_id: str, category_id: str):
         if not user:
             raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
         
-        categories = json.loads(user[3])
+        categories = json.loads(user[4])
         
         for cat in categories:
             if cat["id"] == category_id and cat.get("is_default"):
@@ -740,9 +740,11 @@ async def delete_category(user_id: str, category_id: str):
         return UserResponse(
             id=user[0],
             name=user[1],
-            device_id=user[2],
+            email=user[2],
+            device_id=user[3],
             categories=categories,
-            created_at=user[4]
+            created_at=user[5],
+            role=user[6] or "user"
         )
 
 # ============== PROJECT ROUTES ==============
