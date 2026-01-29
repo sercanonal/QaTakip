@@ -60,36 +60,20 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   };
 
-  const register = async (username, email, password) => {
+  const register = async (username, email) => {
     const deviceId = getDeviceId();
     
-    // Try LDAPS authentication first
-    try {
-      const response = await api.post("/auth/ldap-login", { 
-        username: username.trim(),
-        email: email.trim(),
-        password: password
-      });
-      
-      const userData = response.data;
-      setUser(userData);
-      localStorage.setItem("qa_user", JSON.stringify(userData));
-      return userData;
-    } catch (ldapError) {
-      // If LDAPS fails, fall back to device-based registration
-      console.log("LDAPS authentication failed, using device-based auth");
-      
-      const response = await api.post("/auth/register", { 
-        name: username.trim(),
-        email: email.trim(),
-        device_id: deviceId 
-      });
-      
-      const userData = response.data;
-      setUser(userData);
-      localStorage.setItem("qa_user", JSON.stringify(userData));
-      return userData;
-    }
+    // Simple device-based registration
+    const response = await api.post("/auth/register", { 
+      name: username.trim(),
+      email: email.trim(),
+      device_id: deviceId 
+    });
+    
+    const userData = response.data;
+    setUser(userData);
+    localStorage.setItem("qa_user", JSON.stringify(userData));
+    return userData;
   };
 
   const logout = () => {
