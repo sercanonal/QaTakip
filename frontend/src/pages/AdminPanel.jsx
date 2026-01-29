@@ -51,6 +51,35 @@ const AdminPanel = () => {
   const [updatingRole, setUpdatingRole] = useState(null);
   const [clearingLogs, setClearingLogs] = useState(false);
 
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get("/users/roles", {
+        params: { admin_user_id: user.id }
+      });
+      setUsers(response.data);
+    } catch (error) {
+      toast.error("Kullanıcılar yüklenemedi");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAuditLogs = async () => {
+    setLoadingLogs(true);
+    try {
+      const response = await api.get("/audit-logs", {
+        params: { admin_user_id: user.id, limit: 50 }
+      });
+      setAuditLogs(response.data);
+    } catch (error) {
+      toast.error("Audit logları yüklenemedi");
+      console.error(error);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
   useEffect(() => {
     // Check if user is admin
     if (user?.role !== "admin") {
@@ -60,6 +89,7 @@ const AdminPanel = () => {
     
     fetchUsers();
     fetchAuditLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchUsers = async () => {
