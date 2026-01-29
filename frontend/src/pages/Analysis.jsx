@@ -891,15 +891,364 @@ const Analysis = () => {
 
           {/* API ANALYSIS TAB */}
           <TabsContent value="api-analysis" className="space-y-6">
-            <Card className="bg-card/50 backdrop-blur border-violet-500/20">
-              <CardContent className="p-12 text-center">
-                <Target className="w-16 h-16 mx-auto text-violet-500/50 mb-4" />
-                <h3 className="text-xl font-semibold mb-2">API Analizi</h3>
-                <p className="text-muted-foreground">
-                  API test analizi özelliği yakında eklenecek
-                </p>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* API Input Form */}
+              <Card className="lg:col-span-1 bg-card/50 backdrop-blur border-violet-500/20 hover:border-violet-500/40 transition-all duration-300">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Filter className="w-5 h-5 text-violet-500" />
+                    API Analiz Parametreleri
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Jira Team ID */}
+                  <div className="space-y-2">
+                    <Label>Jira Team ID</Label>
+                    <Input
+                      type="number"
+                      placeholder="12345"
+                      value={apiForm.jiraTeamId}
+                      onChange={(e) => setApiForm(prev => ({ ...prev, jiraTeamId: e.target.value }))}
+                      className="border-violet-500/30 focus:border-violet-500"
+                    />
+                  </div>
+
+                  {/* Report Date */}
+                  <div className="space-y-2">
+                    <Label>Rapor Tarihi (GG/AA/YYYY)</Label>
+                    <Input
+                      placeholder="10/12/2025"
+                      value={apiForm.reportDate}
+                      onChange={(e) => setApiForm(prev => ({ ...prev, reportDate: e.target.value }))}
+                      className="border-violet-500/30 focus:border-violet-500"
+                    />
+                  </div>
+
+                  {/* Project Selection */}
+                  <div className="space-y-2">
+                    <Label>Projeler</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {projects.length > 0 ? (
+                        projects.map((project) => (
+                          <Button
+                            key={project.name}
+                            type="button"
+                            variant={apiSelectedProjects.includes(project.name) ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => toggleApiProject(project.name)}
+                            className={cn(
+                              "transition-all duration-200",
+                              apiSelectedProjects.includes(project.name) && "bg-gradient-to-r from-violet-600 to-purple-600"
+                            )}
+                          >
+                            <span className="mr-1">{project.icon}</span>
+                            {project.name}
+                          </Button>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Proje yok</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Kaç Gün</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={apiForm.days}
+                        onChange={(e) => setApiForm(prev => ({ ...prev, days: e.target.value }))}
+                        className="border-violet-500/30 focus:border-violet-500"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Saat</Label>
+                      <Input
+                        type="time"
+                        value={apiForm.time}
+                        onChange={(e) => setApiForm(prev => ({ ...prev, time: e.target.value }))}
+                        className="border-violet-500/30 focus:border-violet-500"
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleApiAnalyze}
+                    disabled={apiLoading}
+                    className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
+                  >
+                    {apiLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Analiz Ediliyor...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4 mr-2" />
+                        Analiz Et
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* API Output Console */}
+              <Card className="lg:col-span-2 bg-card/50 backdrop-blur border-violet-500/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-violet-500" />
+                    Çıktı
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea 
+                    ref={apiOutputRef}
+                    className="h-[250px] rounded-lg bg-black/50 p-4 font-mono text-sm text-green-400"
+                  >
+                    <pre className="whitespace-pre-wrap">
+                      {apiOutput || "Analiz sonuçları burada görünecek..."}
+                    </pre>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* API Management Metrics */}
+            {apiResults.length > 0 && (
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="space-y-6"
+              >
+                {/* Yönetim Metrikleri */}
+                <Card className="bg-card/50 backdrop-blur border-violet-500/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-violet-500" />
+                      Yönetim Metrikleri
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="p-4 rounded-lg bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/30">
+                        <p className="text-xs text-muted-foreground">Rapor Endpoint Sayısı</p>
+                        <p className="text-2xl font-bold">{apiMetrics.raporEndpointSayisi}</p>
+                      </div>
+                      <div className="p-4 rounded-lg bg-gradient-to-r from-emerald-600/20 to-green-600/20 border border-emerald-500/30">
+                        <p className="text-xs text-muted-foreground">Rapora Yansıyan Test</p>
+                        <p className="text-2xl font-bold">{apiMetrics.raporaYansiyanTest}</p>
+                      </div>
+                      <div className={cn(
+                        "p-4 rounded-lg border",
+                        parseFloat(apiMetrics.coverageOrani) >= 80 ? "bg-emerald-500/20 border-emerald-500/30" :
+                        parseFloat(apiMetrics.coverageOrani) >= 50 ? "bg-yellow-500/20 border-yellow-500/30" :
+                        "bg-rose-500/20 border-rose-500/30"
+                      )}>
+                        <p className="text-xs text-muted-foreground">Coverage Oranı</p>
+                        <p className="text-2xl font-bold">%{apiMetrics.coverageOrani}</p>
+                      </div>
+                      <div className={cn(
+                        "p-4 rounded-lg border",
+                        parseFloat(apiMetrics.tahminiGuncelCoverage) >= 80 ? "bg-emerald-500/20 border-emerald-500/30" :
+                        parseFloat(apiMetrics.tahminiGuncelCoverage) >= 50 ? "bg-yellow-500/20 border-yellow-500/30" :
+                        "bg-rose-500/20 border-rose-500/30"
+                      )}>
+                        <p className="text-xs text-muted-foreground">Tahmini Güncel Coverage</p>
+                        <p className="text-2xl font-bold">%{apiMetrics.tahminiGuncelCoverage}</p>
+                      </div>
+                      <div className="p-4 rounded-lg bg-orange-500/20 border border-orange-500/30">
+                        <p className="text-xs text-muted-foreground">Otomasyonda Raporda Yok</p>
+                        <p className="text-2xl font-bold">{apiMetrics.otomasyondaAmaRapordaYok}</p>
+                      </div>
+                      <div className="p-4 rounded-lg bg-amber-500/20 border border-amber-500/30">
+                        <p className="text-xs text-muted-foreground">Passed ama Negatif</p>
+                        <p className="text-2xl font-bold">{apiMetrics.passedAmaNegatifSayisi}</p>
+                      </div>
+                      <div className="p-4 rounded-lg bg-rose-500/20 border border-rose-500/30">
+                        <p className="text-xs text-muted-foreground">Failed Etkilenen</p>
+                        <p className="text-2xl font-bold">{apiMetrics.failedEtkilenenEndpointSayisi}</p>
+                      </div>
+                      <div className="p-4 rounded-lg bg-violet-500/20 border border-violet-500/30">
+                        <p className="text-xs text-muted-foreground">Tahmini Güncel Pass</p>
+                        <p className="text-2xl font-bold">{apiMetrics.tahminiGuncelPass}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* API Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                  <motion.div variants={itemVariants} className="p-4 rounded-xl bg-gradient-to-br from-violet-600/20 to-purple-600/20 border border-violet-500/30">
+                    <p className="text-xs text-muted-foreground">Toplam</p>
+                    <p className="text-xl font-bold">{apiStats.total}</p>
+                  </motion.div>
+                  <motion.div variants={itemVariants} className="p-4 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
+                    <p className="text-xs text-muted-foreground">Rapora Yansımış</p>
+                    <p className="text-xl font-bold text-emerald-400">{apiStats.testedInReport}</p>
+                  </motion.div>
+                  <motion.div variants={itemVariants} className="p-4 rounded-xl bg-amber-500/20 border border-amber-500/30">
+                    <p className="text-xs text-muted-foreground">Yansımamış</p>
+                    <p className="text-xl font-bold text-amber-400">{apiStats.notTestedInReport}</p>
+                  </motion.div>
+                  <motion.div variants={itemVariants} className="p-4 rounded-xl bg-rose-500/20 border border-rose-500/30">
+                    <p className="text-xs text-muted-foreground">Raporda Yok</p>
+                    <p className="text-xl font-bold text-rose-400">{apiStats.notInReport}</p>
+                  </motion.div>
+                  <motion.div variants={itemVariants} className="p-4 rounded-xl bg-sky-500/20 border border-sky-500/30">
+                    <p className="text-xs text-muted-foreground">Sadece Raporda</p>
+                    <p className="text-xl font-bold text-sky-400">{apiStats.onlyInReport}</p>
+                  </motion.div>
+                  <motion.div variants={itemVariants} className="p-4 rounded-xl bg-green-500/20 border border-green-500/30">
+                    <p className="text-xs text-muted-foreground">Passed</p>
+                    <p className="text-xl font-bold text-green-400">{apiStats.passed}</p>
+                  </motion.div>
+                  <motion.div variants={itemVariants} className="p-4 rounded-xl bg-red-500/20 border border-red-500/30">
+                    <p className="text-xs text-muted-foreground">Failed</p>
+                    <p className="text-xl font-bold text-red-400">{apiStats.failed}</p>
+                  </motion.div>
+                  <motion.div variants={itemVariants} className="p-4 rounded-xl bg-cyan-500/20 border border-cyan-500/30">
+                    <p className="text-xs text-muted-foreground">External</p>
+                    <p className="text-xl font-bold text-cyan-400">{apiStats.externalEndpoints}</p>
+                  </motion.div>
+                </div>
+
+                {/* API Filters */}
+                <Card className="bg-card/50 backdrop-blur border-violet-500/20">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-wrap gap-4">
+                      <div className="flex-1 min-w-[200px]">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Ara..."
+                            className="pl-9 border-violet-500/30"
+                            value={apiSearchText}
+                            onChange={(e) => setApiSearchText(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <Select value={apiStatusFilter} onValueChange={setApiStatusFilter}>
+                        <SelectTrigger className="w-[140px] border-violet-500/30">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Tümü</SelectItem>
+                          <SelectItem value="Passed">Passed</SelectItem>
+                          <SelectItem value="Failed">Failed</SelectItem>
+                          <SelectItem value="None">None</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={apiRaporFilter} onValueChange={setApiRaporFilter}>
+                        <SelectTrigger className="w-[160px] border-violet-500/30">
+                          <SelectValue placeholder="Rapor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Tümü</SelectItem>
+                          <SelectItem value="true">Yansımış</SelectItem>
+                          <SelectItem value="false">Yansımamış</SelectItem>
+                          <SelectItem value="notest">Test Yok</SelectItem>
+                          <SelectItem value="null">Raporda Yok</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={apiExternalFilter} onValueChange={setApiExternalFilter}>
+                        <SelectTrigger className="w-[140px] border-violet-500/30">
+                          <SelectValue placeholder="External" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Tümü</SelectItem>
+                          <SelectItem value="true">External</SelectItem>
+                          <SelectItem value="false">Internal</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setApiSearchText("");
+                          setApiStatusFilter("");
+                          setApiRaporFilter("");
+                          setApiExternalFilter("");
+                        }}
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Sıfırla
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* API Results Table */}
+                <Card className="bg-card/50 backdrop-blur border-violet-500/20">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Layers className="w-5 h-5 text-violet-500" />
+                        Sonuçlar
+                      </CardTitle>
+                      <Badge variant="outline" className="border-violet-500/50">
+                        {filteredApiResults.length} / {apiResults.length} sonuç
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ScrollArea className="h-[400px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Key</TableHead>
+                            <TableHead>Test Adı</TableHead>
+                            <TableHead>App</TableHead>
+                            <TableHead>Endpoint</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Rapor</TableHead>
+                            <TableHead>External</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredApiResults.map((row, idx) => (
+                            <TableRow key={`${row.key}-${idx}`} className="hover:bg-secondary/50">
+                              <TableCell className="font-mono text-sm">{row.key || "-"}</TableCell>
+                              <TableCell className="max-w-[200px] truncate" title={row.name}>{row.name || "-"}</TableCell>
+                              <TableCell>{row.app || "-"}</TableCell>
+                              <TableCell className="max-w-[150px] truncate" title={row.endpoint}>{row.endpoint || "-"}</TableCell>
+                              <TableCell>
+                                {row.status === "Passed" ? (
+                                  <Badge className="bg-emerald-600">✓ Passed</Badge>
+                                ) : row.status === "Failed" ? (
+                                  <Badge variant="destructive">✗ Failed</Badge>
+                                ) : (
+                                  <Badge variant="secondary">⚪ None</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {row.rapor === true ? (
+                                  <Badge className="bg-emerald-600">✓ Yansımış</Badge>
+                                ) : row.rapor === false ? (
+                                  <Badge className="bg-amber-600">🟡 Yansımamış</Badge>
+                                ) : row.rapor === "notest" ? (
+                                  <Badge variant="destructive">✗ Test Yok</Badge>
+                                ) : (
+                                  <Badge variant="secondary">⚠️ Raporda Yok</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {row.external !== null && (
+                                  <Badge variant="outline" className={row.external ? "border-cyan-500 text-cyan-400" : "border-violet-500 text-violet-400"}>
+                                    {row.external ? "🌐 External" : "🏠 Internal"}
+                                  </Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
           </TabsContent>
         </Tabs>
       </motion.div>
