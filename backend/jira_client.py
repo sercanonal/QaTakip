@@ -111,6 +111,86 @@ class JiraClient:
             logger.error(f"Error fetching Jira user: {e}")
             return None
     
+    async def add_comment_to_issue(self, issue_key: str, comment_text: str) -> bool:
+        """Add a comment to a Jira issue"""
+        try:
+            async with httpx.AsyncClient(verify=False) as client:
+                response = await client.post(
+                    f"{self.base_url}{self.api_path}/issue/{issue_key}/comment",
+                    headers=self.headers,
+                    json={"body": comment_text},
+                    timeout=30.0,
+                )
+                
+                if response.status_code in [200, 201]:
+                    logger.info(f"Comment added to {issue_key}")
+                    return True
+                else:
+                    logger.error(f"Failed to add comment: {response.status_code}")
+                    return False
+        
+        except Exception as e:
+            logger.error(f"Error adding comment: {e}")
+            return False
+    
+    async def update_issue_status(self, issue_key: str, status_name: str) -> bool:
+        """Update Jira issue status (transition)"""
+        try:
+            async with httpx.AsyncClient(verify=False) as client:
+                # Get available transitions
+                trans_response = await client.get(
+                    f"{self.base_url}{self.api_path}/issue/{issue_key}/transitions",
+                    headers=self.headers,
+                    timeout=30.0,
+                )
+                
+                if trans_response.status_code != 200:
+                    logger.error(f"Failed to get transitions: {trans_response.status_code}")
+                    return False
+                
+                transitions = trans_response.json().get('transitions', [])
+                
+                # Find matching transition
+                # Map our statuses to Jira statuses
+                status_mapping = {
+                    'in_progress': ['In Progress', 'Start Progress', 'In Development'],
+                    'completed': ['Done', 'Resolved', 'Closed'],
+                    'blocked': ['Blocked', 'On Hold'],
+                    'backlog': ['To Do', 'Open', 'Backlog'],
+                    'today_planned': ['To Do', 'Selected for Development']
+                }
+                
+                target_statuses = status_mapping.get(status_name, [status_name])
+                transition_id = None
+                
+                for transition in transitions:
+                    if transition['to']['name'] in target_statuses:
+                        transition_id = transition['id']
+                        break
+                
+                if not transition_id:
+                    logger.warning(f"No transition found for status {status_name}")
+                    return False
+                
+                # Execute transition
+                response = await client.post(
+                    f"{self.base_url}{self.api_path}/issue/{issue_key}/transitions",
+                    headers=self.headers,
+                    json={"transition": {"id": transition_id}},
+                    timeout=30.0,
+                )
+                
+                if response.status_code in [200, 204]:
+                    logger.info(f"Status updated for {issue_key}")
+                    return True
+                else:
+                    logger.error(f"Failed to update status: {response.status_code}")
+                    return False
+        
+        except Exception as e:
+            logger.error(f"Error updating status: {e}")
+            return False
+    
     def transform_issue(self, raw_issue: Dict[str, Any]) -> Dict[str, Any]:
         """Transform raw Jira issue to application format"""
         fields = raw_issue.get("fields", {})
