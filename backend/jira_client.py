@@ -4,6 +4,7 @@ Handles communication with Intertech Jira instance
 """
 
 import httpx
+import asyncio
 import logging
 from typing import Optional, Dict, Any, List
 import os
