@@ -60,7 +60,7 @@ const Settings = () => {
   const [projectSaving, setProjectSaving] = useState(false);
   const [cycleSaving, setCycleSaving] = useState(false);
   
-  const [newProject, setNewProject] = useState({ name: "", icon: "📦" });
+  const [newProject, setNewProject] = useState({ name: "", icon: "📦", teamRemoteId: "", isMobile: false, platform: null });
   const [newCycle, setNewCycle] = useState({ key: "", name: "" });
   
   const [newCategory, setNewCategory] = useState({
