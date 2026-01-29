@@ -2832,7 +2832,7 @@ async def run_analysis(request: Request):
             yield f"data: {json.dumps({'log': f'   • Cycle: {cycle_name}'})}\n\n"
             yield f"data: {json.dumps({'log': f'   • Kaç günlük: {days} gün'})}\n\n"
             yield f"data: {json.dumps({'log': f'   • Saat filtresi: {time}'})}\n\n"
-            yield f"data: {json.dumps({'log': f'   • Projeler: {", ".join(project_names)}'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   • Projeler: {projects_str}'})}\n\n"
             
             if not MSSQL_AVAILABLE or not JIRA_API_AVAILABLE:
                 yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
@@ -2960,7 +2960,7 @@ async def run_api_analysis(request: Request):
             yield f"data: {json.dumps({'log': '📊 API Analiz başlatılıyor...'})}\n\n"
             yield f"data: {json.dumps({'log': f'   Team ID: {jira_team_id}'})}\n\n"
             yield f"data: {json.dumps({'log': f'   Tarih: {report_date}'})}\n\n"
-            yield f"data: {json.dumps({'log': f'   Projeler: {", ".join(project_names)}'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   Projeler: {projects_str}'})}\n\n"
             
             if not MSSQL_AVAILABLE:
                 yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
