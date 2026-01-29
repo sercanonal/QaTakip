@@ -2563,9 +2563,16 @@ async def update_qa_project(name: str, request: Request):
         new_name = body.get("name")
         icon = body.get("icon")
         links = body.get("links", {})
+        team_remote_id = body.get("teamRemoteId", "")
+        is_mobile = body.get("isMobile", False)
+        platform = body.get("platform")  # "ios" | "android" | None
         
         if not new_name or not icon:
             raise HTTPException(status_code=400, detail="name ve icon gerekli!")
+        
+        # Validate platform for mobile projects
+        if is_mobile and platform not in ["ios", "android"]:
+            raise HTTPException(status_code=400, detail="Mobil projeler için platform (ios/android) seçilmelidir!")
         
         with open(PROJECTS_FILE, "r") as f:
             data = json.load(f)
@@ -2574,7 +2581,14 @@ async def update_qa_project(name: str, request: Request):
         if index is None:
             raise HTTPException(status_code=404, detail="Proje bulunamadı!")
         
-        data["projects"][index] = {"name": new_name, "icon": icon, "links": links}
+        data["projects"][index] = {
+            "name": new_name,
+            "icon": icon,
+            "links": links,
+            "teamRemoteId": team_remote_id,
+            "isMobile": is_mobile,
+            "platform": platform if is_mobile else None
+        }
         
         with open(PROJECTS_FILE, "w") as f:
             json.dump(data, f, indent=2)
