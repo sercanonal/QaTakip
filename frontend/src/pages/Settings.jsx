@@ -406,7 +406,7 @@ const Settings = () => {
                   Jira araçlarında kullanılacak proje ekleyin
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
                 <div className="space-y-2">
                   <Label>Proje Adı</Label>
                   <Input
@@ -414,6 +414,16 @@ const Settings = () => {
                     onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
                     placeholder="Örn: FraudNG.UITests"
                   />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Team Remote ID</Label>
+                  <Input
+                    value={newProject.teamRemoteId}
+                    onChange={(e) => setNewProject({ ...newProject, teamRemoteId: e.target.value })}
+                    placeholder="Örn: 12345"
+                  />
+                  <p className="text-xs text-muted-foreground">Jira'daki team remote ID değeri</p>
                 </div>
                 
                 <div className="space-y-2">
@@ -437,9 +447,66 @@ const Settings = () => {
                   </div>
                 </div>
 
+                {/* Mobile Project Toggle */}
+                <div className="space-y-3 p-3 rounded-lg bg-secondary/30 border border-border/50">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="isMobile"
+                      checked={newProject.isMobile}
+                      onCheckedChange={(checked) => setNewProject({ 
+                        ...newProject, 
+                        isMobile: checked,
+                        platform: checked ? newProject.platform : null 
+                      })}
+                    />
+                    <Label htmlFor="isMobile" className="flex items-center gap-2 cursor-pointer">
+                      <Smartphone className="w-4 h-4" />
+                      Bu bir mobil proje
+                    </Label>
+                  </div>
+                  
+                  {newProject.isMobile && (
+                    <div className="flex gap-4 pl-7">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="platform"
+                          value="ios"
+                          checked={newProject.platform === "ios"}
+                          onChange={() => setNewProject({ ...newProject, platform: "ios" })}
+                          className="w-4 h-4 accent-violet-500"
+                        />
+                        <span className="flex items-center gap-1">
+                          🍎 iOS
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="platform"
+                          value="android"
+                          checked={newProject.platform === "android"}
+                          onChange={() => setNewProject({ ...newProject, platform: "android" })}
+                          className="w-4 h-4 accent-violet-500"
+                        />
+                        <span className="flex items-center gap-1">
+                          🤖 Android
+                        </span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/10 border border-violet-500/30">
                   <span className="text-2xl">{newProject.icon}</span>
-                  <span className="font-medium">{newProject.name || "Proje Adı"}</span>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{newProject.name || "Proje Adı"}</span>
+                    {newProject.isMobile && newProject.platform && (
+                      <span className="text-xs text-muted-foreground">
+                        {newProject.platform === "ios" ? "🍎 iOS" : "🤖 Android"} Projesi
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4">
