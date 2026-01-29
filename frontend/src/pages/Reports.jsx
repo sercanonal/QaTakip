@@ -149,9 +149,44 @@ const Reports = () => {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header */}
-      <div>
-        <h2 className="font-heading text-2xl font-bold">Raporlar</h2>
-        <p className="text-muted-foreground">Performans ve ilerleme analizleri</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-heading text-2xl font-bold">Raporlar</h2>
+          <p className="text-muted-foreground">Performans ve ilerleme analizleri</p>
+        </div>
+        
+        {/* Export Button */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="btn-glow" disabled={exporting}>
+              {exporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Dışa Aktarılıyor...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Raporu Dışa Aktar
+                </>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => handleExport('pdf')}>
+              <FileImage className="w-4 h-4 mr-2 text-red-600" />
+              <span>PDF Olarak İndir</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport('excel')}>
+              <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" />
+              <span>Excel Olarak İndir</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport('word')}>
+              <FileText className="w-4 h-4 mr-2 text-blue-600" />
+              <span>Word Olarak İndir</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Summary Cards */}
