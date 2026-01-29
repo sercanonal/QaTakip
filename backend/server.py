@@ -392,6 +392,7 @@ async def register(user_data: UserCreate):
         return UserResponse(
             id=user_id,
             name=user_data.name.strip(),
+            email=user_data.email,
             device_id=user_data.device_id,
             categories=DEFAULT_CATEGORIES,
             created_at=created_at
@@ -405,7 +406,7 @@ async def check_device(device_id: str):
     
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            "SELECT id, name, device_id, categories, created_at FROM users WHERE device_id = ?",
+            "SELECT id, name, email, device_id, categories, created_at FROM users WHERE device_id = ?",
             (device_id,)
         )
         user = await cursor.fetchone()
@@ -416,9 +417,10 @@ async def check_device(device_id: str):
         return UserResponse(
             id=user[0],
             name=user[1],
-            device_id=user[2],
-            categories=json.loads(user[3]),
-            created_at=user[4]
+            email=user[2],
+            device_id=user[3],
+            categories=json.loads(user[4]),
+            created_at=user[5]
         )
 
 # ============== USER ROUTES ==============
