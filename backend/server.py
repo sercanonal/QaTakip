@@ -3039,6 +3039,8 @@ async def run_api_analysis(request: Request):
             days = int(body.get("days", 1))
             time = body.get("time", "00:00")
             
+            projects_str = ", ".join(project_names) if project_names else "Yok"
+            
             yield f"data: {json.dumps({'log': '📊 API Analiz başlatılıyor...'})}\n\n"
             yield f"data: {json.dumps({'log': f'   Team ID: {jira_team_id}'})}\n\n"
             yield f"data: {json.dumps({'log': f'   Tarih: {report_date}'})}\n\n"
