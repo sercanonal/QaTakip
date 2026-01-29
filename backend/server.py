@@ -1749,6 +1749,77 @@ async def sync_jira_now(user_id: str):
         logger.error(f"Error triggering Jira sync: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.post("/jira/manual-add")
+async def manual_add_jira_task(
+    user_id: str,
+    jira_key: str,
+    summary: str,
+    description: Optional[str] = "",
+    status: str = "backlog",
+    priority: str = "medium",
+    jira_url: Optional[str] = None
+):
+    """Manually add a Jira task to user's backlog (VPN bypass solution)"""
+    try:
+        if not jira_key or not summary:
+            raise HTTPException(status_code=400, detail="Jira key ve summary gerekli")
+        
+        async with aiosqlite.connect(DB_PATH) as db:
+            # Check if task already exists
+            cursor = await db.execute(
+                "SELECT id FROM jira_tasks_cache WHERE user_id = ? AND jira_key = ?",
+                (user_id, jira_key)
+            )
+            existing = await cursor.fetchone()
+            
+            if existing:
+                raise HTTPException(status_code=400, detail="Bu Jira task zaten mevcut")
+            
+            # Create task cache entry
+            cache_id = f"jira-manual-{jira_key}-{user_id}"
+            now = datetime.now(timezone.utc).isoformat()
+            
+            if not jira_url:
+                jira_url = f"https://jira.intertech.com.tr/browse/{jira_key}"
+            
+            await db.execute(
+                """INSERT INTO jira_tasks_cache 
+                   (id, user_id, jira_key, jira_id, summary, description, status, 
+                    priority, assignee, issue_type, jira_url, raw_data, last_synced, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    cache_id, user_id, jira_key, jira_key,
+                    summary, description, status,
+                    priority, "Manual Entry", "Task",
+                    jira_url, json.dumps({"manual": True}), now, now
+                )
+            )
+            await db.commit()
+            
+            # Audit log
+            await log_audit(
+                user_id, "jira_manual_add", "jira_task", jira_key,
+                f"Manually added Jira task: {jira_key}"
+            )
+            
+            logger.info(f"Manually added Jira task {jira_key} for user {user_id}")
+            
+            return {
+                "success": True,
+                "message": "Jira task eklendi",
+                "task": {
+                    "jira_key": jira_key,
+                    "summary": summary,
+                    "status": status,
+                    "priority": priority,
+                    "jira_url": jira_url
+                }
+            }
+    
+    except Exception as e:
+        logger.error(f"Error manually adding Jira task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ============== ROLE & USER MANAGEMENT ROUTES ==============
 
 @api_router.get("/users/roles", response_model=List[dict])
