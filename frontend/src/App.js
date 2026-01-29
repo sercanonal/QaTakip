@@ -8,6 +8,7 @@ import Projects from "./pages/Projects";
 import CalendarPage from "./pages/Calendar";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import AdminPanel from "./pages/AdminPanel";
 import Layout from "./components/Layout";
 
 const ProtectedRoute = ({ children }) => {
