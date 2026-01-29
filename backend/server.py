@@ -549,40 +549,46 @@ async def ldap_login(user_data: UserLogin, request: Request):
 
 @api_router.post("/auth/register", response_model=UserResponse)
 async def register(user_data: UserCreate, request: Request):
-    """Register new user with device_id"""
+    """Register new user - Uses username as unique identifier"""
     if not user_data.name or not user_data.name.strip():
-        raise HTTPException(status_code=400, detail="İsim boş olamaz")
-    
-    if not user_data.email or not user_data.email.strip():
-        raise HTTPException(status_code=400, detail="Email boş olamaz")
+        raise HTTPException(status_code=400, detail="Kullanıcı adı boş olamaz")
     
     if not user_data.device_id:
         raise HTTPException(status_code=400, detail="Cihaz kimliği gerekli")
     
+    username = user_data.name.strip().upper()  # Normalize username to uppercase
+    
     async with aiosqlite.connect(DB_PATH) as db:
-        # Check if device already registered
+        # First check if username already exists (case-insensitive)
         cursor = await db.execute(
-            "SELECT id, name, email, device_id, categories, created_at, role FROM users WHERE device_id = ?",
-            (user_data.device_id,)
+            "SELECT id, name, email, device_id, categories, created_at, role FROM users WHERE UPPER(name) = ?",
+            (username,)
         )
-        existing = await cursor.fetchone()
+        existing_by_name = await cursor.fetchone()
         
-        if existing:
+        if existing_by_name:
+            # User exists - update device_id and return existing user
+            await db.execute(
+                "UPDATE users SET device_id = ? WHERE id = ?",
+                (user_data.device_id, existing_by_name[0])
+            )
+            await db.commit()
+            
             # Audit log
             await log_audit(
-                existing[0], "login", "user", existing[0],
-                f"Login: {existing[1]}",
+                existing_by_name[0], "login", "user", existing_by_name[0],
+                f"Login: {existing_by_name[1]}",
                 request.client.host if request.client else None
             )
             
             return UserResponse(
-                id=existing[0],
-                name=existing[1],
-                email=existing[2],
-                device_id=existing[3],
-                categories=json.loads(existing[4]),
-                created_at=existing[5],
-                role=existing[6] or "user"
+                id=existing_by_name[0],
+                name=existing_by_name[1],
+                email=existing_by_name[2],
+                device_id=user_data.device_id,  # Return new device_id
+                categories=json.loads(existing_by_name[4]),
+                created_at=existing_by_name[5],
+                role=existing_by_name[6] or "user"
             )
         
         # Create new user
@@ -591,16 +597,19 @@ async def register(user_data: UserCreate, request: Request):
         categories_json = json.dumps(DEFAULT_CATEGORIES)
         
         # Only SERCANO is admin by default
-        role = "admin" if user_data.name.upper() == "SERCANO" else "user"
+        role = "admin" if username == "SERCANO" else "user"
+        
+        # Generate email from username if not provided
+        email = user_data.email or f"{username.lower()}@intertech.com.tr"
         
         await db.execute(
             "INSERT INTO users (id, name, email, device_id, categories, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (user_id, user_data.name.strip(), user_data.email, user_data.device_id, categories_json, role, created_at)
+            (user_id, username, email, user_data.device_id, categories_json, role, created_at)
         )
         
         # Create welcome notification
         notif_id = str(uuid.uuid4())
-        welcome_msg = f"QA Task Manager'a hoş geldiniz, {user_data.name}!"
+        welcome_msg = f"QA Hub'a hoş geldiniz, {username}!"
         if role == "admin":
             welcome_msg += " Admin yetkileriniz bulunmaktadır."
         
@@ -614,7 +623,7 @@ async def register(user_data: UserCreate, request: Request):
         # Audit log
         await log_audit(
             user_id, "register", "user", user_id,
-            f"New user registered: {user_data.name}, Role: {role}",
+            f"New user registered: {username}, Role: {role}",
             request.client.host if request.client else None
         )
         
