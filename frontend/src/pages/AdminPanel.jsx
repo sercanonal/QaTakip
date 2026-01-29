@@ -26,9 +26,21 @@ import {
   FileText,
   RefreshCw,
   Loader2,
-  Clock
+  Clock,
+  Trash2
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../components/ui/alert-dialog";
 
 const AdminPanel = () => {
   const { user } = useAuth();
