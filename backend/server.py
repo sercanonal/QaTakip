@@ -1820,6 +1820,45 @@ async def manual_add_jira_task(
         logger.error(f"Error manually adding Jira task: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.get("/jira/test-connection")
+async def test_jira_connection(username: str = "SERCANO"):
+    """Test Jira connection and query for a specific user"""
+    if not JIRA_AVAILABLE:
+        return {"success": False, "error": "Jira client not available"}
+    
+    try:
+        logger.info(f"Testing Jira connection for user: {username}")
+        
+        # Test 1: Get issues by username
+        issues = await jira_client.get_issues_by_assignee(username, max_results=10)
+        
+        result = {
+            "success": True,
+            "username": username,
+            "issues_found": len(issues),
+            "sample_issues": []
+        }
+        
+        # Add sample issue data
+        for issue in issues[:5]:
+            result["sample_issues"].append({
+                "key": issue.get("key"),
+                "summary": issue.get("fields", {}).get("summary", ""),
+                "status": issue.get("fields", {}).get("status", {}).get("name", ""),
+                "project": issue.get("fields", {}).get("project", {}).get("key", "")
+            })
+        
+        logger.info(f"Test successful: {len(issues)} issues found")
+        return result
+    
+    except Exception as e:
+        logger.error(f"Jira test failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e),
+            "username": username
+        }
+
 # ============== ROLE & USER MANAGEMENT ROUTES ==============
 
 @api_router.get("/users/roles", response_model=List[dict])
