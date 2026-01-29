@@ -300,15 +300,49 @@ const AdminPanel = () => {
               <FileText className="w-5 h-5" />
               Audit Logları
             </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchAuditLogs}
-              disabled={loadingLogs}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${loadingLogs ? 'animate-spin' : ''}`} />
-              Yenile
-            </Button>
+            <div className="flex items-center gap-2">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    disabled={clearingLogs || auditLogs.length === 0}
+                  >
+                    {clearingLogs ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4 mr-2" />
+                    )}
+                    Temizle
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Audit Loglarını Temizle</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tüm audit logları kalıcı olarak silinecek. Bu işlem geri alınamaz.
+                      Devam etmek istediğinize emin misiniz?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>İptal</AlertDialogCancel>
+                    <AlertDialogAction onClick={clearAuditLogs} className="bg-destructive hover:bg-destructive/90">
+                      Evet, Temizle
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchAuditLogs}
+                disabled={loadingLogs}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${loadingLogs ? 'animate-spin' : ''}`} />
+                Yenile
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
