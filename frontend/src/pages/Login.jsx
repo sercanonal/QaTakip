@@ -5,31 +5,44 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { toast } from "sonner";
-import { CheckSquare, User, ArrowRight, Loader2 } from "lucide-react";
+import { CheckSquare, User, ArrowRight, Loader2, Mail, Lock } from "lucide-react";
 
 const Login = () => {
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const trimmedName = name.trim();
+    const trimmedUsername = username.trim();
+    const trimmedEmail = email.trim();
     
-    if (!trimmedName) {
-      toast.error("Lütfen adınızı girin");
+    if (!trimmedUsername) {
+      toast.error("Lütfen kullanıcı adınızı girin");
       return;
     }
     
-    if (trimmedName.length < 2) {
-      toast.error("İsim en az 2 karakter olmalı");
+    if (!trimmedEmail) {
+      toast.error("Lütfen email adresinizi girin");
+      return;
+    }
+    
+    if (!password) {
+      toast.error("Lütfen şifrenizi girin");
+      return;
+    }
+    
+    if (trimmedUsername.length < 2) {
+      toast.error("Kullanıcı adı en az 2 karakter olmalı");
       return;
     }
 
     setLoading(true);
     try {
-      await register(trimmedName);
+      await register(trimmedUsername, trimmedEmail, password);
       toast.success("Hoş geldiniz!");
     } catch (error) {
       // API interceptor'dan gelen kullanıcı dostu mesaj
@@ -61,27 +74,62 @@ const Login = () => {
               Başlayalım
             </CardTitle>
             <CardDescription>
-              Görevlerinizi takip etmeye başlayın
+              Intertech kimlik bilgileriniz ile giriş yapın
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Intertech Kullanıcı Adı</Label>
+                <Label htmlFor="username">Intertech Kullanıcı Adı</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
-                    id="name"
+                    id="username"
                     type="text"
                     placeholder="SERCANO"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     className="pl-10 h-12 bg-secondary/50 border-border/50 focus:border-primary"
                     autoFocus
                     required
                     minLength={2}
                     maxLength={50}
-                    data-testid="name-input"
+                    data-testid="username-input"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Intertech Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="kullanici@intertech.com.tr"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 h-12 bg-secondary/50 border-border/50 focus:border-primary"
+                    required
+                    data-testid="email-input"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Şifre</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 h-12 bg-secondary/50 border-border/50 focus:border-primary"
+                    required
+                    minLength={4}
+                    data-testid="password-input"
                   />
                 </div>
               </div>
@@ -96,7 +144,7 @@ const Login = () => {
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <>
-                    Devam Et
+                    LDAPS ile Giriş Yap
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </>
                 )}
