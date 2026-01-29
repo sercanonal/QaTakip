@@ -174,7 +174,13 @@ DEFAULT_CATEGORIES = [
 
 class UserCreate(BaseModel):
     name: str
+    email: str
     device_id: str
+
+class UserLogin(BaseModel):
+    username: str
+    email: str
+    password: str
 
 class UserResponse(BaseModel):
     id: str
