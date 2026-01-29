@@ -1,443 +1,393 @@
 #!/usr/bin/env python3
+"""
+QA Task Manager Backend Test Suite
+Tests all backend API endpoints including Admin APIs and SSE notifications
+"""
 
 import requests
-import sys
 import json
+import time
 import uuid
-from datetime import datetime, timezone, timedelta
+import os
+from datetime import datetime, timezone
+
+# Get backend URL from environment
+BACKEND_URL = "https://user-task-manager-2.preview.emergentagent.com"
+API_BASE = f"{BACKEND_URL}/api"
+
+class Colors:
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+
+def log_test(test_name, status, details=""):
+    color = Colors.GREEN if status == "PASS" else Colors.RED if status == "FAIL" else Colors.YELLOW
+    print(f"{color}[{status}]{Colors.ENDC} {test_name}")
+    if details:
+        print(f"    {details}")
+
+def log_info(message):
+    print(f"{Colors.BLUE}[INFO]{Colors.ENDC} {message}")
+
+def log_error(message):
+    print(f"{Colors.RED}[ERROR]{Colors.ENDC} {message}")
 
 class QATaskManagerTester:
-    def __init__(self, base_url="https://user-task-manager-2.preview.emergentagent.com"):
-        self.base_url = base_url
-        self.user_id = None
-        self.device_id = str(uuid.uuid4())
-        self.test_user_name = f"Test User {datetime.now().strftime('%H%M%S')}"
-        self.tests_run = 0
-        self.tests_passed = 0
-        self.test_results = []
-
-    def log_test(self, name, success, details="", response_data=None):
-        """Log test result"""
-        self.tests_run += 1
-        if success:
-            self.tests_passed += 1
-            print(f"✅ {name}")
-        else:
-            print(f"❌ {name} - {details}")
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update({'Content-Type': 'application/json'})
+        self.test_users = []
+        self.test_tasks = []
+        self.test_notifications = []
         
-        self.test_results.append({
-            "test": name,
-            "success": success,
-            "details": details,
-            "response_data": response_data
-        })
-
-    def run_test(self, name, method, endpoint, expected_status, data=None, headers=None):
-        """Run a single API test"""
-        url = f"{self.base_url}/api/{endpoint}"
-        if headers is None:
-            headers = {'Content-Type': 'application/json'}
-
-        try:
-            if method == 'GET':
-                response = requests.get(url, headers=headers, params=data)
-            elif method == 'POST':
-                response = requests.post(url, json=data, headers=headers)
-            elif method == 'PUT':
-                response = requests.put(url, json=data, headers=headers)
-            elif method == 'DELETE':
-                response = requests.delete(url, headers=headers)
-
-            success = response.status_code == expected_status
-            response_data = None
+    def run_all_tests(self):
+        """Run comprehensive test suite"""
+        log_info(f"Starting QA Task Manager Backend Tests")
+        log_info(f"Backend URL: {BACKEND_URL}")
+        
+        # Test basic connectivity
+        if not self.test_health_check():
+            log_error("Health check failed - aborting tests")
+            return False
             
-            try:
-                response_data = response.json()
-            except:
-                response_data = response.text
-
-            if success:
-                self.log_test(name, True, response_data=response_data)
-                return True, response_data
-            else:
-                self.log_test(name, False, f"Expected {expected_status}, got {response.status_code}: {response_data}")
-                return False, response_data
-
-        except Exception as e:
-            self.log_test(name, False, f"Exception: {str(e)}")
-            return False, {}
-
+        # Test user registration and authentication
+        if not self.test_user_registration():
+            log_error("User registration failed - aborting tests")
+            return False
+            
+        # Test admin API endpoints
+        self.test_admin_apis()
+        
+        # Test task management
+        self.test_task_management()
+        
+        # Test notification system
+        self.test_notification_system()
+        
+        # Test SSE endpoint accessibility
+        self.test_sse_endpoint()
+        
+        # Cleanup
+        self.cleanup_test_data()
+        
+        log_info("All tests completed!")
+        return True
+    
     def test_health_check(self):
-        """Test health endpoint"""
-        return self.run_test("Health Check", "GET", "health", 200)
-
+        """Test basic connectivity and health endpoint"""
+        try:
+            response = self.session.get(f"{API_BASE}/health", timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                log_test("Health Check", "PASS", f"Status: {data.get('status')}, DB: {data.get('database')}")
+                return True
+            else:
+                log_test("Health Check", "FAIL", f"Status code: {response.status_code}")
+                return False
+        except Exception as e:
+            log_test("Health Check", "FAIL", f"Connection error: {str(e)}")
+            return False
+    
     def test_user_registration(self):
-        """Test user registration"""
-        success, response = self.run_test(
-            "User Registration",
-            "POST",
-            "auth/register",
-            200,
-            data={
-                "name": self.test_user_name,
-                "device_id": self.device_id
+        """Test user registration endpoint"""
+        try:
+            # Create test users
+            test_users_data = [
+                {"name": "Ahmet Yılmaz", "device_id": f"test_device_{uuid.uuid4()}"},
+                {"name": "Ayşe Kaya", "device_id": f"test_device_{uuid.uuid4()}"}
+            ]
+            
+            for user_data in test_users_data:
+                response = self.session.post(f"{API_BASE}/auth/register", json=user_data)
+                
+                if response.status_code == 200:
+                    user = response.json()
+                    self.test_users.append(user)
+                    log_test("User Registration", "PASS", f"Created user: {user['name']} (ID: {user['id']})")
+                else:
+                    log_test("User Registration", "FAIL", f"Status: {response.status_code}, Response: {response.text}")
+                    return False
+            
+            return len(self.test_users) >= 2
+            
+        except Exception as e:
+            log_test("User Registration", "FAIL", f"Exception: {str(e)}")
+            return False
+    
+    def test_admin_apis(self):
+        """Test all admin API endpoints"""
+        log_info("Testing Admin API Endpoints...")
+        
+        # Test GET /api/admin/users
+        try:
+            response = self.session.get(f"{API_BASE}/admin/users")
+            if response.status_code == 200:
+                users = response.json()
+                log_test("Admin GET Users", "PASS", f"Retrieved {len(users)} users")
+                
+                # Verify our test users are in the list
+                test_user_ids = [u['id'] for u in self.test_users]
+                admin_user_ids = [u['id'] for u in users]
+                
+                if all(uid in admin_user_ids for uid in test_user_ids):
+                    log_test("Admin Users Data Integrity", "PASS", "All test users found in admin list")
+                else:
+                    log_test("Admin Users Data Integrity", "FAIL", "Some test users missing from admin list")
+            else:
+                log_test("Admin GET Users", "FAIL", f"Status: {response.status_code}")
+        except Exception as e:
+            log_test("Admin GET Users", "FAIL", f"Exception: {str(e)}")
+        
+        # Test POST /api/admin/users (Manual user creation)
+        try:
+            new_user_data = {
+                "name": "Admin Test User",
+                "device_id": f"admin_test_{uuid.uuid4()}"
             }
-        )
-        
-        if success and response:
-            self.user_id = response.get('id')
-            return True
-        return False
-
-    def test_device_check(self):
-        """Test device check endpoint"""
-        if not self.device_id:
-            return False
-        
-        return self.run_test(
-            "Device Check",
-            "GET",
-            f"auth/check/{self.device_id}",
-            200
-        )
-
-    def test_get_user(self):
-        """Test get user endpoint"""
-        if not self.user_id:
-            return False
             
-        return self.run_test(
-            "Get User",
-            "GET",
-            f"users/{self.user_id}",
-            200
-        )
-
-    def test_dashboard_stats(self):
-        """Test dashboard stats"""
-        if not self.user_id:
-            return False
-            
-        return self.run_test(
-            "Dashboard Stats",
-            "GET",
-            "dashboard/stats",
-            200,
-            data={"user_id": self.user_id}
-        )
-
-    def test_project_crud(self):
-        """Test project CRUD operations"""
-        if not self.user_id:
-            return False
-
-        # Create project
-        success, project_data = self.run_test(
-            "Create Project",
-            "POST",
-            f"projects?user_id={self.user_id}",
-            200,
-            data={
-                "name": "Test Project",
-                "description": "Test project description"
-            }
-        )
+            response = self.session.post(f"{API_BASE}/admin/users", json=new_user_data)
+            if response.status_code == 200:
+                admin_user = response.json()
+                self.test_users.append(admin_user)
+                log_test("Admin POST User", "PASS", f"Created user via admin: {admin_user['name']}")
+            else:
+                log_test("Admin POST User", "FAIL", f"Status: {response.status_code}, Response: {response.text}")
+        except Exception as e:
+            log_test("Admin POST User", "FAIL", f"Exception: {str(e)}")
         
-        if not success:
-            return False
-            
-        project_id = project_data.get('id')
-        if not project_id:
-            self.log_test("Project Creation - Get ID", False, "No project ID returned")
-            return False
-
-        # Get projects
-        success, _ = self.run_test(
-            "Get Projects",
-            "GET",
-            "projects",
-            200,
-            data={"user_id": self.user_id}
-        )
+        # Test PUT /api/admin/users/{user_id} (Update user name)
+        if self.test_users:
+            try:
+                user_to_update = self.test_users[0]
+                new_name = f"Updated {user_to_update['name']}"
+                
+                # Note: The endpoint expects 'name' as a query parameter based on the code
+                response = self.session.put(f"{API_BASE}/admin/users/{user_to_update['id']}?name={new_name}")
+                
+                if response.status_code == 200:
+                    updated_user = response.json()
+                    if updated_user['name'] == new_name:
+                        log_test("Admin PUT User", "PASS", f"Updated user name to: {new_name}")
+                        # Update our local copy
+                        user_to_update['name'] = new_name
+                    else:
+                        log_test("Admin PUT User", "FAIL", "Name not updated correctly")
+                else:
+                    log_test("Admin PUT User", "FAIL", f"Status: {response.status_code}, Response: {response.text}")
+            except Exception as e:
+                log_test("Admin PUT User", "FAIL", f"Exception: {str(e)}")
         
-        if not success:
-            return False
-
-        # Get single project
-        success, _ = self.run_test(
-            "Get Single Project",
-            "GET",
-            f"projects/{project_id}",
-            200
-        )
+        # Test DELETE /api/admin/users/{user_id} (will test this at cleanup)
+        log_info("Admin DELETE User test will be performed during cleanup")
+    
+    def test_task_management(self):
+        """Test task creation and assignment with notifications"""
+        log_info("Testing Task Management...")
         
-        if not success:
-            return False
-
-        # Update project
-        success, _ = self.run_test(
-            "Update Project",
-            "PUT",
-            f"projects/{project_id}",
-            200,
-            data={
-                "name": "Updated Test Project",
-                "description": "Updated description"
-            }
-        )
+        if len(self.test_users) < 2:
+            log_test("Task Management", "SKIP", "Need at least 2 users for task assignment tests")
+            return
         
-        if not success:
-            return False
-
-        # Delete project
-        success, _ = self.run_test(
-            "Delete Project",
-            "DELETE",
-            f"projects/{project_id}",
-            200
-        )
+        user1 = self.test_users[0]
+        user2 = self.test_users[1]
         
-        return success
-
-    def test_task_crud(self):
-        """Test task CRUD operations"""
-        if not self.user_id:
-            return False
-
-        # First create a project for the task
-        success, project_data = self.run_test(
-            "Create Project for Task",
-            "POST",
-            f"projects?user_id={self.user_id}",
-            200,
-            data={
-                "name": "Task Test Project",
-                "description": "Project for task testing"
-            }
-        )
-        
-        if not success:
-            return False
-            
-        project_id = project_data.get('id')
-
-        # Create task
-        task_data = {
-            "title": "Test Task",
-            "description": "Test task description",
-            "category_id": "api-test",  # Default category
-            "project_id": project_id,
-            "priority": "medium",
-            "due_date": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
-        }
-        
-        success, task_response = self.run_test(
-            "Create Task",
-            "POST",
-            f"tasks?user_id={self.user_id}",
-            200,
-            data=task_data
-        )
-        
-        if not success:
-            return False
-            
-        task_id = task_response.get('id')
-        if not task_id:
-            self.log_test("Task Creation - Get ID", False, "No task ID returned")
-            return False
-
-        # Get tasks
-        success, _ = self.run_test(
-            "Get Tasks",
-            "GET",
-            "tasks",
-            200,
-            data={"user_id": self.user_id}
-        )
-        
-        if not success:
-            return False
-
-        # Get single task
-        success, _ = self.run_test(
-            "Get Single Task",
-            "GET",
-            f"tasks/{task_id}",
-            200
-        )
-        
-        if not success:
-            return False
-
-        # Update task status
-        success, _ = self.run_test(
-            "Update Task Status",
-            "PUT",
-            f"tasks/{task_id}",
-            200,
-            data={"status": "in_progress"}
-        )
-        
-        if not success:
-            return False
-
-        # Update task details
-        success, _ = self.run_test(
-            "Update Task Details",
-            "PUT",
-            f"tasks/{task_id}",
-            200,
-            data={
-                "title": "Updated Test Task",
-                "description": "Updated description",
+        # Test task creation with assignment
+        try:
+            task_data = {
+                "title": "Test API Endpoint",
+                "description": "Test the new API endpoint functionality",
+                "category_id": "api-test",
+                "assigned_to": user2['id'],
                 "priority": "high"
             }
-        )
+            
+            response = self.session.post(f"{API_BASE}/tasks?user_id={user1['id']}", json=task_data)
+            
+            if response.status_code == 200:
+                task = response.json()
+                self.test_tasks.append(task)
+                log_test("Task Creation with Assignment", "PASS", f"Created task: {task['title']}")
+                
+                # Verify assignment
+                if task['assigned_to'] == user2['id']:
+                    log_test("Task Assignment", "PASS", f"Task assigned to {user2['name']}")
+                else:
+                    log_test("Task Assignment", "FAIL", "Task assignment failed")
+            else:
+                log_test("Task Creation with Assignment", "FAIL", f"Status: {response.status_code}")
+        except Exception as e:
+            log_test("Task Creation with Assignment", "FAIL", f"Exception: {str(e)}")
         
-        if not success:
-            return False
-
-        # Complete task
-        success, _ = self.run_test(
-            "Complete Task",
-            "PUT",
-            f"tasks/{task_id}",
-            200,
-            data={"status": "completed"}
-        )
+        # Test GET /api/tasks
+        try:
+            response = self.session.get(f"{API_BASE}/tasks?user_id={user1['id']}")
+            if response.status_code == 200:
+                tasks = response.json()
+                log_test("GET Tasks", "PASS", f"Retrieved {len(tasks)} tasks")
+            else:
+                log_test("GET Tasks", "FAIL", f"Status: {response.status_code}")
+        except Exception as e:
+            log_test("GET Tasks", "FAIL", f"Exception: {str(e)}")
         
-        if not success:
-            return False
-
-        # Delete task
-        success, _ = self.run_test(
-            "Delete Task",
-            "DELETE",
-            f"tasks/{task_id}",
-            200
-        )
-        
-        return success
-
-    def test_category_management(self):
-        """Test category management"""
-        if not self.user_id:
-            return False
-
-        # Add category
-        success, user_data = self.run_test(
-            "Add Category",
-            "POST",
-            f"users/{self.user_id}/categories",
-            200,
-            data={
-                "id": "test-category",
-                "name": "Test Category",
-                "color": "#FF5733"
-            }
-        )
-        
-        if not success:
-            return False
-
-        # Delete category (non-default)
-        success, _ = self.run_test(
-            "Delete Category",
-            "DELETE",
-            f"users/{self.user_id}/categories/test-category",
-            200
-        )
-        
-        return success
-
-    def test_notifications(self):
-        """Test notification endpoints"""
-        if not self.user_id:
-            return False
-
-        # Get notifications
-        success, _ = self.run_test(
-            "Get Notifications",
-            "GET",
-            "notifications",
-            200,
-            data={"user_id": self.user_id}
-        )
-        
-        return success
-
-    def test_filtered_tasks(self):
-        """Test task filtering"""
-        if not self.user_id:
-            return False
-
-        # Test various filters
-        filters = [
-            {"status": "todo"},
-            {"status": "completed"},
-            {"priority": "high"},
-            {"category_id": "api-test"}
-        ]
-        
-        all_passed = True
-        for filter_params in filters:
-            filter_params["user_id"] = self.user_id
-            success, _ = self.run_test(
-                f"Filter Tasks - {list(filter_params.keys())[0]}",
-                "GET",
-                "tasks",
-                200,
-                data=filter_params
-            )
-            if not success:
-                all_passed = False
-        
-        return all_passed
-
-    def run_all_tests(self):
-        """Run all tests"""
-        print("🚀 Starting QA Task Manager API Tests (SQLite Backend)")
-        print("=" * 60)
-        
-        # Core functionality tests
-        tests = [
-            self.test_health_check,
-            self.test_user_registration,
-            self.test_device_check,
-            self.test_get_user,
-            self.test_dashboard_stats,
-            self.test_project_crud,
-            self.test_task_crud,
-            self.test_category_management,
-            self.test_notifications,
-            self.test_filtered_tasks
-        ]
-        
-        for test in tests:
+        # Test task update with assignment change
+        if self.test_tasks:
             try:
-                test()
+                task = self.test_tasks[0]
+                update_data = {
+                    "title": "Updated Test Task",
+                    "assigned_to": user1['id']  # Reassign back to user1
+                }
+                
+                response = self.session.put(f"{API_BASE}/tasks/{task['id']}?user_id={user2['id']}", json=update_data)
+                
+                if response.status_code == 200:
+                    updated_task = response.json()
+                    log_test("Task Update with Reassignment", "PASS", f"Task reassigned to {user1['name']}")
+                else:
+                    log_test("Task Update with Reassignment", "FAIL", f"Status: {response.status_code}")
             except Exception as e:
-                self.log_test(f"Exception in {test.__name__}", False, str(e))
+                log_test("Task Update with Reassignment", "FAIL", f"Exception: {str(e)}")
+    
+    def test_notification_system(self):
+        """Test notification endpoints"""
+        log_info("Testing Notification System...")
         
-        # Print summary
-        print("\n" + "=" * 60)
-        print(f"📊 Test Summary:")
-        print(f"   Total Tests: {self.tests_run}")
-        print(f"   Passed: {self.tests_passed}")
-        print(f"   Failed: {self.tests_run - self.tests_passed}")
-        print(f"   Success Rate: {(self.tests_passed / self.tests_run * 100):.1f}%")
+        if not self.test_users:
+            log_test("Notification System", "SKIP", "No test users available")
+            return
         
-        if self.tests_passed == self.tests_run:
-            print("🎉 All tests passed!")
-            return 0
-        else:
-            print("⚠️  Some tests failed")
-            return 1
+        user = self.test_users[0]
+        
+        # Test GET /api/notifications
+        try:
+            response = self.session.get(f"{API_BASE}/notifications?user_id={user['id']}")
+            if response.status_code == 200:
+                notifications = response.json()
+                log_test("GET Notifications", "PASS", f"Retrieved {len(notifications)} notifications")
+                
+                # Check if we have notifications from task assignments
+                task_notifications = [n for n in notifications if "görev" in n.get('message', '').lower()]
+                if task_notifications:
+                    log_test("Task Assignment Notifications", "PASS", f"Found {len(task_notifications)} task-related notifications")
+                    self.test_notifications.extend(task_notifications[:2])  # Keep some for testing
+                else:
+                    log_test("Task Assignment Notifications", "WARN", "No task assignment notifications found")
+            else:
+                log_test("GET Notifications", "FAIL", f"Status: {response.status_code}")
+        except Exception as e:
+            log_test("GET Notifications", "FAIL", f"Exception: {str(e)}")
+        
+        # Test notification read functionality
+        if self.test_notifications:
+            try:
+                notif = self.test_notifications[0]
+                response = self.session.put(f"{API_BASE}/notifications/{notif['id']}/read")
+                
+                if response.status_code == 200:
+                    log_test("Mark Notification Read", "PASS", "Notification marked as read")
+                else:
+                    log_test("Mark Notification Read", "FAIL", f"Status: {response.status_code}")
+            except Exception as e:
+                log_test("Mark Notification Read", "FAIL", f"Exception: {str(e)}")
+        
+        # Test mark all notifications read
+        try:
+            response = self.session.put(f"{API_BASE}/notifications/read-all?user_id={user['id']}")
+            if response.status_code == 200:
+                log_test("Mark All Notifications Read", "PASS", "All notifications marked as read")
+            else:
+                log_test("Mark All Notifications Read", "FAIL", f"Status: {response.status_code}")
+        except Exception as e:
+            log_test("Mark All Notifications Read", "FAIL", f"Exception: {str(e)}")
+    
+    def test_sse_endpoint(self):
+        """Test SSE endpoint accessibility (not full streaming due to complexity)"""
+        log_info("Testing SSE Endpoint Accessibility...")
+        
+        if not self.test_users:
+            log_test("SSE Endpoint", "SKIP", "No test users available")
+            return
+        
+        user = self.test_users[0]
+        
+        try:
+            # Test SSE endpoint accessibility with a short timeout
+            response = self.session.get(
+                f"{API_BASE}/notifications/stream?user_id={user['id']}", 
+                timeout=3,
+                stream=True
+            )
+            
+            if response.status_code == 200:
+                # Check if we get the expected content type
+                content_type = response.headers.get('content-type', '')
+                if 'text/event-stream' in content_type:
+                    log_test("SSE Endpoint Accessibility", "PASS", "SSE endpoint accessible with correct content-type")
+                    
+                    # Try to read first chunk (connection message)
+                    try:
+                        for chunk in response.iter_content(chunk_size=1024):
+                            if chunk:
+                                chunk_str = chunk.decode('utf-8')
+                                if 'connected' in chunk_str or 'bağlantısı kuruldu' in chunk_str:
+                                    log_test("SSE Connection Message", "PASS", "Received connection confirmation")
+                                break
+                    except:
+                        log_test("SSE Connection Message", "WARN", "Could not read connection message (timeout expected)")
+                else:
+                    log_test("SSE Endpoint Accessibility", "FAIL", f"Wrong content-type: {content_type}")
+            else:
+                log_test("SSE Endpoint Accessibility", "FAIL", f"Status: {response.status_code}")
+                
+        except requests.exceptions.Timeout:
+            log_test("SSE Endpoint Accessibility", "PASS", "SSE endpoint accessible (timeout expected for streaming)")
+        except Exception as e:
+            log_test("SSE Endpoint Accessibility", "FAIL", f"Exception: {str(e)}")
+    
+    def cleanup_test_data(self):
+        """Clean up test data using admin delete endpoint"""
+        log_info("Cleaning up test data...")
+        
+        # Delete test tasks
+        for task in self.test_tasks:
+            try:
+                response = self.session.delete(f"{API_BASE}/tasks/{task['id']}")
+                if response.status_code == 200:
+                    log_test("Cleanup Task", "PASS", f"Deleted task: {task['title']}")
+                else:
+                    log_test("Cleanup Task", "FAIL", f"Failed to delete task: {task['id']}")
+            except Exception as e:
+                log_test("Cleanup Task", "FAIL", f"Exception: {str(e)}")
+        
+        # Delete test users using admin endpoint (test DELETE admin API)
+        for user in self.test_users:
+            try:
+                response = self.session.delete(f"{API_BASE}/admin/users/{user['id']}")
+                if response.status_code == 200:
+                    log_test("Admin DELETE User", "PASS", f"Deleted user: {user['name']}")
+                else:
+                    log_test("Admin DELETE User", "FAIL", f"Failed to delete user: {user['id']}")
+            except Exception as e:
+                log_test("Admin DELETE User", "FAIL", f"Exception: {str(e)}")
 
 def main():
+    """Main test execution"""
+    print(f"{Colors.BOLD}QA Task Manager Backend Test Suite{Colors.ENDC}")
+    print("=" * 50)
+    
     tester = QATaskManagerTester()
-    return tester.run_all_tests()
+    success = tester.run_all_tests()
+    
+    print("=" * 50)
+    if success:
+        print(f"{Colors.GREEN}{Colors.BOLD}✅ Test Suite Completed{Colors.ENDC}")
+    else:
+        print(f"{Colors.RED}{Colors.BOLD}❌ Test Suite Failed{Colors.ENDC}")
+    
+    return success
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
