@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "../lib/api";
 import {
@@ -29,24 +28,15 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   BarChart3,
-  TrendingUp,
   AlertTriangle,
   CheckCircle2,
   XCircle,
-  Clock,
   Filter,
   Search,
-  Download,
   Copy,
   RefreshCw,
   Loader2,
@@ -57,12 +47,10 @@ import {
   Layers,
   Target,
   Activity,
-  PieChart,
-  MoreVertical,
   Play,
-  Eye,
   Smartphone,
   Bot,
+  Globe,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 
@@ -73,9 +61,7 @@ const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
+    transition: { staggerChildren: 0.1 },
   },
 };
 
@@ -84,10 +70,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: {
-      type: "spring",
-      stiffness: 100,
-    },
+    transition: { type: "spring", stiffness: 100 },
   },
 };
 
@@ -96,25 +79,26 @@ const detectPlatform = (cycleName) => {
   if (!cycleName) return null;
   const name = cycleName.toLowerCase();
   if (name.includes("ios") || name.includes("iphone") || name.includes("ipad")) {
-    return { name: "iOS", icon: Smartphone, color: "text-blue-400" };
+    return { name: "iOS", icon: Smartphone, color: "text-sky-400", bg: "bg-sky-500/10 border-sky-500/30" };
   }
   if (name.includes("android")) {
-    return { name: "Android", icon: Bot, color: "text-green-400" };
+    return { name: "Android", icon: Bot, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30" };
   }
-  return null;
+  return { name: "Web", icon: Globe, color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/30" };
 };
 
 const Analysis = () => {
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("test-analysis");
   
-  // Test Analysis State
+  // Projects (dinamik)
   const [projects, setProjects] = useState([]);
   const [selectedProjects, setSelectedProjects] = useState([]);
+  
+  // Test Analysis State
   const [analysisForm, setAnalysisForm] = useState({
-    cycleStartsWith: "",
-    cycleContains: "",
-    cycleExcludes: "",
+    cycleId: "",
+    days: "1",
+    time: "00:00",
   });
   const [analysisResults, setAnalysisResults] = useState([]);
   const [analysisStats, setAnalysisStats] = useState({
@@ -156,23 +140,21 @@ const Analysis = () => {
 
   const loadProjects = async () => {
     try {
-      const response = await api.get("/analysis/projects");
+      const response = await api.get("/projects");
       setProjects(response.data.projects || []);
     } catch (error) {
-      console.error("Error loading projects:", error);
-      // Mock data for demo
-      setProjects([
-        { name: "MBAPAY", icon: "💰" },
-        { name: "MBAINT", icon: "🏦" },
-        { name: "MBAPOS", icon: "🖥️" },
-        { name: "MBAMOB", icon: "📱" },
-      ]);
+      console.error("Projeler yüklenemedi:", error);
     }
   };
 
   const handleAnalyze = async () => {
     if (selectedProjects.length === 0) {
       toast.error("En az bir proje seçin!");
+      return;
+    }
+
+    if (!analysisForm.cycleId) {
+      toast.error("Cycle ID gerekli!");
       return;
     }
 
@@ -192,8 +174,10 @@ const Analysis = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          cycleId: analysisForm.cycleId,
+          days: parseInt(analysisForm.days) || 1,
+          time: analysisForm.time || "00:00",
           projectNames: selectedProjects,
-          ...analysisForm,
         }),
       });
 
@@ -331,8 +315,8 @@ const Analysis = () => {
   const SortIcon = ({ column }) => {
     if (sortColumn !== column) return <ArrowUpDown className="w-4 h-4 text-muted-foreground" />;
     return sortDirection === "asc" 
-      ? <ArrowUp className="w-4 h-4 text-primary" />
-      : <ArrowDown className="w-4 h-4 text-primary" />;
+      ? <ArrowUp className="w-4 h-4 text-violet-400" />
+      : <ArrowDown className="w-4 h-4 text-violet-400" />;
   };
 
   return (
@@ -345,14 +329,14 @@ const Analysis = () => {
       {/* Header */}
       <motion.div variants={itemVariants} className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-sky-500 via-cyan-500 to-teal-500 bg-clip-text text-transparent">
             Test Analizi
           </h1>
           <p className="text-muted-foreground mt-1">
             Cycle ve test durumlarını analiz edin
           </p>
         </div>
-        <Badge variant="outline" className="animate-pulse">
+        <Badge variant="outline" className="border-sky-500/50 text-sky-400">
           <Activity className="w-3 h-3 mr-1" />
           VPN Gerekli
         </Badge>
@@ -364,14 +348,14 @@ const Analysis = () => {
           <TabsList className="grid w-full grid-cols-2 gap-2 bg-card/50 p-2 rounded-xl backdrop-blur">
             <TabsTrigger 
               value="test-analysis"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white transition-all duration-300"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white transition-all duration-300"
             >
               <BarChart3 className="w-4 h-4 mr-2" />
               Test Analizi
             </TabsTrigger>
             <TabsTrigger 
               value="api-analysis"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white transition-all duration-300"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-purple-600 data-[state=active]:text-white transition-all duration-300"
             >
               <Target className="w-4 h-4 mr-2" />
               API Analizi
@@ -382,68 +366,80 @@ const Analysis = () => {
           <TabsContent value="test-analysis" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Input Form */}
-              <Card className="lg:col-span-1 bg-card/50 backdrop-blur border-blue-500/20 hover:border-blue-500/40 transition-all duration-300">
+              <Card className="lg:col-span-1 bg-card/50 backdrop-blur border-sky-500/20 hover:border-sky-500/40 transition-all duration-300">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Filter className="w-5 h-5 text-blue-500" />
+                    <Filter className="w-5 h-5 text-sky-500" />
                     Analiz Parametreleri
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Project Selection */}
+                  {/* Project Selection - Dinamik */}
                   <div className="space-y-2">
                     <Label>Projeler</Label>
                     <div className="flex flex-wrap gap-2">
-                      {projects.map((project) => (
-                        <Button
-                          key={project.name}
-                          type="button"
-                          variant={selectedProjects.includes(project.name) ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => toggleProject(project.name)}
-                          className={cn(
-                            "transition-all duration-200",
-                            selectedProjects.includes(project.name) && "bg-gradient-to-r from-blue-500 to-cyan-500"
-                          )}
-                        >
-                          <span className="mr-1">{project.icon}</span>
-                          {project.name}
-                        </Button>
-                      ))}
+                      {projects.length > 0 ? (
+                        projects.map((project) => (
+                          <Button
+                            key={project.name}
+                            type="button"
+                            variant={selectedProjects.includes(project.name) ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => toggleProject(project.name)}
+                            className={cn(
+                              "transition-all duration-200",
+                              selectedProjects.includes(project.name) && "bg-gradient-to-r from-sky-600 to-cyan-600"
+                            )}
+                          >
+                            <span className="mr-1">{project.icon}</span>
+                            {project.name}
+                          </Button>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Proje yok. Ayarlardan proje ekleyin.
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Cycle Başlangıcı</Label>
+                    <Label>Cycle ID / Key</Label>
                     <Input
-                      placeholder="örn: REG_"
-                      value={analysisForm.cycleStartsWith}
-                      onChange={(e) => setAnalysisForm(prev => ({ ...prev, cycleStartsWith: e.target.value }))}
+                      placeholder="PROJ-C123 veya cycle adı"
+                      value={analysisForm.cycleId}
+                      onChange={(e) => setAnalysisForm(prev => ({ ...prev, cycleId: e.target.value }))}
+                      className="border-sky-500/30 focus:border-sky-500"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Cycle İçeriği</Label>
-                    <Input
-                      placeholder="örn: 2024"
-                      value={analysisForm.cycleContains}
-                      onChange={(e) => setAnalysisForm(prev => ({ ...prev, cycleContains: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Hariç Tut</Label>
-                    <Input
-                      placeholder="örn: OLD_"
-                      value={analysisForm.cycleExcludes}
-                      onChange={(e) => setAnalysisForm(prev => ({ ...prev, cycleExcludes: e.target.value }))}
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Kaç Gün</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="1"
+                        value={analysisForm.days}
+                        onChange={(e) => setAnalysisForm(prev => ({ ...prev, days: e.target.value }))}
+                        className="border-sky-500/30 focus:border-sky-500"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Saat</Label>
+                      <Input
+                        type="time"
+                        value={analysisForm.time}
+                        onChange={(e) => setAnalysisForm(prev => ({ ...prev, time: e.target.value }))}
+                        className="border-sky-500/30 focus:border-sky-500"
+                      />
+                    </div>
                   </div>
 
                   <Button
                     onClick={handleAnalyze}
                     disabled={analysisLoading}
-                    className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-500/90 hover:to-cyan-500/90"
+                    className="w-full bg-gradient-to-r from-sky-600 to-cyan-600 hover:from-sky-700 hover:to-cyan-700"
                   >
                     {analysisLoading ? (
                       <>
@@ -471,7 +467,7 @@ const Analysis = () => {
                 <CardContent>
                   <ScrollArea 
                     ref={outputRef}
-                    className="h-[300px] rounded-lg bg-black/50 p-4 font-mono text-sm text-cyan-400"
+                    className="h-[300px] rounded-lg bg-slate-950/50 p-4 font-mono text-sm text-cyan-300 border border-cyan-500/20"
                   >
                     <pre className="whitespace-pre-wrap">
                       {analysisOutput || "Çıktı burada görünecek..."}
@@ -488,36 +484,25 @@ const Analysis = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="grid grid-cols-2 md:grid-cols-5 gap-4"
               >
-                <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+                <Card className="bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-violet-500/20">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-muted-foreground">Toplam</p>
-                        <p className="text-2xl font-bold text-blue-400">{analysisStats.total}</p>
+                        <p className="text-2xl font-bold text-violet-400">{analysisStats.total}</p>
                       </div>
-                      <Layers className="w-8 h-8 text-blue-500/50" />
+                      <Layers className="w-8 h-8 text-violet-500/50" />
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 border-yellow-500/20">
+                <Card className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-muted-foreground">Bakım Gerekli</p>
-                        <p className="text-2xl font-bold text-yellow-400">{analysisStats.needMaintenance}</p>
+                        <p className="text-2xl font-bold text-amber-400">{analysisStats.needMaintenance}</p>
                       </div>
-                      <AlertTriangle className="w-8 h-8 text-yellow-500/50" />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Pass (Reg.)</p>
-                        <p className="text-2xl font-bold text-green-400">{analysisStats.passedInRegression}</p>
-                      </div>
-                      <CheckCircle2 className="w-8 h-8 text-green-500/50" />
+                      <AlertTriangle className="w-8 h-8 text-amber-500/50" />
                     </div>
                   </CardContent>
                 </Card>
@@ -525,21 +510,32 @@ const Analysis = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-muted-foreground">Pass (Non-Reg.)</p>
-                        <p className="text-2xl font-bold text-emerald-400">{analysisStats.passedNotInRegression}</p>
+                        <p className="text-xs text-muted-foreground">Pass (Reg.)</p>
+                        <p className="text-2xl font-bold text-emerald-400">{analysisStats.passedInRegression}</p>
                       </div>
                       <CheckCircle2 className="w-8 h-8 text-emerald-500/50" />
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20">
+                <Card className="bg-gradient-to-br from-teal-500/10 to-teal-600/5 border-teal-500/20">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Pass (Non-Reg.)</p>
+                        <p className="text-2xl font-bold text-teal-400">{analysisStats.passedNotInRegression}</p>
+                      </div>
+                      <CheckCircle2 className="w-8 h-8 text-teal-500/50" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-rose-500/10 to-rose-600/5 border-rose-500/20">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-muted-foreground">Fail (Non-Reg.)</p>
-                        <p className="text-2xl font-bold text-red-400">{analysisStats.failedNotInRegression}</p>
+                        <p className="text-2xl font-bold text-rose-400">{analysisStats.failedNotInRegression}</p>
                       </div>
-                      <XCircle className="w-8 h-8 text-red-500/50" />
+                      <XCircle className="w-8 h-8 text-rose-500/50" />
                     </div>
                   </CardContent>
                 </Card>
@@ -565,12 +561,12 @@ const Analysis = () => {
                             placeholder="Ara..."
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
-                            className="pl-9 w-[200px]"
+                            className="pl-9 w-[200px] border-violet-500/30"
                           />
                         </div>
                         
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
-                          <SelectTrigger className="w-[130px]">
+                          <SelectTrigger className="w-[130px] border-violet-500/30">
                             <SelectValue placeholder="Status" />
                           </SelectTrigger>
                           <SelectContent>
@@ -581,7 +577,7 @@ const Analysis = () => {
                         </Select>
 
                         <Select value={regressionFilter} onValueChange={setRegressionFilter}>
-                          <SelectTrigger className="w-[130px]">
+                          <SelectTrigger className="w-[130px] border-violet-500/30">
                             <SelectValue placeholder="Regression" />
                           </SelectTrigger>
                           <SelectContent>
@@ -592,7 +588,7 @@ const Analysis = () => {
                         </Select>
 
                         <Select value={projectFilter} onValueChange={setProjectFilter}>
-                          <SelectTrigger className="w-[130px]">
+                          <SelectTrigger className="w-[130px] border-violet-500/30">
                             <SelectValue placeholder="Proje" />
                           </SelectTrigger>
                           <SelectContent>
@@ -603,7 +599,7 @@ const Analysis = () => {
                           </SelectContent>
                         </Select>
 
-                        <Button variant="outline" size="icon" onClick={resetFilters}>
+                        <Button variant="outline" size="icon" onClick={resetFilters} className="border-violet-500/30">
                           <RefreshCw className="w-4 h-4" />
                         </Button>
                       </div>
@@ -611,7 +607,7 @@ const Analysis = () => {
                     
                     {/* Action buttons */}
                     <div className="flex items-center gap-2 mt-4">
-                      <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                      <Button variant="outline" size="sm" onClick={handleSelectAll} className="border-violet-500/30">
                         {selectedRows.length === sortedResults.length ? "Seçimi Kaldır" : "Tümünü Seç"}
                       </Button>
                       <Button 
@@ -619,6 +615,7 @@ const Analysis = () => {
                         size="sm" 
                         onClick={copySelectedKeys}
                         disabled={selectedRows.length === 0}
+                        className="border-violet-500/30"
                       >
                         <Copy className="w-4 h-4 mr-1" />
                         Kopyala ({selectedRows.length})
@@ -682,7 +679,7 @@ const Analysis = () => {
                         <TableBody>
                           <AnimatePresence>
                             {sortedResults.map((row, idx) => {
-                              const platform = detectPlatform(row.cycleName);
+                              const platform = detectPlatform(row.name || row.cycleName);
                               return (
                                 <motion.tr
                                   key={row.key}
@@ -692,7 +689,7 @@ const Analysis = () => {
                                   transition={{ delay: idx * 0.01 }}
                                   className={cn(
                                     "hover:bg-secondary/50 transition-colors",
-                                    selectedRows.includes(row.key) && "bg-primary/10"
+                                    selectedRows.includes(row.key) && "bg-violet-500/10"
                                   )}
                                 >
                                   <TableCell>
@@ -708,21 +705,21 @@ const Analysis = () => {
                                   <TableCell>{row.project}</TableCell>
                                   <TableCell>
                                     {platform && (
-                                      <Badge variant="outline" className={platform.color}>
+                                      <Badge variant="outline" className={cn(platform.color, platform.bg)}>
                                         <platform.icon className="w-3 h-3 mr-1" />
                                         {platform.name}
                                       </Badge>
                                     )}
                                   </TableCell>
                                   <TableCell>
-                                    <Badge variant={row.inRegression ? "default" : "secondary"}>
-                                      {row.inRegression ? "✅ Var" : "❌ Yok"}
+                                    <Badge variant={row.inRegression ? "default" : "secondary"} className={row.inRegression ? "bg-emerald-600" : ""}>
+                                      {row.inRegression ? "✓ Var" : "✗ Yok"}
                                     </Badge>
                                   </TableCell>
                                   <TableCell>
                                     <Badge 
                                       variant={row.status === "Pass" ? "default" : "destructive"}
-                                      className={row.status === "Pass" ? "bg-green-500" : ""}
+                                      className={row.status === "Pass" ? "bg-emerald-600" : "bg-rose-600"}
                                     >
                                       {row.status === "Pass" ? (
                                         <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -745,11 +742,11 @@ const Analysis = () => {
             )}
           </TabsContent>
 
-          {/* API ANALYSIS TAB - Placeholder */}
+          {/* API ANALYSIS TAB */}
           <TabsContent value="api-analysis" className="space-y-6">
-            <Card className="bg-card/50 backdrop-blur border-purple-500/20">
+            <Card className="bg-card/50 backdrop-blur border-violet-500/20">
               <CardContent className="p-12 text-center">
-                <Target className="w-16 h-16 mx-auto text-purple-500/50 mb-4" />
+                <Target className="w-16 h-16 mx-auto text-violet-500/50 mb-4" />
                 <h3 className="text-xl font-semibold mb-2">API Analizi</h3>
                 <p className="text-muted-foreground">
                   API test analizi özelliği yakında eklenecek
