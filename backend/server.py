@@ -436,7 +436,7 @@ def require_role(*allowed_roles: str):
 # ============== AUTH ROUTES ==============
 
 @api_router.post("/auth/ldap-login", response_model=UserResponse)
-async def ldap_login(user_data: UserLogin):
+async def ldap_login(user_data: UserLogin, request: Request):
     """
     LDAPS Authentication endpoint
     Authenticates user against LDAP server, creates/updates local user record
@@ -457,7 +457,7 @@ async def ldap_login(user_data: UserLogin):
     async with aiosqlite.connect(DB_PATH) as db:
         # Try to find by username or email
         cursor = await db.execute(
-            "SELECT id, name, email, device_id, categories, created_at FROM users WHERE name = ? OR email = ?",
+            "SELECT id, name, email, device_id, categories, created_at, role FROM users WHERE name = ? OR email = ?",
             (user_data.username, user_data.email)
         )
         existing = await cursor.fetchone()
@@ -469,6 +469,13 @@ async def ldap_login(user_data: UserLogin):
                 (user_data.email, existing[0])
             )
             await db.commit()
+            
+            # Audit log
+            await log_audit(
+                existing[0], "login", "user", existing[0],
+                f"LDAPS login: {user_data.username}",
+                request.client.host if request.client else None
+            )
             
             return UserResponse(
                 id=existing[0],
@@ -485,21 +492,37 @@ async def ldap_login(user_data: UserLogin):
         created_at = datetime.now(timezone.utc).isoformat()
         categories_json = json.dumps(DEFAULT_CATEGORIES)
         
+        # Check if this is the first user (make them admin)
+        cursor = await db.execute("SELECT COUNT(*) FROM users")
+        user_count = (await cursor.fetchone())[0]
+        role = "admin" if user_count == 0 else "user"
+        
         await db.execute(
-            "INSERT INTO users (id, name, email, device_id, categories, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (user_id, user_data.username, user_data.email, device_id, categories_json, created_at)
+            "INSERT INTO users (id, name, email, device_id, categories, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (user_id, user_data.username, user_data.email, device_id, categories_json, role, created_at)
         )
         
         # Create welcome notification
         notif_id = str(uuid.uuid4())
+        welcome_msg = f"QA Task Manager'a hoş geldiniz, {user_data.username}!"
+        if role == "admin":
+            welcome_msg += " Siz ilk kullanıcısınız ve Admin yetkileriniz var."
+        
         await db.execute(
             "INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (notif_id, user_id, "Hoş Geldiniz!", f"QA Task Manager'a hoş geldiniz, {user_data.username}!", "success", 0, created_at)
+            (notif_id, user_id, "Hoş Geldiniz!", welcome_msg, "success", 0, created_at)
         )
         
         await db.commit()
         
-        logger.info(f"New LDAP user created: {user_data.username}")
+        # Audit log
+        await log_audit(
+            user_id, "register", "user", user_id,
+            f"New user registered via LDAPS: {user_data.username}, Role: {role}",
+            request.client.host if request.client else None
+        )
+        
+        logger.info(f"New LDAP user created: {user_data.username} (Role: {role})")
         
         return UserResponse(
             id=user_id,
