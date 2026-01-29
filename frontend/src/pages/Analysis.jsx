@@ -111,6 +111,33 @@ const Analysis = () => {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisOutput, setAnalysisOutput] = useState("");
   
+  // API Analysis State
+  const [apiForm, setApiForm] = useState({
+    jiraTeamId: "",
+    reportDate: new Date().toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\./g, '/'),
+    days: "1",
+    time: "00:00",
+  });
+  const [apiSelectedProjects, setApiSelectedProjects] = useState([]);
+  const [apiResults, setApiResults] = useState([]);
+  const [apiStats, setApiStats] = useState({
+    total: 0, testedInReport: 0, notTestedInReport: 0, notInReport: 0,
+    onlyInReport: 0, passed: 0, failed: 0, externalEndpoints: 0
+  });
+  const [apiMetrics, setApiMetrics] = useState({
+    raporEndpointSayisi: 0, raporaYansiyanTest: 0, coverageOrani: "0",
+    otomasyondaAmaRapordaYok: 0, passedAmaNegatifSayisi: 0,
+    failedEtkilenenEndpointSayisi: 0, tahminiGuncelPass: 0, tahminiGuncelCoverage: "0"
+  });
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiOutput, setApiOutput] = useState("");
+  
+  // API Filters
+  const [apiSearchText, setApiSearchText] = useState("");
+  const [apiStatusFilter, setApiStatusFilter] = useState("");
+  const [apiRaporFilter, setApiRaporFilter] = useState("");
+  const [apiExternalFilter, setApiExternalFilter] = useState("");
+  
   // Filters
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -125,6 +152,7 @@ const Analysis = () => {
   const [selectedRows, setSelectedRows] = useState([]);
   
   const outputRef = useRef(null);
+  const apiOutputRef = useRef(null);
 
   // Load projects on mount
   useEffect(() => {
