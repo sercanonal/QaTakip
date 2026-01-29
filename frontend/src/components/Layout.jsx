@@ -14,7 +14,8 @@ import {
   Menu,
   X,
   ChevronLeft,
-  Check
+  Check,
+  Shield
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -37,6 +38,9 @@ const navItems = [
   { to: "/reports", icon: BarChart3, label: "Raporlar" },
   { to: "/settings", icon: Settings, label: "Ayarlar" },
 ];
+
+// Admin-only nav item
+const adminNavItem = { to: "/admin", icon: Shield, label: "Admin Panel", adminOnly: true };
 
 const Layout = () => {
   const { user, logout } = useAuth();
