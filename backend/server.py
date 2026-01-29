@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 import os
@@ -7,13 +7,35 @@ import logging
 import json
 import aiosqlite
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 from contextlib import asynccontextmanager
 import asyncio
+
+# Import custom handlers
+try:
+    from ldaps_handler import ldaps_handler
+    LDAPS_AVAILABLE = True
+except Exception as e:
+    LDAPS_AVAILABLE = False
+    logger.warning(f"LDAPS not available: {e}")
+
+try:
+    from jira_client import jira_client
+    JIRA_AVAILABLE = True
+except Exception as e:
+    JIRA_AVAILABLE = False
+    logger.warning(f"Jira client not available: {e}")
+
+try:
+    from report_exporter import report_exporter
+    REPORTS_AVAILABLE = True
+except Exception as e:
+    REPORTS_AVAILABLE = False
+    logger.warning(f"Report exporter not available: {e}")
 
 ROOT_DIR = Path(__file__).parent
 DATA_DIR = ROOT_DIR / "data"
