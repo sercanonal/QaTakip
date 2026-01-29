@@ -1366,6 +1366,146 @@ async def admin_delete_user(user_id: str):
         
         return {"message": f"Kullanıcı ve tüm verileri silindi"}
 
+# ============== JIRA INTEGRATION ROUTES ==============
+
+@api_router.get("/jira/issues")
+async def get_jira_issues(user_id: str, username: Optional[str] = None, email: Optional[str] = None):
+    """Get Jira issues assigned to user"""
+    if not JIRA_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Jira integration not available")
+    
+    try:
+        # Get user info
+        async with aiosqlite.connect(DB_PATH) as db:
+            cursor = await db.execute(
+                "SELECT name, email FROM users WHERE id = ?",
+                (user_id,)
+            )
+            user = await cursor.fetchone()
+            
+            if not user:
+                raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+            
+            # Use provided username/email or get from user record
+            search_username = username or user[0]
+            search_email = email or user[1]
+        
+        # Try to fetch issues by username first, then email
+        issues = await jira_client.get_issues_by_assignee(search_username)
+        
+        if not issues and search_email:
+            issues = await jira_client.get_issues_by_assignee(search_email)
+        
+        # Transform issues
+        transformed_issues = [jira_client.transform_issue(issue) for issue in issues]
+        
+        return {
+            "total": len(transformed_issues),
+            "issues": transformed_issues
+        }
+    
+    except Exception as e:
+        logger.error(f"Error fetching Jira issues: {e}")
+        raise HTTPException(status_code=500, detail=f"Jira issues alınırken hata: {str(e)}")
+
+# ============== REPORT EXPORT ROUTES ==============
+
+@api_router.post("/reports/export")
+async def export_report(
+    format: str,  # 'pdf', 'excel', 'word'
+    user_id: str,
+    include_tasks: bool = True,
+    include_stats: bool = True
+):
+    """Export report in specified format"""
+    if not REPORTS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Report export not available")
+    
+    if format not in ['pdf', 'excel', 'word']:
+        raise HTTPException(status_code=400, detail="Format must be 'pdf', 'excel', or 'word'")
+    
+    try:
+        # Gather data
+        report_data = {}
+        
+        async with aiosqlite.connect(DB_PATH) as db:
+            # Get stats
+            if include_stats:
+                cursor = await db.execute("SELECT COUNT(*) FROM tasks WHERE user_id = ?", (user_id,))
+                total_tasks = (await cursor.fetchone())[0]
+                
+                cursor = await db.execute("SELECT COUNT(*) FROM tasks WHERE user_id = ? AND status = ?", (user_id, TaskStatus.COMPLETED.value))
+                completed_tasks = (await cursor.fetchone())[0]
+                
+                cursor = await db.execute("SELECT COUNT(*) FROM tasks WHERE user_id = ? AND status = ?", (user_id, TaskStatus.IN_PROGRESS.value))
+                in_progress_tasks = (await cursor.fetchone())[0]
+                
+                cursor = await db.execute("SELECT COUNT(*) FROM tasks WHERE user_id = ? AND status IN (?, ?)", (user_id, TaskStatus.BACKLOG.value, TaskStatus.TODAY_PLANNED.value))
+                todo_tasks = (await cursor.fetchone())[0]
+                
+                now = datetime.now(timezone.utc).isoformat()
+                cursor = await db.execute(
+                    "SELECT COUNT(*) FROM tasks WHERE user_id = ? AND due_date < ? AND due_date IS NOT NULL AND status != ?",
+                    (user_id, now, TaskStatus.COMPLETED.value)
+                )
+                overdue_tasks = (await cursor.fetchone())[0]
+                
+                report_data['stats'] = {
+                    'total_tasks': total_tasks,
+                    'completed_tasks': completed_tasks,
+                    'in_progress_tasks': in_progress_tasks,
+                    'todo_tasks': todo_tasks,
+                    'overdue_tasks': overdue_tasks,
+                    'completion_rate': round((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0, 1)
+                }
+            
+            # Get tasks
+            if include_tasks:
+                cursor = await db.execute(
+                    "SELECT id, title, description, category_id, status, priority, created_at, completed_at FROM tasks WHERE user_id = ? ORDER BY created_at DESC",
+                    (user_id,)
+                )
+                rows = await cursor.fetchall()
+                
+                report_data['tasks'] = [
+                    {
+                        'id': row[0],
+                        'title': row[1],
+                        'description': row[2],
+                        'category_id': row[3],
+                        'status': row[4],
+                        'priority': row[5],
+                        'created_at': row[6],
+                        'completed_at': row[7]
+                    }
+                    for row in rows
+                ]
+        
+        # Generate report
+        if format == 'pdf':
+            content = report_exporter.generate_pdf_report(report_data)
+            media_type = "application/pdf"
+            filename = f"qa_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        elif format == 'excel':
+            content = report_exporter.generate_excel_report(report_data)
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            filename = f"qa_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        elif format == 'word':
+            content = report_exporter.generate_word_report(report_data)
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            filename = f"qa_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
+        
+        # Return file
+        return StreamingResponse(
+            io.BytesIO(content),
+            media_type=media_type,
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    
+    except Exception as e:
+        logger.error(f"Error generating report: {e}")
+        raise HTTPException(status_code=500, detail=f"Rapor oluşturulurken hata: {str(e)}")
+
 # Health check
 @api_router.get("/health")
 async def health_check():
