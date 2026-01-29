@@ -2530,9 +2530,9 @@ async def add_qa_project(request: Request):
         logger.error(f"Proje ekleme hatası: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@api_router.put("/projects/{name}")
-async def update_project(name: str, request: Request):
-    """Update a project"""
+@api_router.put("/qa-projects/{name}")
+async def update_qa_project(name: str, request: Request):
+    """Update a QA project"""
     try:
         body = await request.json()
         new_name = body.get("name")
