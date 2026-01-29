@@ -208,7 +208,7 @@ const Analysis = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cycleId: analysisForm.cycleId,
+          cycleName: analysisForm.cycleId,  // Cycle Key (e.g., REG-C1)
           days: parseInt(analysisForm.days) || 1,
           time: analysisForm.time || "00:00",
           projectNames: selectedProjects,
