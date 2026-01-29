@@ -657,6 +657,31 @@ async def get_all_users():
             for row in rows
         ]
 
+@api_router.get("/users/roles", response_model=List[dict])
+async def get_users_with_roles(request: Request, admin_user_id: str):
+    """Get all users with their roles (Admin only)"""
+    # Check if requester is admin
+    user = await get_current_user(request, admin_user_id)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin yetki gerekli")
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC"
+        )
+        rows = await cursor.fetchall()
+        
+        return [
+            {
+                "id": row[0],
+                "name": row[1],
+                "email": row[2],
+                "role": row[3] or "user",
+                "created_at": row[4]
+            }
+            for row in rows
+        ]
+
 @api_router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(user_id: str):
     async with aiosqlite.connect(DB_PATH) as db:
