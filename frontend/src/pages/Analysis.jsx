@@ -166,6 +166,12 @@ const Analysis = () => {
     }
   }, [analysisOutput]);
 
+  useEffect(() => {
+    if (apiOutputRef.current) {
+      apiOutputRef.current.scrollTop = apiOutputRef.current.scrollHeight;
+    }
+  }, [apiOutput]);
+
   const loadProjects = async () => {
     try {
       const response = await api.get("/qa-projects");
