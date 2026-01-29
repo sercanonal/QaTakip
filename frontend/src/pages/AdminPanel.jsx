@@ -90,6 +90,22 @@ const AdminPanel = () => {
     }
   };
 
+  const clearAuditLogs = async () => {
+    setClearingLogs(true);
+    try {
+      await api.delete("/audit-logs", {
+        params: { admin_user_id: user.id }
+      });
+      toast.success("Audit logları temizlendi");
+      setAuditLogs([]);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Loglar temizlenemedi");
+      console.error("Clear logs error:", error);
+    } finally {
+      setClearingLogs(false);
+    }
+  };
+
   const handleRoleChange = async (targetUserId, newRole) => {
     setUpdatingRole(targetUserId);
     try {
