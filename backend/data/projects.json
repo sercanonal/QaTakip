@@ -9,6 +9,11 @@
       "name": "TestProject",
       "icon": "\ud83e\uddea",
       "links": {}
+    },
+    {
+      "name": "TEST_UIProject",
+      "icon": "\ud83d\ude80",
+      "links": {}
     }
   ]
 }

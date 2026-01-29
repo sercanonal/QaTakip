@@ -3,6 +3,10 @@
     {
       "key": "TEST-C1",
       "name": "Test Cycle Sprint 1"
+    },
+    {
+      "key": "TEST-C999",
+      "name": "Test Cycle UI"
     }
   ]
 }
