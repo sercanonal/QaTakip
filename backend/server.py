@@ -542,6 +542,17 @@ async def create_task(task: TaskCreate, user_id: str):
                 "INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (notif_id, task.assigned_to, "Yeni Görev Atandı", f"{assigner_name} size bir görev atadı: {task.title}", "info", 0, created_at)
             )
+            
+            # Send real-time notification via SSE
+            await notification_manager.send_notification(task.assigned_to, {
+                "id": notif_id,
+                "user_id": task.assigned_to,
+                "title": "Yeni Görev Atandı",
+                "message": f"{assigner_name} size bir görev atadı: {task.title}",
+                "type": "info",
+                "is_read": False,
+                "created_at": created_at
+            })
         
         await db.commit()
     
