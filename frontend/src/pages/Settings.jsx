@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
@@ -14,6 +14,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
 import { toast } from "sonner";
 import { 
   Plus,
@@ -21,7 +29,10 @@ import {
   Loader2,
   User,
   Tag,
-  Palette
+  Palette,
+  FolderKanban,
+  Edit3,
+  GitBranch,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 
