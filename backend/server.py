@@ -492,10 +492,8 @@ async def ldap_login(user_data: UserLogin, request: Request):
         created_at = datetime.now(timezone.utc).isoformat()
         categories_json = json.dumps(DEFAULT_CATEGORIES)
         
-        # Check if this is the first user (make them admin)
-        cursor = await db.execute("SELECT COUNT(*) FROM users")
-        user_count = (await cursor.fetchone())[0]
-        role = "admin" if user_count == 0 else "user"
+        # Only SERCANO is admin by default
+        role = "admin" if user_data.username.upper() == "SERCANO" else "user"
         
         await db.execute(
             "INSERT INTO users (id, name, email, device_id, categories, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -506,7 +504,7 @@ async def ldap_login(user_data: UserLogin, request: Request):
         notif_id = str(uuid.uuid4())
         welcome_msg = f"QA Task Manager'a hoş geldiniz, {user_data.username}!"
         if role == "admin":
-            welcome_msg += " Siz ilk kullanıcısınız ve Admin yetkileriniz var."
+            welcome_msg += " Admin yetkileriniz bulunmaktadır."
         
         await db.execute(
             "INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
