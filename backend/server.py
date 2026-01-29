@@ -339,6 +339,30 @@ api_router = APIRouter(prefix="/api")
 
 # ============== Helper Functions ==============
 
+async def log_audit(
+    user_id: str,
+    action: str,
+    resource_type: str,
+    resource_id: Optional[str] = None,
+    details: Optional[str] = None,
+    ip_address: Optional[str] = None
+):
+    """Log audit trail asynchronously"""
+    try:
+        audit_id = str(uuid.uuid4())
+        created_at = datetime.now(timezone.utc).isoformat()
+        
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(
+                """INSERT INTO audit_logs (id, user_id, action, resource_type, resource_id, details, ip_address, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (audit_id, user_id, action, resource_type, resource_id, details, ip_address, created_at)
+            )
+            await db.commit()
+    except Exception as e:
+        logger.error(f"Audit log error: {e}")
+        # Don't fail the main operation if audit logging fails
+
 def row_to_dict(row, columns):
     """Convert SQLite row to dictionary"""
     return dict(zip(columns, row))
