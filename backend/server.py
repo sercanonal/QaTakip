@@ -2008,6 +2008,26 @@ async def get_audit_logs(
             ]
         }
 
+@api_router.delete("/audit-logs")
+async def clear_audit_logs(request: Request, admin_user_id: str):
+    """Clear all audit logs (Admin only)"""
+    user = await get_current_user(request, admin_user_id)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Sadece admin bu işlemi yapabilir")
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM audit_logs")
+        await db.commit()
+        
+        # Log this action (new log after clearing)
+        await log_audit(
+            admin_user_id, "clear_logs", "audit_logs", None,
+            "Tüm audit logları temizlendi",
+            request.client.host if request.client else None
+        )
+        
+        return {"success": True, "message": "Audit logları temizlendi"}
+
 # ============== REPORT EXPORT ROUTES ==============
 
 class ReportExportRequest(BaseModel):
