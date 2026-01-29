@@ -1986,14 +1986,20 @@ async def get_audit_logs(
 
 # ============== REPORT EXPORT ROUTES ==============
 
-@api_router.post("/reports/export")
-async def export_report(
-    format: str,  # 'pdf', 'excel', 'word'
-    user_id: str,
-    include_tasks: bool = True,
+class ReportExportRequest(BaseModel):
+    format: str  # 'pdf', 'excel', 'word'
+    user_id: str
+    include_tasks: bool = True
     include_stats: bool = True
-):
+
+@api_router.post("/reports/export")
+async def export_report(request_data: ReportExportRequest):
     """Export report in specified format"""
+    format = request_data.format
+    user_id = request_data.user_id
+    include_tasks = request_data.include_tasks
+    include_stats = request_data.include_stats
+    
     logger.info(f"Report export requested: format={format}, user_id={user_id}")
     
     if not REPORTS_AVAILABLE:
