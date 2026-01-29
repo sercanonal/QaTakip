@@ -38,6 +38,13 @@ except Exception as e:
     REPORTS_AVAILABLE = False
     logger.warning(f"Report exporter not available: {e}")
 
+try:
+    from background_jobs import start_background_jobs, stop_background_jobs
+    BACKGROUND_JOBS_AVAILABLE = True
+except Exception as e:
+    BACKGROUND_JOBS_AVAILABLE = False
+    logger.warning(f"Background jobs not available: {e}")
+
 ROOT_DIR = Path(__file__).parent
 DATA_DIR = ROOT_DIR / "data"
 DB_PATH = DATA_DIR / "qa_tasks.db"
