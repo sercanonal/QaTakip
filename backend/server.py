@@ -1560,12 +1560,12 @@ async def admin_delete_user(user_id: str):
 
 @api_router.get("/jira/issues")
 async def get_jira_issues(user_id: str, username: Optional[str] = None, email: Optional[str] = None):
-    """Get Jira issues assigned to user"""
+    """Get Jira issues assigned to user (from cache or live)"""
     if not JIRA_AVAILABLE:
         raise HTTPException(status_code=503, detail="Jira integration not available")
     
     try:
-        # Get user info
+        # First, try to get from cache
         async with aiosqlite.connect(DB_PATH) as db:
             cursor = await db.execute(
                 "SELECT name, email FROM users WHERE id = ?",
@@ -1576,9 +1576,43 @@ async def get_jira_issues(user_id: str, username: Optional[str] = None, email: O
             if not user:
                 raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
             
-            # Use provided username/email or get from user record
-            search_username = username or user[0]
-            search_email = email or user[1]
+            # Check cache
+            cursor = await db.execute(
+                """SELECT jira_key, summary, description, status, priority, assignee, 
+                          issue_type, jira_url, last_synced 
+                   FROM jira_tasks_cache 
+                   WHERE user_id = ? 
+                   ORDER BY last_synced DESC""",
+                (user_id,)
+            )
+            cached = await cursor.fetchall()
+            
+            # If cache exists and is recent (< 15 minutes), use cache
+            if cached:
+                last_sync = datetime.fromisoformat(cached[0][8])
+                if (datetime.now(timezone.utc) - last_sync).total_seconds() < 900:  # 15 mins
+                    transformed_issues = [
+                        {
+                            "key": row[0],
+                            "summary": row[1],
+                            "description": row[2],
+                            "status": row[3],
+                            "priority": row[4],
+                            "assignee": row[5],
+                            "issue_type": row[6],
+                            "jira_url": row[7],
+                        }
+                        for row in cached
+                    ]
+                    return {
+                        "total": len(transformed_issues),
+                        "issues": transformed_issues,
+                        "cached": True
+                    }
+        
+        # Use provided username/email or get from user record
+        search_username = username or user[0]
+        search_email = email or user[1]
         
         # Try to fetch issues by username first, then email
         issues = await jira_client.get_issues_by_assignee(search_username)
@@ -1591,12 +1625,213 @@ async def get_jira_issues(user_id: str, username: Optional[str] = None, email: O
         
         return {
             "total": len(transformed_issues),
-            "issues": transformed_issues
+            "issues": transformed_issues,
+            "cached": False
         }
     
     except Exception as e:
         logger.error(f"Error fetching Jira issues: {e}")
         raise HTTPException(status_code=500, detail=f"Jira issues alınırken hata: {str(e)}")
+
+@api_router.post("/jira/comment")
+async def add_jira_comment(
+    jira_key: str,
+    comment: str,
+    user_id: str
+):
+    """Add comment to Jira issue"""
+    if not JIRA_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Jira integration not available")
+    
+    try:
+        success = await jira_client.add_comment_to_issue(jira_key, comment)
+        
+        if success:
+            # Audit log
+            await log_audit(
+                user_id, "jira_comment", "jira_issue", jira_key,
+                f"Comment added to {jira_key}"
+            )
+            return {"success": True, "message": f"Yorum {jira_key} issue'suna eklendi"}
+        else:
+            raise HTTPException(status_code=500, detail="Yorum eklenemedi")
+    
+    except Exception as e:
+        logger.error(f"Error adding Jira comment: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/jira/update-status")
+async def update_jira_status(
+    jira_key: str,
+    status: str,
+    user_id: str
+):
+    """Update Jira issue status"""
+    if not JIRA_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Jira integration not available")
+    
+    try:
+        success = await jira_client.update_issue_status(jira_key, status)
+        
+        if success:
+            # Audit log
+            await log_audit(
+                user_id, "jira_status_update", "jira_issue", jira_key,
+                f"Status updated to {status} for {jira_key}"
+            )
+            return {"success": True, "message": f"{jira_key} durumu güncellendi"}
+        else:
+            raise HTTPException(status_code=500, detail="Durum güncellenemedi")
+    
+    except Exception as e:
+        logger.error(f"Error updating Jira status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/jira/sync-now")
+async def sync_jira_now(user_id: str):
+    """Manually trigger Jira sync for user"""
+    if not JIRA_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Jira integration not available")
+    
+    try:
+        from background_jobs import sync_jira_tasks_for_all_users
+        
+        # Trigger sync (runs in background)
+        asyncio.create_task(sync_jira_tasks_for_all_users())
+        
+        # Audit log
+        await log_audit(user_id, "jira_manual_sync", "jira", None, "Manual Jira sync triggered")
+        
+        return {"success": True, "message": "Jira senkronizasyonu başlatıldı"}
+    
+    except Exception as e:
+        logger.error(f"Error triggering Jira sync: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============== ROLE & USER MANAGEMENT ROUTES ==============
+
+@api_router.get("/users/roles", response_model=List[dict])
+async def get_users_with_roles(request: Request, admin_user_id: str):
+    """Get all users with their roles (Admin only)"""
+    # Check if requester is admin
+    user = await get_current_user(request, admin_user_id)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin yetki gerekli")
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC"
+        )
+        rows = await cursor.fetchall()
+        
+        return [
+            {
+                "id": row[0],
+                "name": row[1],
+                "email": row[2],
+                "role": row[3] or "user",
+                "created_at": row[4]
+            }
+            for row in rows
+        ]
+
+@api_router.post("/users/assign-role")
+async def assign_user_role(
+    request: Request,
+    admin_user_id: str,
+    target_user_id: str,
+    new_role: str
+):
+    """Assign role to user (Admin only)"""
+    # Check if requester is admin
+    user = await get_current_user(request, admin_user_id)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin yetki gerekli")
+    
+    if new_role not in ["admin", "manager", "user"]:
+        raise HTTPException(status_code=400, detail="Geçersiz rol")
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Check target user exists
+        cursor = await db.execute("SELECT name FROM users WHERE id = ?", (target_user_id,))
+        target_user = await cursor.fetchone()
+        
+        if not target_user:
+            raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+        
+        # Update role
+        await db.execute(
+            "UPDATE users SET role = ? WHERE id = ?",
+            (new_role, target_user_id)
+        )
+        await db.commit()
+        
+        # Audit log
+        await log_audit(
+            admin_user_id, "role_change", "user", target_user_id,
+            f"Role changed to {new_role} for {target_user[0]}",
+            request.client.host if request.client else None
+        )
+        
+        # Notification to target user
+        notif_id = str(uuid.uuid4())
+        await db.execute(
+            "INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (notif_id, target_user_id, "Rol Güncellendi", 
+             f"Rolünüz {new_role} olarak güncellendi", "info", 0, 
+             datetime.now(timezone.utc).isoformat())
+        )
+        await db.commit()
+        
+        return {"success": True, "message": f"Rol güncellendi: {new_role}"}
+
+# ============== AUDIT LOG ROUTES ==============
+
+@api_router.get("/audit-logs")
+async def get_audit_logs(
+    request: Request,
+    admin_user_id: str,
+    limit: int = 100,
+    offset: int = 0
+):
+    """Get audit logs (Admin/Manager only)"""
+    user = await get_current_user(request, admin_user_id)
+    if user["role"] not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Yetki gerekli")
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            """SELECT al.id, al.user_id, u.name, al.action, al.resource_type, 
+                      al.resource_id, al.details, al.ip_address, al.created_at
+               FROM audit_logs al
+               LEFT JOIN users u ON al.user_id = u.id
+               ORDER BY al.created_at DESC
+               LIMIT ? OFFSET ?""",
+            (limit, offset)
+        )
+        rows = await cursor.fetchall()
+        
+        # Get total count
+        cursor = await db.execute("SELECT COUNT(*) FROM audit_logs")
+        total = (await cursor.fetchone())[0]
+        
+        return {
+            "total": total,
+            "logs": [
+                {
+                    "id": row[0],
+                    "user_id": row[1],
+                    "user_name": row[2],
+                    "action": row[3],
+                    "resource_type": row[4],
+                    "resource_id": row[5],
+                    "details": row[6],
+                    "ip_address": row[7],
+                    "created_at": row[8]
+                }
+                for row in rows
+            ]
+        }
 
 # ============== REPORT EXPORT ROUTES ==============
 
