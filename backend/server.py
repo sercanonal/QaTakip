@@ -2522,24 +2522,60 @@ async def bugbagla_analyze(request: Request):
 
 @api_router.post("/jira-tools/bugbagla/bind")
 async def bugbagla_bind(request: Request):
-    """Bind bug to test results (SSE streaming)"""
+    """Bind bug to test results (SSE streaming) - Port from bugbagla.js executeBugBagla"""
     
     async def generate():
         try:
             body = await request.json()
-            bug_id = body.get("bugId", "")
-            test_results = body.get("testResults", [])
-            cycle_id = body.get("cycleId", "")
+            bindings = body.get("bindings", [])
             
-            yield f"data: {json.dumps({'log': f'🔗 Bug bağlanıyor: {bug_id}'})}\n\n"
+            yield f"data: {json.dumps({'log': '🔗 Buglar bağlanıyor...'})}\n\n"
             
-            for idx, tr in enumerate(test_results, 1):
-                yield f"data: {json.dumps({'log': f'  {idx}/{len(test_results)}: {tr} bağlanıyor...'})}\n\n"
-                await asyncio.sleep(0.3)  # Simulate API call
+            if not JIRA_API_AVAILABLE:
+                yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
+                
+                for binding in bindings:
+                    yield f"data: {json.dumps({'log': f'✅ {binding.get(\"testKey\")} - Bug bağlandı (Demo)'})}\n\n"
+                    await asyncio.sleep(0.2)
+                
+                yield f"data: {json.dumps({'log': f'✨ Bağlama Tamamlandı! (Demo)'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   • Başarılı: {len(bindings)}'})}\n\n"
+                yield f"data: {json.dumps({'success': True, 'linked': len(bindings), 'failed': 0})}\n\n"
+                return
             
-            bind_msg = f"\n✅ {len(test_results)} test başarıyla bağlandı!"
-            yield f"data: {json.dumps({'log': bind_msg})}\n\n"
-            yield f"data: {json.dumps({'success': True})}\n\n"
+            # Real implementation
+            try:
+                linked_count = 0
+                failed_count = 0
+                cycle_id = None
+                
+                for binding in bindings:
+                    if not cycle_id and binding.get("cycleId"):
+                        cycle_id = binding["cycleId"]
+                    
+                    for bug_id in binding.get("bugIds", []):
+                        try:
+                            await jira_api_client.link_bug_to_test_result(binding["testResultId"], bug_id, 3)
+                            yield f"data: {json.dumps({'log': f'✅ {binding.get(\"testKey\")} - Bug bağlandı (ID: {bug_id})'})}\n\n"
+                            linked_count += 1
+                        except Exception as e:
+                            yield f"data: {json.dumps({'log': f'❌ {binding.get(\"testKey\")} - Bug bağlanırken hata: {str(e)}'})}\n\n"
+                            failed_count += 1
+                
+                # Refresh cache
+                if cycle_id:
+                    yield f"data: {json.dumps({'log': '🔄 Cache yenileniyor...'})}\n\n"
+                    await jira_api_client.refresh_issue_count_cache(cycle_id)
+                    yield f"data: {json.dumps({'log': '✅ Cache yenilendi'})}\n\n"
+                
+                yield f"data: {json.dumps({'log': '✨ Bağlama Tamamlandı!'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   • Başarılı: {linked_count}'})}\n\n"
+                yield f"data: {json.dumps({'log': f'   • Hatalı: {failed_count}'})}\n\n"
+                
+                yield f"data: {json.dumps({'success': True, 'linked': linked_count, 'failed': failed_count})}\n\n"
+                
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
             
         except Exception as e:
             logger.error(f"BugBagla bind error: {e}")
