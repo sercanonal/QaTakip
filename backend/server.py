@@ -1519,18 +1519,23 @@ async def admin_create_user(user_data: UserCreate):
         created_at = datetime.now(timezone.utc).isoformat()
         categories_json = json.dumps(DEFAULT_CATEGORIES)
         
+        # Only SERCANO is admin by default
+        role = "admin" if user_data.name.upper() == "SERCANO" else "user"
+        
         await db.execute(
-            "INSERT INTO users (id, name, device_id, categories, created_at) VALUES (?, ?, ?, ?, ?)",
-            (user_id, user_data.name.strip(), user_data.device_id, categories_json, created_at)
+            "INSERT INTO users (id, name, email, device_id, categories, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (user_id, user_data.name.strip(), user_data.email, user_data.device_id, categories_json, role, created_at)
         )
         await db.commit()
         
         return UserResponse(
             id=user_id,
             name=user_data.name.strip(),
+            email=user_data.email,
             device_id=user_data.device_id,
             categories=DEFAULT_CATEGORIES,
-            created_at=created_at
+            created_at=created_at,
+            role=role
         )
 
 @api_router.put("/admin/users/{user_id}", response_model=UserResponse)
