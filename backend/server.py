@@ -2495,9 +2495,9 @@ async def get_qa_projects():
         logger.error(f"Projeler okuma hatası: {e}")
         return {"projects": []}
 
-@api_router.post("/projects")
-async def add_project(request: Request):
-    """Add a new project"""
+@api_router.post("/qa-projects")
+async def add_qa_project(request: Request):
+    """Add a new QA project"""
     try:
         body = await request.json()
         name = body.get("name")
