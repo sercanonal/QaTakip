@@ -297,6 +297,7 @@ class UserResponse(BaseModel):
     name: str
     email: Optional[str] = None
     device_id: str
+    role: Optional[str] = "user"
     created_at: str
     categories: List[dict]
 
