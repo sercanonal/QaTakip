@@ -68,6 +68,7 @@ function App() {
             <Route path="calendar" element={<CalendarPage />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="admin" element={<AdminPanel />} />
           </Route>
         </Routes>
         <Toaster position="top-right" richColors />
