@@ -1955,15 +1955,21 @@ async def export_report(
     include_stats: bool = True
 ):
     """Export report in specified format"""
+    logger.info(f"Report export requested: format={format}, user_id={user_id}")
+    
     if not REPORTS_AVAILABLE:
+        logger.error("Report exporter not available")
         raise HTTPException(status_code=503, detail="Report export not available")
     
     if format not in ['pdf', 'excel', 'word']:
+        logger.error(f"Invalid format: {format}")
         raise HTTPException(status_code=400, detail="Format must be 'pdf', 'excel', or 'word'")
     
     try:
         # Gather data
         report_data = {}
+        
+        logger.info(f"Gathering report data for user {user_id}")
         
         async with aiosqlite.connect(DB_PATH) as db:
             # Get stats
@@ -1995,6 +2001,8 @@ async def export_report(
                     'overdue_tasks': overdue_tasks,
                     'completion_rate': round((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0, 1)
                 }
+                
+                logger.info(f"Stats gathered: {report_data['stats']}")
             
             # Get tasks
             if include_tasks:
@@ -2017,8 +2025,12 @@ async def export_report(
                     }
                     for row in rows
                 ]
+                
+                logger.info(f"Tasks gathered: {len(report_data['tasks'])} tasks")
         
         # Generate report
+        logger.info(f"Generating {format} report...")
+        
         if format == 'pdf':
             content = report_exporter.generate_pdf_report(report_data)
             media_type = "application/pdf"
@@ -2032,15 +2044,20 @@ async def export_report(
             media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             filename = f"qa_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
         
+        logger.info(f"Report generated successfully: {len(content)} bytes")
+        
         # Return file
         return StreamingResponse(
             io.BytesIO(content),
             media_type=media_type,
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
         )
     
     except Exception as e:
-        logger.error(f"Error generating report: {e}")
+        logger.error(f"Error generating report: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Rapor oluşturulurken hata: {str(e)}")
 
 @api_router.get("/debug/user-info")
