@@ -5,11 +5,10 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { toast } from "sonner";
-import { CheckSquare, User, ArrowRight, Loader2, Mail } from "lucide-react";
+import { CheckSquare, User, ArrowRight, Loader2 } from "lucide-react";
 
 const Login = () => {
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
 
@@ -17,15 +16,9 @@ const Login = () => {
     e.preventDefault();
     
     const trimmedUsername = username.trim();
-    const trimmedEmail = email.trim();
     
     if (!trimmedUsername) {
       toast.error("Lütfen kullanıcı adınızı girin");
-      return;
-    }
-    
-    if (!trimmedEmail) {
-      toast.error("Lütfen email adresinizi girin");
       return;
     }
     
@@ -36,7 +29,7 @@ const Login = () => {
 
     setLoading(true);
     try {
-      await register(trimmedUsername, trimmedEmail);
+      await register(trimmedUsername);
       toast.success("Hoş geldiniz!");
     } catch (error) {
       const message = error.userMessage || error.response?.data?.detail || "Bir hata oluştu";
@@ -67,7 +60,7 @@ const Login = () => {
               Başlayalım
             </CardTitle>
             <CardDescription>
-              Kullanıcı bilgileriniz ile giriş yapın
+              Intertech kullanıcı adınız ile giriş yapın
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -81,8 +74,8 @@ const Login = () => {
                     type="text"
                     placeholder="SERCANO"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="pl-10 h-12 bg-secondary/50 border-border/50 focus:border-primary"
+                    onChange={(e) => setUsername(e.target.value.toUpperCase())}
+                    className="pl-10 h-12 bg-secondary/50 border-border/50 focus:border-primary uppercase"
                     autoFocus
                     required
                     minLength={2}
@@ -90,23 +83,9 @@ const Login = () => {
                     data-testid="username-input"
                   />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Intertech Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="kullanici@intertech.com.tr"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 h-12 bg-secondary/50 border-border/50 focus:border-primary"
-                    required
-                    data-testid="email-input"
-                  />
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Jira'daki kullanıcı adınızı girin (örn: SERCANO)
+                </p>
               </div>
 
               <Button
@@ -129,7 +108,7 @@ const Login = () => {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          © 2025 Intertech QA Task Manager
+          © 2025 Intertech QA Hub
         </p>
       </div>
     </div>
