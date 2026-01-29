@@ -79,15 +79,15 @@ try:
     logger.info("ReportLab loaded successfully")
 except Exception as e:
     logger.warning(f"ReportLab not available (optional - PDF export disabled): {e}")
-    MSSQL_AVAILABLE = True
-except Exception as e:
-    MSSQL_AVAILABLE = False
-    logger.warning(f"MSSQL client not available: {e}")
 
+# Report Exporter (optional)
+REPORTS_AVAILABLE = False
 try:
     from report_exporter import report_exporter
     REPORTS_AVAILABLE = True
+    logger.info("Report exporter loaded successfully")
 except Exception as e:
+    logger.warning(f"Report exporter not available (optional): {e}")
     REPORTS_AVAILABLE = False
     logger.warning(f"Report exporter not available: {e}")
 
