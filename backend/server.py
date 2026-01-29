@@ -2518,9 +2518,16 @@ async def add_qa_project(request: Request):
         name = body.get("name")
         icon = body.get("icon", "📦")
         links = body.get("links", {})
+        team_remote_id = body.get("teamRemoteId", "")
+        is_mobile = body.get("isMobile", False)
+        platform = body.get("platform")  # "ios" | "android" | None
         
         if not name:
             raise HTTPException(status_code=400, detail="name gerekli!")
+        
+        # Validate platform for mobile projects
+        if is_mobile and platform not in ["ios", "android"]:
+            raise HTTPException(status_code=400, detail="Mobil projeler için platform (ios/android) seçilmelidir!")
         
         with open(PROJECTS_FILE, "r") as f:
             data = json.load(f)
@@ -2531,7 +2538,10 @@ async def add_qa_project(request: Request):
         new_project = {
             "name": name,
             "icon": icon,
-            "links": links
+            "links": links,
+            "teamRemoteId": team_remote_id,
+            "isMobile": is_mobile,
+            "platform": platform if is_mobile else None
         }
         data["projects"].append(new_project)
         
