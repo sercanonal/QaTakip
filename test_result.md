@@ -101,3 +101,91 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  1. Login sayfasında "Adınız" yerine "Intertech Kullanıcı Adı" field'ı, placeholder "SERCANO"
+  2. Admin API endpoint'leri - kullanıcı listesini yönetme (ekleme, silme, güncelleme)
+  3. Gerçek zamanlı bildirim sistemi - SSE ile sayfa refresh'e gerek kalmadan bildirim gelsin
+
+backend:
+  - task: "Admin API - Kullanıcı Yönetimi"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "GET /api/admin/users, POST /api/admin/users, PUT /api/admin/users/{id}, DELETE /api/admin/users/{id} endpoint'leri eklendi"
+  
+  - task: "SSE Bildirim Sistemi"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NotificationManager class ve GET /api/notifications/stream SSE endpoint'i eklendi. Görev atandığında gerçek zamanlı bildirim push edilir."
+
+frontend:
+  - task: "Login Sayfası Güncelleme"
+    implemented: true
+    working: "NA"
+    file: "pages/Login.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Label 'Intertech Kullanıcı Adı', placeholder 'SERCANO' olarak güncellendi"
+  
+  - task: "SSE Client Bağlantısı"
+    implemented: true
+    working: "NA"
+    file: "components/Layout.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "EventSource ile SSE bağlantısı kuruldu. Yeni bildirimler otomatik olarak UI'a eklenir."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Admin API - Kullanıcı Yönetimi"
+    - "SSE Bildirim Sistemi"
+    - "SSE Client Bağlantısı"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      Üç ana özellik eklendi:
+      1. Login sayfası güncellendi
+      2. Admin API endpoint'leri eklendi (kullanıcı CRUD)
+      3. SSE ile gerçek zamanlı bildirim sistemi
+      
+      Backend test edilmeli:
+      - Admin endpoint'leri (GET, POST, PUT, DELETE /api/admin/users)
+      - SSE stream endpoint'i (/api/notifications/stream)
+      - Görev atandığında bildirim gönderimi
+      
+      Frontend'de SSE bağlantısını test etmek için:
+      - Bir kullanıcı login olsun
+      - Başka bir kullanıcı ona görev atasın
+      - Bildirim anında gelmeli (sayfa refresh'e gerek yok)
