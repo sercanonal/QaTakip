@@ -20,14 +20,16 @@ Kullanıcı, mevcut "QA Task Manager" uygulamasını, arkadaşına ait olan "Bab
    - ✅ Takvim entegrasyonu
 
 2. **Baba Script Manager özellikleri:**
-   - ✅ Jira Generator - JSON'dan test case oluşturma (UI hazır, VPN gerekli)
-   - ✅ Bug Bağla - Bug'ları test sonuçlarına bağlama (UI hazır, VPN gerekli)
-   - ✅ Test Analizi - Cycle ve test durumu analizi (UI hazır, VPN gerekli)
-   - ✅ Cycle Add - Cycle'a test ekleme (UI hazır, VPN gerekli)
-   - ✅ API Rerun - API testlerini tekrar çalıştırma (UI hazır, VPN gerekli)
+   - ✅ Jira Generator - JSON'dan test case oluşturma
+   - ✅ Bug Bağla - Bug'ları test sonuçlarına bağlama (Backend port edildi)
+   - ✅ Test Analizi - Cycle ve test durumu analizi (Backend port edildi)
+   - ✅ Cycle Add - Cycle'a test ekleme (Backend port edildi)
+   - ✅ API Analizi - API endpoint analizi (Backend port edildi)
 
 3. **Dinamik Yönetim:**
    - ✅ QA Projeleri - Ayarlar sayfasından CRUD yönetimi
+   - ✅ Team Remote ID desteği
+   - ✅ Mobil proje işaretleme (iOS/Android platform seçimi)
    - ✅ Cycle'lar - Ayarlar sayfasından CRUD yönetimi
    - ✅ Projeler dinamik olarak Analiz ve Jira Araçları sayfalarına besleniyor
 
@@ -45,8 +47,8 @@ Kullanıcı, mevcut "QA Task Manager" uygulamasını, arkadaşına ait olan "Bab
 - ✅ SQLite veritabanı
 - ✅ JSON dosya tabanlı proje/cycle depolama
 - ✅ SSE (Server-Sent Events) streaming
-- ⏳ Jira API entegrasyonu (VPN arkasından, backend hazır)
-- ⏳ MSSQL entegrasyonu (VPN arkasından)
+- ✅ Jira API client (Python/httpx) - VPN gerekli
+- ✅ MSSQL client (Python/pymssql) - VPN gerekli
 
 ## What's Been Implemented
 
@@ -64,52 +66,67 @@ Kullanıcı, mevcut "QA Task Manager" uygulamasını, arkadaşına ait olan "Bab
 - ✅ Framer Motion animasyonları
 - ✅ Modern gradient UI tasarımı (mor/mavi/cyan)
 
-### Session 3 (30 Ocak 2025 - Dinamik Yönetim)
+### Session 3 (30 Ocak 2025 - Dinamik Yönetim & JS Port)
 - ✅ QA Projeleri CRUD API'leri (`/api/qa-projects`)
-- ✅ Cycle'lar CRUD API'leri (`/api/cycles`)
-- ✅ Settings sayfasında QA Projeleri yönetimi (tablo, ekleme, düzenleme, silme)
-- ✅ Settings sayfasında Cycle'lar yönetimi (tablo, ekleme, silme)
-- ✅ Analysis sayfası projeleri dinamik olarak API'den çekiyor
-- ✅ Jira Tools sayfası projeleri dinamik olarak API'den çekiyor
-- ✅ Test kapsamı: 15 backend testi, tüm frontend özellikleri doğrulandı
+- ✅ **YENİ ALANLAR:** teamRemoteId, isMobile, platform (iOS/Android)
+- ✅ Proje ekleme/düzenleme formları güncellendi
+- ✅ Mobil proje için radio button seçimi (iOS/Android)
+- ✅ **JavaScript'ten Python'a Port:**
+  - `jira_api_client.py` - Jira REST API client (httpx)
+  - `mssql_client.py` - MSSQL bağlantı client (pymssql)
+  - Bug Bağla analyze/execute endpoint'leri
+  - Cycle Add analyze/execute endpoint'leri
+  - Test Analizi endpoint'i
+  - API Analizi endpoint'i
+- ✅ Settings sayfasında gelişmiş proje yönetimi UI
 
 ## Known Limitations
 - **VPN Gerekli**: Jira API ve MSSQL bağlantıları VPN arkasından çalışacak
 - **Demo Mode**: VPN olmadığında mock data döndürülüyor
-- **Localhost Export**: Tam fonksiyonellik için localhost'ta çalıştırma gerekli
 
 ## Technical Architecture
 
 ### Backend (FastAPI)
-- `/app/backend/server.py` - Ana server dosyası (~2600 satır)
+- `/app/backend/server.py` - Ana server dosyası
+- `/app/backend/jira_api_client.py` - Jira API client (YENİ)
+- `/app/backend/mssql_client.py` - MSSQL client (YENİ)
 - `/app/backend/data/projects.json` - QA projeleri
 - `/app/backend/data/cycles.json` - Cycle'lar
 - `/app/backend/data/qa_tasks.db` - SQLite veritabanı
 
 ### Frontend (React)
-- `/app/frontend/src/pages/Settings.jsx` - Proje/Cycle yönetimi
+- `/app/frontend/src/pages/Settings.jsx` - Proje/Cycle yönetimi (Güncellendi)
 - `/app/frontend/src/pages/JiraTools.jsx` - Jira araçları (4 tab)
 - `/app/frontend/src/pages/Analysis.jsx` - Test analizi (2 tab)
-- `/app/frontend/src/components/Layout.jsx` - Ana layout ve sidebar
 
-### API Endpoints (Yeni)
-- `GET/POST/PUT/DELETE /api/qa-projects` - QA Proje yönetimi
-- `GET/POST/PUT/DELETE /api/cycles` - Cycle yönetimi
+### API Endpoints
+**Proje Yönetimi:**
+- `GET/POST/PUT/DELETE /api/qa-projects`
+- Yeni alanlar: teamRemoteId, isMobile, platform
+
+**Jira Araçları:**
+- `POST /api/jira-tools/bugbagla/analyze` - Bug bağlama analizi
+- `POST /api/jira-tools/bugbagla/bind` - Bug bağlama
+- `POST /api/jira-tools/cycleadd/analyze` - Cycle ekleme analizi
+- `POST /api/jira-tools/cycleadd/execute` - Cycle ekleme
+
+**Analiz:**
+- `POST /api/analysis/analyze` - Test analizi
+- `POST /api/analysis/apianaliz` - API analizi
 
 ## Prioritized Backlog
 
 ### P0 - Critical (TAMAMLANDI)
 - [x] Dinamik proje yönetimi (Ayarlar'dan)
-- [x] Dinamik cycle yönetimi (Ayarlar'dan)
-- [x] Analiz ve Jira Araçları sayfalarına dinamik proje besleme
+- [x] Team Remote ID desteği
+- [x] Mobil proje işaretleme (iOS/Android)
+- [x] JavaScript mantığının Python'a port edilmesi
 
 ### P1 - High Priority
-- [ ] Jira API gerçek entegrasyonu (VPN ile test gerekli)
-- [ ] MSSQL bağlantısı (VPN ile test gerekli)
-- [ ] Orijinal JS script mantığının Python'a port edilmesi (dosyalar gerekli)
+- [ ] VPN ile gerçek Jira API testleri
+- [ ] VPN ile gerçek MSSQL testleri
 
 ### P2 - Medium Priority
-- [ ] iOS/Android platform ayrımı (cycle adından)
 - [ ] LocalStorage form değerlerini hatırlama
 - [ ] Export to CSV/Excel
 - [ ] Gelişmiş filtreleme
@@ -120,11 +137,21 @@ Kullanıcı, mevcut "QA Task Manager" uygulamasını, arkadaşına ait olan "Bab
 - [ ] Daha fazla animasyon
 
 ## Test Reports
-- `/app/test_reports/iteration_6.json` - Son test raporu (15/15 başarılı)
-- `/app/backend/tests/test_qa_projects_cycles.py` - Backend unit testleri
+- `/app/test_reports/iteration_6.json` - Proje/Cycle CRUD testleri
+
+## Jira API Configuration
+```
+Base URL: https://jira.intertech.com.tr/rest/tests/1.0/
+Auth: Basic Auth (integration_user)
+```
+
+## MSSQL Configuration
+```
+Server: WIPREDB31.intertech.com.tr
+Database: TEST_DATA_MANAGEMENT
+User: quantra
+```
 
 ## Next Steps
-1. Kullanıcı test edecek
-2. VPN ile gerçek Jira/MSSQL entegrasyonu
-3. Orijinal JavaScript dosyalarından mantık port edilecek (dosyalar sağlanırsa)
-4. Localhost export paketi hazırlama
+1. VPN ile gerçek Jira/MSSQL entegrasyonu test edilecek
+2. Kullanıcı onayı sonrası production'a hazırlık
