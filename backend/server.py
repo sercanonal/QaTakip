@@ -90,6 +90,11 @@ async def init_db():
     DATA_DIR.mkdir(exist_ok=True)
     
     async with aiosqlite.connect(DB_PATH) as db:
+        # Enable WAL mode for better concurrency
+        await db.execute('PRAGMA journal_mode=WAL')
+        await db.execute('PRAGMA synchronous=NORMAL')
+        await db.execute('PRAGMA cache_size=10000')
+        
         # Users table
         await db.execute('''
             CREATE TABLE IF NOT EXISTS users (
