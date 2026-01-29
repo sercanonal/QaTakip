@@ -6,6 +6,7 @@ import os
 import logging
 import json
 import aiosqlite
+import io
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional
