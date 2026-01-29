@@ -593,12 +593,21 @@ const Settings = () => {
             <DialogTitle className="font-heading">Projeyi Düzenle</DialogTitle>
           </DialogHeader>
           {editingProject && (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
               <div className="space-y-2">
                 <Label>Proje Adı</Label>
                 <Input
                   value={editingProject.name}
                   onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Team Remote ID</Label>
+                <Input
+                  value={editingProject.teamRemoteId || ""}
+                  onChange={(e) => setEditingProject({ ...editingProject, teamRemoteId: e.target.value })}
+                  placeholder="Örn: 12345"
                 />
               </div>
               
@@ -621,6 +630,56 @@ const Settings = () => {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Mobile Project Toggle */}
+              <div className="space-y-3 p-3 rounded-lg bg-secondary/30 border border-border/50">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id="editIsMobile"
+                    checked={editingProject.isMobile || false}
+                    onCheckedChange={(checked) => setEditingProject({ 
+                      ...editingProject, 
+                      isMobile: checked,
+                      platform: checked ? editingProject.platform : null 
+                    })}
+                  />
+                  <Label htmlFor="editIsMobile" className="flex items-center gap-2 cursor-pointer">
+                    <Smartphone className="w-4 h-4" />
+                    Bu bir mobil proje
+                  </Label>
+                </div>
+                
+                {editingProject.isMobile && (
+                  <div className="flex gap-4 pl-7">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="editPlatform"
+                        value="ios"
+                        checked={editingProject.platform === "ios"}
+                        onChange={() => setEditingProject({ ...editingProject, platform: "ios" })}
+                        className="w-4 h-4 accent-violet-500"
+                      />
+                      <span className="flex items-center gap-1">
+                        🍎 iOS
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="editPlatform"
+                        value="android"
+                        checked={editingProject.platform === "android"}
+                        onChange={() => setEditingProject({ ...editingProject, platform: "android" })}
+                        className="w-4 h-4 accent-violet-500"
+                      />
+                      <span className="flex items-center gap-1">
+                        🤖 Android
+                      </span>
+                    </label>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
