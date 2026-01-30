@@ -23,6 +23,7 @@ import {
   Lock,
   ExternalLink,
   Key,
+  UserCheck,
 } from "lucide-react";
 
 const STATUS_COLORS = {
@@ -52,6 +53,9 @@ const TeamTracking = () => {
   const [searchUsername, setSearchUsername] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
+  const [qaTeam, setQaTeam] = useState([]);
+  const [loadingTeam, setLoadingTeam] = useState(false);
+  const [showTeamList, setShowTeamList] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -74,18 +78,45 @@ const TeamTracking = () => {
     }
   };
 
+  const loadQaTeam = async () => {
+    setLoadingTeam(true);
+    try {
+      const res = await api.get(`/admin/qa-team?t=${encodeURIComponent(storedVal)}`);
+      setQaTeam(res.data.users || []);
+      setShowTeamList(true);
+      if (res.data.users?.length > 0) {
+        toast.success(`${res.data.users.length} QA bulundu`);
+      } else {
+        toast.info("Kalite ekibi bulunamadı");
+      }
+    } catch (error) {
+      toast.error("Ekip yüklenemedi");
+    } finally {
+      setLoadingTeam(false);
+    }
+  };
+
+  const handleUserSelect = (username) => {
+    setSearchUsername(username);
+    setShowTeamList(false);
+    handleSearchUser(username);
+  };
+
   const handleSearch = async () => {
     if (!searchUsername.trim()) {
       toast.error("Kullanıcı adı girin");
       return;
     }
+    handleSearchUser(searchUsername);
+  };
 
+  const handleSearchUser = async (username) => {
     setSearching(true);
     setSearchResult(null);
 
     try {
       const response = await api.get(
-        `/admin/team-tasks?search_username=${encodeURIComponent(searchUsername)}&t=${encodeURIComponent(storedVal)}`
+        `/admin/team-tasks?search_username=${encodeURIComponent(username)}&t=${encodeURIComponent(storedVal)}`
       );
       setSearchResult(response.data);
       
@@ -109,6 +140,8 @@ const TeamTracking = () => {
     setStoredVal("");
     setInputVal("");
     setSearchResult(null);
+    setQaTeam([]);
+    setShowTeamList(false);
   };
 
   if (!isAuth) {
@@ -120,9 +153,7 @@ const TeamTracking = () => {
               <Lock className="w-8 h-8 text-violet-500" />
             </div>
             <CardTitle className="text-xl">Erişim Doğrulama</CardTitle>
-            <CardDescription>
-              Devam etmek için doğrulama gerekli
-            </CardDescription>
+            <CardDescription>Devam etmek için doğrulama gerekli</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -155,26 +186,20 @@ const TeamTracking = () => {
             <Users className="w-6 h-6 text-violet-500" />
             Ekip Takibi
           </h2>
-          <p className="text-muted-foreground">
-            Jira'dan ekip üyelerinin görevlerini görüntüleyin
-          </p>
+          <p className="text-muted-foreground">Jira'dan ekip üyelerinin görevlerini görüntüleyin</p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExit}>
-          Çıkış
-        </Button>
+        <Button variant="outline" size="sm" onClick={handleExit}>Çıkış</Button>
       </div>
 
       <Card className="border-border/50 bg-card">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Search className="w-5 h-5 text-violet-500" />
-            Jira Kullanıcı Ara
+            Kullanıcı Ara
           </CardTitle>
-          <CardDescription>
-            Jira/AD kullanıcı adı ile arama yapın
-          </CardDescription>
+          <CardDescription>Jira kullanıcı adı ile arama yapın veya Kalite Ekibini listeleyin</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex gap-2">
             <Input
               placeholder="Kullanıcı adı (örn: sercano)"
@@ -188,6 +213,49 @@ const TeamTracking = () => {
               {!searching && "Ara"}
             </Button>
           </div>
+          
+          {/* Kalite Ekibi Butonu */}
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              onClick={loadQaTeam}
+              disabled={loadingTeam}
+              className="border-violet-500/30 hover:bg-violet-500/10"
+            >
+              {loadingTeam ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <UserCheck className="w-4 h-4 mr-2 text-violet-500" />
+              )}
+              Kalite Ekibi
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Jira'da "kalite" içeren kullanıcıları listele
+            </span>
+          </div>
+
+          {/* QA Team List */}
+          {showTeamList && qaTeam.length > 0 && (
+            <div className="border border-border/50 rounded-lg p-3 bg-secondary/20">
+              <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-violet-500" />
+                Kalite Ekibi ({qaTeam.length} kişi)
+              </p>
+              <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+                {qaTeam.map((user, idx) => (
+                  <Button
+                    key={idx}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleUserSelect(user.name)}
+                    className="h-8 text-xs hover:bg-violet-500/10 hover:border-violet-500/50"
+                  >
+                    {user.displayName || user.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
