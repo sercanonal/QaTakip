@@ -20,6 +20,7 @@ import {
   Activity,
   Zap,
   TreePine,
+  Users,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
