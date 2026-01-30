@@ -217,11 +217,13 @@ const Dashboard = () => {
             )}
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* Quick Stats */}
-        <div className="lg:col-span-4 space-y-4">
+        <motion.div className="lg:col-span-4 space-y-4" variants={itemVariants}>
           {/* Progress Card */}
-          <Card className="border-border/50 bg-card">
+          <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
+            <Card className="border-border/50 bg-card">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-muted-foreground">Tamamlanma</span>
