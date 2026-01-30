@@ -3857,18 +3857,38 @@ async def run_product_tree(request: Request):
                 db_tests = mssql_client.get_test_detail_for_product_tree(project_names, days, time)
                 yield f"data: {json.dumps({'log': f'✅ {len(db_tests)} test verisi bulundu'})}\n\n"
                 
-                # Get Jira test data if available
+                # Get Jira test data if available - fetch test types
                 if JIRA_API_AVAILABLE:
-                    yield f"data: {json.dumps({'log': '🔗 Jira test verileri alınıyor...'})}\n\n"
+                    yield f"data: {json.dumps({'log': '🔗 Jira test tipleri alınıyor...'})}\n\n"
                     issue_keys = list(set(t["key"] for t in db_tests if t.get("key")))
                     
-                    # Fetch test details from Jira in batches (simplified - without full cache)
+                    # Fetch test types from Jira for each test
+                    test_type_count = 0
                     for test in db_tests:
-                        # Default type if can't fetch from Jira
-                        test["type"] = "🔴 Test Tipi Girilmemiş."
+                        test_key = test.get("key", "")
+                        if test_key:
+                            try:
+                                test_type = jira_client.get_test_type_from_case(test_key)
+                                if test_type and test_type != "unknown":
+                                    if "happy" in test_type.lower():
+                                        test["type"] = "✅ Happy Path"
+                                    elif "alternatif" in test_type.lower() or "alternative" in test_type.lower():
+                                        test["type"] = "🔀 Alternatif Senaryo"
+                                    elif "negatif" in test_type.lower() or "negative" in test_type.lower():
+                                        test["type"] = "❌ Negatif Senaryo"
+                                    else:
+                                        test["type"] = f"🔴 {test_type}"
+                                    test_type_count += 1
+                                else:
+                                    test["type"] = "🔴 Test Tipi Girilmemiş."
+                            except Exception as e:
+                                logger.warning(f"Could not get test type for {test_key}: {e}")
+                                test["type"] = "🔴 Test Tipi Girilmemiş."
+                        else:
+                            test["type"] = "🔴 Test Tipi Girilmemiş."
                         test["jiraEndpoint"] = test.get("endpoint", "")
                     
-                    yield f"data: {json.dumps({'log': f'✅ {len(issue_keys)} test Jira verisi işlendi'})}\n\n"
+                    yield f"data: {json.dumps({'log': f'✅ {test_type_count}/{len(issue_keys)} test tipi alındı'})}\n\n"
                 
                 yield f"data: {json.dumps({'log': '📊 Team bilgisi alınıyor...'})}\n\n"
                 team_name = mssql_client.get_team_name(jira_team_id)
