@@ -62,19 +62,25 @@ const ProductTree = () => {
     const fetchProjects = async () => {
       try {
         const response = await api.get("/qa-projects");
-        if (response.data && Array.isArray(response.data)) {
-          setQaProjects(response.data);
-          // Auto-select first project if none selected
-          if (!selectedProject && response.data.length > 0) {
-            setSelectedProject(response.data[0].name);
-          }
+        console.log("QA Projects response:", response.data);
+        
+        // API returns {projects: [...]} format
+        const projects = response.data?.projects || response.data || [];
+        const projectsList = Array.isArray(projects) ? projects : [];
+        
+        console.log("Projects list:", projectsList);
+        setQaProjects(projectsList);
+        
+        // Auto-select first project if none selected
+        if (!selectedProject && projectsList.length > 0) {
+          setSelectedProject(projectsList[0].name);
         }
       } catch (error) {
         console.error("Error fetching QA projects:", error);
       }
     };
     fetchProjects();
-  }, []);
+  }, [selectedProject]);
   
   // Save form values to localStorage
   useEffect(() => {
