@@ -4,38 +4,21 @@ QA Task Manager ve Baba Script Manager birleştirilmiş entegre QA platformu.
 
 ---
 
-## 🚀 Hızlı Kurulum (Quick Start)
+## 🚀 Hızlı Kurulum (Mac - Quick Start)
 
 ### Gereksinimler
 - Python 3.11+
 - Node.js 18+
-- VPN bağlantısı (Jira ve MSSQL erişimi için - opsiyonel)
+- VPN bağlantısı (Jira ve MSSQL erişimi için)
 
-### Tek Komutla Kurulum
-
+### 1. Projeyi İndir ve Aç
 ```bash
-# 1. Repository'yi klonla
-git clone <repository-url>
+# Zip'i çıkar
+unzip qa-hub.zip
 cd qa-hub
-
-# 2. Kurulum scriptini çalıştır
-chmod +x setup.sh
-./setup.sh
-
-# 3. Uygulamayı başlat
-./run.sh
 ```
 
-**Hepsi bu kadar!** Tarayıcıda `http://localhost:3000` adresine gidin.
-
----
-
-## 📋 Manuel Kurulum
-
-Eğer setup scripti çalışmazsa:
-
-### Backend
-
+### 2. Backend Kurulum
 ```bash
 cd backend
 
@@ -43,32 +26,47 @@ cd backend
 python3 -m venv venv
 
 # Aktive et
-# Mac/Linux:
 source venv/bin/activate
-# Windows:
-venv\Scripts\activate
 
 # Bağımlılıkları yükle
 pip install -r requirements.txt
 
 # Başlat
+python server.py
+# VEYA
 uvicorn server:app --host 0.0.0.0 --port 8001 --reload
 ```
 
-### Frontend
-
+### 3. Frontend Kurulum (Yeni Terminal)
 ```bash
 cd frontend
 
 # Bağımlılıkları yükle
 npm install
 
-# .env oluştur (gerekirse)
-echo "REACT_APP_BACKEND_URL=http://localhost:8001" > .env
-
 # Başlat
 npm start
 ```
+
+### 4. Tarayıcıda Aç
+```
+http://localhost:3000
+```
+
+Giriş: Kullanıcı adı olarak `SERCANO` yazın.
+
+---
+
+## 🌐 Proxy Ayarları (ÖNEMLİ)
+
+Bu uygulama şirket proxy'sini kullanır. Proxy ayarları `backend/jira_api_client.py` dosyasında:
+
+```python
+PROXY_HOST = "10.125.24.215"
+PROXY_PORT = "8080"
+```
+
+Eğer proxy adresi değiştiyse bu değerleri güncelleyin.
 
 ---
 
