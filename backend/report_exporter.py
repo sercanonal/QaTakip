@@ -324,7 +324,7 @@ class ReportExporter:
             story.append(Spacer(1, 0.8*cm))
             
             # Completion Rate Progress Bar - Modern Style
-            story.append(Paragraph(f'<font size="11" color="#374151"><b>Tamamlanma Oranı: </b></font><font size="14" color="#8B5CF6"><b>%{completion_rate}</b></font>', styles['Normal']))
+            story.append(Paragraph(f'<font size="11" color="#374151"><b>Tamamlanma Orani: </b></font><font size="14" color="#8B5CF6"><b>%{completion_rate}</b></font>', normal_turkish))
             story.append(Spacer(1, 0.3*cm))
             
             # Progress bar visual
