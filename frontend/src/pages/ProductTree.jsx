@@ -36,6 +36,9 @@ const API_URL = process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_U
 const ProductTree = () => {
   const { user } = useAuth();
   
+  // QA Projects from settings
+  const [qaProjects, setQaProjects] = useState([]);
+  
   // Form state
   const [jiraTeamId, setJiraTeamId] = useState(() => localStorage.getItem("productTree_teamId") || "");
   const [reportDate, setReportDate] = useState(() => {
@@ -44,10 +47,7 @@ const ProductTree = () => {
     const today = new Date();
     return `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
   });
-  const [selectedProjects, setSelectedProjects] = useState(() => {
-    const saved = localStorage.getItem("productTree_projectNames");
-    return saved ? JSON.parse(saved) : ["FraudNG.UITests"];
-  });
+  const [selectedProject, setSelectedProject] = useState(() => localStorage.getItem("productTree_selectedProject") || "");
   const [days, setDays] = useState(() => localStorage.getItem("productTree_days") || "1");
   const [time, setTime] = useState(() => localStorage.getItem("productTree_time") || "00:00");
   
@@ -57,24 +57,33 @@ const ProductTree = () => {
   const [treeData, setTreeData] = useState(null);
   const [stats, setStats] = useState(null);
   
+  // Fetch QA projects from settings
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const response = await api.get("/qa-projects");
+        if (response.data && Array.isArray(response.data)) {
+          setQaProjects(response.data);
+          // Auto-select first project if none selected
+          if (!selectedProject && response.data.length > 0) {
+            setSelectedProject(response.data[0].name);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching QA projects:", error);
+      }
+    };
+    fetchProjects();
+  }, []);
+  
   // Save form values to localStorage
   useEffect(() => {
     localStorage.setItem("productTree_teamId", jiraTeamId);
     localStorage.setItem("productTree_reportDate", reportDate);
-    localStorage.setItem("productTree_projectNames", JSON.stringify(selectedProjects));
+    localStorage.setItem("productTree_selectedProject", selectedProject);
     localStorage.setItem("productTree_days", days);
     localStorage.setItem("productTree_time", time);
-  }, [jiraTeamId, reportDate, selectedProjects, days, time]);
-  
-  const handleProjectToggle = (projectValue) => {
-    setSelectedProjects(prev => {
-      if (prev.includes(projectValue)) {
-        return prev.filter(p => p !== projectValue);
-      } else {
-        return [...prev, projectValue];
-      }
-    });
-  };
+  }, [jiraTeamId, reportDate, selectedProject, days, time]);
   
   const runAnalysis = async () => {
     if (!jiraTeamId || !reportDate) {
