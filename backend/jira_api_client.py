@@ -1,6 +1,7 @@
 """
 Jira/Zephyr Scale API Client - WITH PROXY SUPPORT
 Uses subprocess curl for reliable proxy handling
+Inherits system environment variables for proxy support
 """
 
 import subprocess
@@ -16,9 +17,10 @@ class JiraConfig:
     ZEPHYR_API_PATH = "/rest/tests/1.0"
     JIRA_API_PATH = "/rest/api/2"
     AUTH_TOKEN = "Basic aW50ZWdyYXRpb25fdXNlcjpkMkBDQig1ZA=="
-    REQUEST_TIMEOUT = 60
-    MAX_RETRIES = 2
-    # Proxy settings
+    REQUEST_TIMEOUT = 120  # Increased timeout
+    CONNECT_TIMEOUT = 30   # Connection timeout
+    MAX_RETRIES = 3
+    # Proxy settings - can be overridden by env vars
     PROXY_HOST = os.getenv("PROXY_HOST", "10.125.24.215")
     PROXY_PORT = os.getenv("PROXY_PORT", "8080")
 
