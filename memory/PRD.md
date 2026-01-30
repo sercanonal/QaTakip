@@ -5,7 +5,7 @@ Kullanıcı, mevcut "QA Task Manager" uygulamasını, arkadaşına ait olan "Bab
 
 ## User Personas
 - **QA Mühendisleri**: Test yönetimi, Jira entegrasyonu, test analizi
-- **QA Yöneticileri**: Raporlama, proje takibi, admin paneli
+- **QA Yöneticileri**: Raporlama, proje takibi
 
 ## Core Requirements
 
@@ -15,7 +15,6 @@ Kullanıcı, mevcut "QA Task Manager" uygulamasını, arkadaşına ait olan "Bab
    - ✅ Proje yönetimi
    - ✅ Kullanıcı yönetimi ve roller
    - ✅ Rapor export (PDF)
-   - ✅ Admin paneli
    - ✅ Dashboard ve istatistikler
    - ✅ Takvim entegrasyonu
 
@@ -38,7 +37,6 @@ Kullanıcı, mevcut "QA Task Manager" uygulamasını, arkadaşına ait olan "Bab
 - ✅ Sol tarafta sidebar navigasyon
 - ✅ Mor/mavi/cyan gradient renkli tab'lar ve butonlar
 - ✅ Glass-morphism kartlar
-- ✅ Framer Motion animasyonları
 - ✅ Real-time SSE streaming output
 
 ### Teknik Gereksinimler
@@ -47,111 +45,75 @@ Kullanıcı, mevcut "QA Task Manager" uygulamasını, arkadaşına ait olan "Bab
 - ✅ SQLite veritabanı
 - ✅ JSON dosya tabanlı proje/cycle depolama
 - ✅ SSE (Server-Sent Events) streaming
-- ✅ Jira API client (Python/httpx) - VPN gerekli
+- ✅ Jira/Zephyr Scale API client (Python/requests) - VPN + Proxy gerekli
 - ✅ MSSQL client (Python/pymssql) - VPN gerekli
 
-## What's Been Implemented
+---
 
-### Session 1 (29 Ocak 2025)
-- ✅ QA Task Manager uygulaması oluşturuldu
-- ✅ Görev, proje, kullanıcı yönetimi
-- ✅ Admin paneli
-- ✅ Rapor export
+## What's Been Implemented (2026-01-30)
 
-### Session 2 (29 Ocak 2025 - Birleştirme)
-- ✅ Uygulama adı "QA Hub" olarak değiştirildi
-- ✅ **Jira Araçları** sayfası eklendi (4 tab)
-- ✅ **Analiz** sayfası eklendi (2 tab)
-- ✅ Backend SSE streaming endpoint'leri
-- ✅ Framer Motion animasyonları
-- ✅ Modern gradient UI tasarımı (mor/mavi/cyan)
+### Tamamlanan Özellikler
+1. ✅ Admin paneli sidebar'dan kaldırıldı
+2. ✅ Görevler sayfasında Jira filtresi eklendi (açma/kapama butonu)
+3. ✅ Jira API client'a PROXY desteği eklendi (`10.125.24.215:8080`)
+4. ✅ Zephyr Scale API endpoint'i düzeltildi (`/rest/tests/1.0/`)
+5. ✅ MSSQL timeout'ları artırıldı (60 saniye)
+6. ✅ Frontend .env localhost için ayarlandı
+7. ✅ README.md Mac kurulum adımları ile güncellendi
 
-### Session 3 (30 Ocak 2025 - Dinamik Yönetim & JS Port)
-- ✅ QA Projeleri CRUD API'leri (`/api/qa-projects`)
-- ✅ **YENİ ALANLAR:** teamRemoteId, isMobile, platform (iOS/Android)
-- ✅ Proje ekleme/düzenleme formları güncellendi
-- ✅ Mobil proje için radio button seçimi (iOS/Android)
-- ✅ **JavaScript'ten Python'a Port:**
-  - `jira_api_client.py` - Jira REST API client (httpx)
-  - `mssql_client.py` - MSSQL bağlantı client (pymssql)
-  - Bug Bağla analyze/execute endpoint'leri
-  - Cycle Add analyze/execute endpoint'leri
-  - Test Analizi endpoint'i
-  - API Analizi endpoint'i
-- ✅ Settings sayfasında gelişmiş proje yönetimi UI
+### Proxy Ayarları (Kritik!)
+Şirket ağında Jira'ya erişmek için proxy gerekli:
+- **Proxy Host:** `10.125.24.215`
+- **Proxy Port:** `8080`
+- **Dosya:** `backend/jira_api_client.py`
 
-## Known Limitations
-- **VPN Gerekli**: Jira API ve MSSQL bağlantıları VPN arkasından çalışacak
-- **Demo Mode**: VPN olmadığında mock data döndürülüyor
-
-## Technical Architecture
-
-### Backend (FastAPI)
-- `/app/backend/server.py` - Ana server dosyası
-- `/app/backend/jira_api_client.py` - Jira API client (YENİ)
-- `/app/backend/mssql_client.py` - MSSQL client (YENİ)
-- `/app/backend/data/projects.json` - QA projeleri
-- `/app/backend/data/cycles.json` - Cycle'lar
-- `/app/backend/data/qa_tasks.db` - SQLite veritabanı
-
-### Frontend (React)
-- `/app/frontend/src/pages/Settings.jsx` - Proje/Cycle yönetimi (Güncellendi)
-- `/app/frontend/src/pages/JiraTools.jsx` - Jira araçları (4 tab)
-- `/app/frontend/src/pages/Analysis.jsx` - Test analizi (2 tab)
-
-### API Endpoints
-**Proje Yönetimi:**
-- `GET/POST/PUT/DELETE /api/qa-projects`
-- Yeni alanlar: teamRemoteId, isMobile, platform
-
-**Jira Araçları:**
-- `POST /api/jira-tools/bugbagla/analyze` - Bug bağlama analizi
-- `POST /api/jira-tools/bugbagla/bind` - Bug bağlama
-- `POST /api/jira-tools/cycleadd/analyze` - Cycle ekleme analizi
-- `POST /api/jira-tools/cycleadd/execute` - Cycle ekleme
-
-**Analiz:**
-- `POST /api/analysis/analyze` - Test analizi
-- `POST /api/analysis/apianaliz` - API analizi
+---
 
 ## Prioritized Backlog
 
-### P0 - Critical (TAMAMLANDI)
-- [x] Dinamik proje yönetimi (Ayarlar'dan)
-- [x] Team Remote ID desteği
-- [x] Mobil proje işaretleme (iOS/Android)
-- [x] JavaScript mantığının Python'a port edilmesi
+### P0 - Kritik (Kullanıcı tarafından test edilmeli)
+- [ ] Jira task'larının backlog'da görünmesi (proxy ile)
+- [ ] Test Analizi fonksiyonunun çalışması
+- [ ] API Analizi fonksiyonunun çalışması
 
-### P1 - High Priority
-- [ ] VPN ile gerçek Jira API testleri
-- [ ] VPN ile gerçek MSSQL testleri
+### P1 - Önemli
+- [ ] Jira/MSSQL işlevselliğinin tam doğrulaması
+- [ ] Bug Bağla fonksiyonunun testi
+- [ ] Cycle Add fonksiyonunun testi
 
-### P2 - Medium Priority
-- [ ] LocalStorage form değerlerini hatırlama
-- [ ] Export to CSV/Excel
-- [ ] Gelişmiş filtreleme
+### P2 - İyileştirmeler
+- [ ] Platform ikonları (iOS/Android görsel ayrımı)
+- [ ] UI animasyonları (framer-motion)
+- [ ] server.py refactoring (routes klasörüne ayrıştırma)
 
-### P3 - Low Priority
-- [ ] Proje yönetimi (Sonar, Jenkins linkleri)
-- [ ] Dark/Light tema toggle
-- [ ] Daha fazla animasyon
+---
 
-## Test Reports
-- `/app/test_reports/iteration_6.json` - Proje/Cycle CRUD testleri
+## Kurulum Notları
 
-## Jira API Configuration
-```
-Base URL: https://jira.intertech.com.tr/rest/tests/1.0/
-Auth: Basic Auth (integration_user)
-```
+### Localhost Kurulum (Mac)
+```bash
+# Backend
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python server.py
 
-## MSSQL Configuration
-```
-Server: WIPREDB31.intertech.com.tr
-Database: TEST_DATA_MANAGEMENT
-User: quantra
+# Frontend (yeni terminal)
+cd frontend
+npm install
+npm start
 ```
 
-## Next Steps
-1. VPN ile gerçek Jira/MSSQL entegrasyonu test edilecek
-2. Kullanıcı onayı sonrası production'a hazırlık
+### Giriş
+Kullanıcı adı: `SERCANO` (admin yetkili)
+
+---
+
+## Dosya Referansları
+- `/app/backend/jira_api_client.py` - Jira/Zephyr API client (PROXY destekli)
+- `/app/backend/mssql_client.py` - MSSQL client
+- `/app/backend/server.py` - Ana FastAPI server
+- `/app/frontend/src/pages/Tasks.jsx` - Görevler sayfası (Jira filtresi)
+- `/app/frontend/src/pages/Analysis.jsx` - Analiz sayfası
+- `/app/README.md` - Kurulum talimatları
