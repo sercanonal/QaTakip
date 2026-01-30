@@ -63,6 +63,10 @@ try:
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(None, self._sync.search_users, query, max_results)
         
+        async def get_user_task_stats(self, username, months=1):
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.get_user_task_stats, username, months)
+        
         def transform_issue(self, issue):
             return format_issue(issue)
     
