@@ -369,27 +369,37 @@ const Reports = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={priorityData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="name" width={60} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(255,255,255,0.95)', 
-                      border: 'none', 
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
-                    }}
-                  />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                    {priorityData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="space-y-4">
+              {priorityData.map((item, index) => (
+                <div key={index} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: item.color }} 
+                      />
+                      <span className="text-sm font-medium">{item.name}</span>
+                    </div>
+                    <span className="text-sm font-bold" style={{ color: item.color }}>
+                      {item.value}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ 
+                        backgroundColor: item.color,
+                        width: `${Math.max((item.value / Math.max(...priorityData.map(p => p.value), 1)) * 100, 5)}%`
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+              {priorityData.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  Öncelik verisi bulunamadı
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
