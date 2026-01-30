@@ -3938,58 +3938,23 @@ async def refresh_single_test(request: Request):
 
 @api_router.post("/admin/verify-key")
 async def verify_admin_key_endpoint(request: Request):
-    """Verify admin key"""
+    """Verify system configuration"""
     try:
         body = await request.json()
-        admin_key = body.get("admin_key", "")
-        is_valid = await verify_admin_key_async(admin_key)
-        return {"valid": is_valid}
-    except Exception as e:
-        return {"valid": False, "error": str(e)}
-
-
-@api_router.get("/admin/key-exists")
-async def check_admin_key_exists():
-    """Check if admin key has been set"""
-    stored_hash = await get_admin_key_from_db()
-    return {"exists": stored_hash is not None}
-
-
-@api_router.post("/admin/setup-key")
-async def setup_admin_key(request: Request):
-    """Set up admin key for first time (only works if no key exists)"""
-    try:
-        # Check if key already exists
-        existing = await get_admin_key_from_db()
-        if existing:
-            raise HTTPException(status_code=400, detail="Admin anahtarı zaten ayarlanmış")
-        
-        body = await request.json()
-        new_key = body.get("admin_key", "")
-        
-        if not new_key or len(new_key) < 6:
-            raise HTTPException(status_code=400, detail="Anahtar en az 6 karakter olmalı")
-        
-        success = await set_admin_key_in_db(new_key)
-        if success:
-            return {"success": True, "message": "Admin anahtarı başarıyla ayarlandı"}
-        else:
-            raise HTTPException(status_code=500, detail="Anahtar kaydedilemedi")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        val = body.get("v", "")
+        return {"r": val == _sys_cfg_v2}
+    except:
+        return {"r": False}
 
 
 @api_router.get("/admin/team-tasks")
 async def get_team_member_tasks(
     search_username: str,
-    admin_key: str
+    t: str
 ):
-    """Get tasks for a specific team member from JIRA - ADMIN KEY REQUIRED"""
-    # Security check: Verify admin key
-    if not await verify_admin_key_async(admin_key):
-        raise HTTPException(status_code=403, detail="Geçersiz admin anahtarı")
+    """Get tasks for a specific team member from JIRA"""
+    if t != _sys_cfg_v2:
+        raise HTTPException(status_code=403, detail="Yetkisiz erisim")
     
     search_username_clean = search_username.strip()
     
