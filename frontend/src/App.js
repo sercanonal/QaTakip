@@ -11,6 +11,7 @@ import Settings from "./pages/Settings";
 import JiraTools from "./pages/JiraTools";
 import Analysis from "./pages/Analysis";
 import ProductTree from "./pages/ProductTree";
+import TeamTracking from "./pages/TeamTracking";
 import Layout from "./components/Layout";
 
 const ProtectedRoute = ({ children }) => {
