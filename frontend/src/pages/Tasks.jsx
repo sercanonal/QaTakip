@@ -125,8 +125,13 @@ const Tasks = () => {
       });
       
       if (response.data && response.data.issues) {
-        setJiraTasks(response.data.issues);
-        toast.success(`${response.data.total} Jira görevi yüklendi`);
+        // Filter out Done/Closed tasks - only show open tasks
+        const openTasks = response.data.issues.filter(task => {
+          const status = (task.status || '').toLowerCase();
+          return !status.includes('done') && !status.includes('closed') && !status.includes('resolved');
+        });
+        setJiraTasks(openTasks);
+        toast.success(`${openTasks.length} açık Jira görevi yüklendi`);
       }
     } catch (error) {
       console.error("Error fetching Jira tasks:", error);
