@@ -2460,13 +2460,14 @@ async def jiragen_create(request: Request):
 async def bugbagla_analyze(request: Request):
     """Analyze cycle for bug binding (SSE streaming) - Port from bugbagla.js"""
     
+    # Read body BEFORE generator
+    body = await request.json()
+    current_cycle_key = body.get("currentCycleKey", "")
+    base_cycle_key = body.get("baseCycleKey", "")
+    status_ids = body.get("statusIds", [219])
+    
     async def generate():
         try:
-            body = await request.json()
-            current_cycle_key = body.get("currentCycleKey", "")
-            base_cycle_key = body.get("baseCycleKey", "")
-            status_ids = body.get("statusIds", [219])  # Default: Fail
-            
             yield f"data: {json.dumps({'log': '🔍 Bug Bağlama Analizi Başlıyor'})}\n\n"
             yield f"data: {json.dumps({'log': f'   • Mevcut Cycle: {current_cycle_key}'})}\n\n"
             yield f"data: {json.dumps({'log': f'   • Base Cycle: {base_cycle_key}'})}\n\n"
