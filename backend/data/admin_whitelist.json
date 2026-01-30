@@ -1,0 +1,15 @@
+{
+  "description": "ADMIN SABLONU - Bu dosya GitHub'a gider. Gercek admin bilgileri icin admin_whitelist.local.json olusturun!",
+  "how_to_use": [
+    "1. Bu dosyayi KOPYALAYIN ve admin_whitelist.local.json olarak adlandirin",
+    "2. .local dosyasina kendi username ve device_id bilgilerinizi ekleyin",
+    "3. .local dosyasi GitHub'a GITMEZ, guvendedir"
+  ],
+  "admins": [
+    {
+      "username": "ORNEK_KULLANICI",
+      "device_id": "ornek-device-id-buraya-gercek-id-yazin",
+      "note": "Bu ornek veridir, admin_whitelist.local.json dosyasina gercek bilgileri yazin"
+    }
+  ]
+}

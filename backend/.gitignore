@@ -1,5 +1,5 @@
-# Admin whitelist - GitHub'a gitmemeli
-data/admin_whitelist.json
+# Admin whitelist - Gercek dosya GitHub'a gitmemeli
+data/admin_whitelist.local.json
 
 # Python
 __pycache__/
