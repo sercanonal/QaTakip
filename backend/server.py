@@ -3175,8 +3175,14 @@ async def run_api_analysis(request: Request):
             # Real implementation
             try:
                 yield f"data: {json.dumps({'log': '📋 Rapor verileri alınıyor...'})}\n\n"
-                rapor_data = mssql_client.get_rapor_data(jira_team_id, report_date)
-                yield f"data: {json.dumps({'log': f'✅ {len(rapor_data)} endpoint bulundu (Rapordan)'})}\n\n"
+                try:
+                    rapor_data = mssql_client.get_rapor_data(jira_team_id, report_date)
+                    yield f"data: {json.dumps({'log': f'✅ {len(rapor_data)} endpoint bulundu (Rapordan)'})}\n\n"
+                except Exception as mssql_err:
+                    logger.error(f"MSSQL get_rapor_data error: {mssql_err}")
+                    yield f"data: {json.dumps({'log': f'❌ MSSQL bağlantı hatası: {str(mssql_err)}'})}\n\n"
+                    yield f"data: {json.dumps({'error': f'MSSQL bağlantı hatası: {str(mssql_err)}'})}\n\n"
+                    return
                 
                 yield f"data: {json.dumps({'log': '🧪 Test sonuçları alınıyor...'})}\n\n"
                 tests = mssql_client.get_all_api_tests(project_names, days, time)
