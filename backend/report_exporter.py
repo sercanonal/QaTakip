@@ -375,51 +375,70 @@ class ReportExporter:
         
         # ===== PRIORITY BREAKDOWN =====
         if tasks:
-            story.append(Paragraph("Öncelik Dağılımı", section_title_style))
+            story.append(Paragraph("⚡ Öncelik Dağılımı", section_title_style))
             
             priority_stats = ReportExporter._calculate_priority_stats(tasks)
             
             if priority_stats:
                 priority_colors = {
-                    'critical': BRAND_PRIMARY,
-                    'high': '#EF4444',
-                    'medium': BRAND_WARNING,
-                    'low': '#71717A'
+                    'critical': '#DC2626',
+                    'high': '#EA580C',
+                    'medium': '#CA8A04',
+                    'low': '#65A30D'
                 }
                 
-                priority_data = [['Öncelik', 'Görev Sayısı', 'Oran']]
+                priority_icons = {
+                    'critical': '🔴',
+                    'high': '🟠',
+                    'medium': '🟡',
+                    'low': '🟢'
+                }
+                
+                priority_data = [
+                    [
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Öncelik</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Görev Sayısı</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Oran</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Görsel</b></font>', styles['Normal']),
+                    ]
+                ]
                 total_tasks = sum(priority_stats.values())
                 
                 for priority in ['critical', 'high', 'medium', 'low']:
                     if priority in priority_stats:
                         count = priority_stats[priority]
                         rate = round(count / total_tasks * 100, 1) if total_tasks > 0 else 0
+                        color = priority_colors.get(priority, '#6B7280')
+                        icon = priority_icons.get(priority, '⚪')
+                        
+                        # Create visual bar representation
+                        bar_length = int(rate / 5)  # Scale to fit
+                        bar = '█' * bar_length + '░' * (20 - bar_length)
+                        
                         priority_data.append([
-                            PRIORITY_LABELS.get(priority, priority),
-                            str(count),
-                            f'%{rate}'
+                            Paragraph(f'<font size="10" color="{color}"><b>{icon} {PRIORITY_LABELS.get(priority, priority)}</b></font>', styles['Normal']),
+                            Paragraph(f'<font size="12"><b>{count}</b></font>', styles['Normal']),
+                            Paragraph(f'<font size="10" color="{color}"><b>%{rate}</b></font>', styles['Normal']),
+                            Paragraph(f'<font size="8" color="{color}">{bar}</font>', styles['Normal']),
                         ])
                 
                 if len(priority_data) > 1:
-                    priority_table = Table(priority_data, colWidths=[5*cm, 5*cm, 5*cm])
+                    priority_table = Table(priority_data, colWidths=[4*cm, 3*cm, 2.5*cm, 6.5*cm])
                     priority_table.setStyle(TableStyle([
                         # Header
-                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(BRAND_DARK)),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, 0), 10),
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#18181B')),
                         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('ALIGN', (3, 1), (3, -1), 'LEFT'),
                         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                         ('TOPPADDING', (0, 0), (-1, 0), 12),
                         # Data rows
-                        ('FONTSIZE', (0, 1), (-1, -1), 10),
-                        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-                        ('TOPPADDING', (0, 1), (-1, -1), 8),
-                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9FAFB')]),
-                        # Grid
-                        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(BRAND_DARK)),
-                        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E5E5E5')),
+                        ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
+                        ('TOPPADDING', (0, 1), (-1, -1), 10),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#FAFAFA')]),
+                        # Box
+                        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#E5E7EB')),
+                        ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#18181B')),
                     ]))
                     story.append(priority_table)
                     story.append(Spacer(1, 1*cm))
