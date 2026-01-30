@@ -316,48 +316,71 @@ const TeamTracking = () => {
               </div>
             </CardContent>
           </Card>
-          <Card className="border-border/50 bg-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Devam Eden</p>
-                  <p className="text-2xl font-bold text-blue-400">{totals.total_in_progress}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Tüm açık</p>
+          </motion.div>
+          <motion.div variants={itemVariants} whileHover={{ scale: 1.03 }} transition={{ duration: 0.2 }}>
+            <Card className="border-border/50 bg-card h-full">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Devam Eden</p>
+                    <motion.p 
+                      className="text-2xl font-bold text-blue-400"
+                      key={totals.total_in_progress}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      {totals.total_in_progress}
+                    </motion.p>
+                    <p className="text-xs text-muted-foreground mt-1">Tüm açık</p>
+                  </div>
+                  <Clock className="w-8 h-8 text-blue-500 opacity-50" />
                 </div>
-                <Clock className="w-8 h-8 text-blue-500 opacity-50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/50 bg-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Tamamlanan</p>
-                  <p className="text-2xl font-bold text-green-400">{totals.total_completed}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Son {periodMonths} ay</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div variants={itemVariants} whileHover={{ scale: 1.03 }} transition={{ duration: 0.2 }}>
+            <Card className="border-border/50 bg-card h-full">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Tamamlanan</p>
+                    <motion.p 
+                      className="text-2xl font-bold text-green-400"
+                      key={totals.total_completed}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      {totals.total_completed}
+                    </motion.p>
+                    <p className="text-xs text-muted-foreground mt-1">Son {periodMonths} ay</p>
+                  </div>
+                  <CheckCircle2 className="w-8 h-8 text-green-500 opacity-50" />
                 </div>
-                <CheckCircle2 className="w-8 h-8 text-green-500 opacity-50" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Date Range Info */}
       {dateRange && (
-        <div className="text-xs text-muted-foreground flex items-center gap-2">
+        <motion.div 
+          className="text-xs text-muted-foreground flex items-center gap-2"
+          variants={itemVariants}
+        >
           <Calendar className="w-3 h-3" />
           <span>Tarih Aralığı: {dateRange.start} - {dateRange.end}</span>
-        </div>
+        </motion.div>
       )}
 
       {/* Team Table */}
-      <Card className="border-border/50 bg-card">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-violet-500" />
-            Ekip Performansı
-          </CardTitle>
+      <motion.div variants={itemVariants}>
+        <Card className="border-border/50 bg-card">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-violet-500" />
+              Ekip Performansı
+            </CardTitle>
           <CardDescription>
             Kullanıcı ismine tıklayarak detaylı görev listesini görüntüleyin
           </CardDescription>
