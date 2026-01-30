@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import api from "../lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -23,8 +23,6 @@ import {
   Lock,
   ExternalLink,
   Key,
-  ShieldCheck,
-  Settings,
 } from "lucide-react";
 
 const STATUS_COLORS = {
@@ -47,97 +45,33 @@ const PRIORITY_COLORS = {
 };
 
 const TeamTracking = () => {
-  const [loading, setLoading] = useState(true);
-  const [keyExists, setKeyExists] = useState(false);
-  const [adminKey, setAdminKey] = useState("");
-  const [newKey, setNewKey] = useState("");
-  const [confirmKey, setConfirmKey] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [verifying, setVerifying] = useState(false);
+  const [inputVal, setInputVal] = useState("");
+  const [isAuth, setIsAuth] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [storedVal, setStoredVal] = useState("");
   const [searchUsername, setSearchUsername] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
 
-  useEffect(() => {
-    checkKeyStatus();
-  }, []);
-
-  const checkKeyStatus = async () => {
-    try {
-      const response = await api.get('/admin/key-exists');
-      setKeyExists(response.data.exists);
-      
-      // Check if we have a saved key in session
-      const savedKey = sessionStorage.getItem('admin_key');
-      if (savedKey && response.data.exists) {
-        verifyKey(savedKey);
-      }
-    } catch (error) {
-      console.error("Error checking key status:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const setupKey = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!inputVal.trim()) return;
     
-    if (!newKey || newKey.length < 6) {
-      toast.error("Anahtar en az 6 karakter olmalı");
-      return;
-    }
-    
-    if (newKey !== confirmKey) {
-      toast.error("Anahtarlar eşleşmiyor");
-      return;
-    }
-    
-    setVerifying(true);
+    setChecking(true);
     try {
-      const response = await api.post('/admin/setup-key', { admin_key: newKey });
-      if (response.data.success) {
-        toast.success("Admin anahtarı başarıyla oluşturuldu!");
-        setKeyExists(true);
-        setAdminKey(newKey);
-        sessionStorage.setItem('admin_key', newKey);
-        setIsAuthenticated(true);
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.detail || "Anahtar oluşturulamadı");
-    } finally {
-      setVerifying(false);
-    }
-  };
-
-  const verifyKey = async (key) => {
-    setVerifying(true);
-    try {
-      const response = await api.post('/admin/verify-key', { admin_key: key });
-      if (response.data.valid) {
-        setIsAuthenticated(true);
-        setAdminKey(key);
-        sessionStorage.setItem('admin_key', key);
-        toast.success("Giriş başarılı!");
+      const res = await api.post('/admin/verify-key', { v: inputVal });
+      if (res.data.r) {
+        setIsAuth(true);
+        setStoredVal(inputVal);
+        toast.success("Doğrulandı");
       } else {
-        setIsAuthenticated(false);
-        sessionStorage.removeItem('admin_key');
-        toast.error("Geçersiz anahtar");
+        toast.error("Geçersiz");
       }
-    } catch (error) {
-      setIsAuthenticated(false);
-      toast.error("Doğrulama başarısız");
+    } catch {
+      toast.error("Hata");
     } finally {
-      setVerifying(false);
+      setChecking(false);
     }
-  };
-
-  const handleKeySubmit = (e) => {
-    e.preventDefault();
-    if (!adminKey.trim()) {
-      toast.error("Anahtar girin");
-      return;
-    }
-    verifyKey(adminKey);
   };
 
   const handleSearch = async () => {
@@ -151,7 +85,7 @@ const TeamTracking = () => {
 
     try {
       const response = await api.get(
-        `/admin/team-tasks?search_username=${encodeURIComponent(searchUsername)}&admin_key=${encodeURIComponent(adminKey)}`
+        `/admin/team-tasks?search_username=${encodeURIComponent(searchUsername)}&t=${encodeURIComponent(storedVal)}`
       );
       setSearchResult(response.data);
       
@@ -161,8 +95,7 @@ const TeamTracking = () => {
     } catch (error) {
       if (error.response?.status === 403) {
         toast.error("Erişim reddedildi");
-        setIsAuthenticated(false);
-        sessionStorage.removeItem('admin_key');
+        setIsAuth(false);
       } else {
         toast.error("Arama yapılamadı");
       }
@@ -171,90 +104,14 @@ const TeamTracking = () => {
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setAdminKey("");
+  const handleExit = () => {
+    setIsAuth(false);
+    setStoredVal("");
+    setInputVal("");
     setSearchResult(null);
-    sessionStorage.removeItem('admin_key');
-    toast.info("Çıkış yapıldı");
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
-      </div>
-    );
-  }
-
-  // First time setup - no key exists
-  if (!keyExists) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Card className="w-full max-w-md border-border/50 bg-card">
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 rounded-full bg-violet-500/10 flex items-center justify-center mx-auto mb-4">
-              <Settings className="w-8 h-8 text-violet-500" />
-            </div>
-            <CardTitle className="text-xl">İlk Kurulum</CardTitle>
-            <CardDescription>
-              Ekip Takibi özelliği için bir admin anahtarı belirleyin.
-              <br />
-              <span className="text-amber-500 text-xs font-medium">Bu anahtar sadece veritabanında saklanır, kod içinde görünmez.</span>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={setupKey} className="space-y-4">
-              <div>
-                <label className="text-sm text-muted-foreground mb-1 block">Yeni Anahtar</label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    type="password"
-                    placeholder="En az 6 karakter..."
-                    value={newKey}
-                    onChange={(e) => setNewKey(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-sm text-muted-foreground mb-1 block">Anahtar Tekrar</label>
-                <div className="relative">
-                  <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    type="password"
-                    placeholder="Anahtarı tekrar girin..."
-                    value={confirmKey}
-                    onChange={(e) => setConfirmKey(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full bg-violet-600 hover:bg-violet-700"
-                disabled={verifying}
-              >
-                {verifying ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <ShieldCheck className="w-4 h-4 mr-2" />
-                )}
-                Anahtarı Kaydet
-              </Button>
-            </form>
-            <p className="text-xs text-muted-foreground text-center mt-4">
-              Bu anahtarı not alın ve sadece yetki vermek istediğiniz kişilerle paylaşın.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Key exists but not authenticated - show login
-  if (!isAuthenticated) {
+  if (!isAuth) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Card className="w-full max-w-md border-border/50 bg-card">
@@ -262,34 +119,26 @@ const TeamTracking = () => {
             <div className="w-16 h-16 rounded-full bg-violet-500/10 flex items-center justify-center mx-auto mb-4">
               <Lock className="w-8 h-8 text-violet-500" />
             </div>
-            <CardTitle className="text-xl">Ekip Takibi</CardTitle>
+            <CardTitle className="text-xl">Erişim Doğrulama</CardTitle>
             <CardDescription>
-              Bu özelliğe erişmek için admin anahtarı gereklidir.
+              Devam etmek için doğrulama gerekli
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleKeySubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="relative">
                 <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   type="password"
-                  placeholder="Admin anahtarını girin..."
-                  value={adminKey}
-                  onChange={(e) => setAdminKey(e.target.value)}
+                  placeholder="..."
+                  value={inputVal}
+                  onChange={(e) => setInputVal(e.target.value)}
                   className="pl-10"
                 />
               </div>
-              <Button 
-                type="submit" 
-                className="w-full"
-                disabled={verifying}
-              >
-                {verifying ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Lock className="w-4 h-4 mr-2" />
-                )}
-                Giriş Yap
+              <Button type="submit" className="w-full" disabled={checking}>
+                {checking ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Lock className="w-4 h-4 mr-2" />}
+                Doğrula
               </Button>
             </form>
           </CardContent>
@@ -298,7 +147,6 @@ const TeamTracking = () => {
     );
   }
 
-  // Authenticated - show team tracking
   return (
     <div className="space-y-6 animate-fadeIn">
       <div className="flex items-center justify-between">
@@ -311,7 +159,7 @@ const TeamTracking = () => {
             Jira'dan ekip üyelerinin görevlerini görüntüleyin
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleLogout}>
+        <Button variant="outline" size="sm" onClick={handleExit}>
           Çıkış
         </Button>
       </div>
