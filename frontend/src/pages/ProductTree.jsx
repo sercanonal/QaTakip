@@ -5,8 +5,14 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
-import { Checkbox } from "../components/ui/checkbox";
 import { ScrollArea } from "../components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import {
   TreePine,
   Play,
@@ -17,23 +23,15 @@ import {
   FileCode,
   CheckCircle2,
   XCircle,
-  RefreshCw,
   Loader2,
   Layers,
   BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
+import api from "../lib/api";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || "http://localhost:8001";
-
-// Default project options
-const PROJECT_OPTIONS = [
-  { value: "FraudNG.UITests", label: "FraudNG.UITests" },
-  { value: "Intertech.FraudNG", label: "Intertech.FraudNG" },
-  { value: "Inter.Fraud.UITests", label: "Inter.Fraud.UITests" },
-  { value: "PaymentServices.Tests", label: "PaymentServices.Tests" },
-];
 
 const ProductTree = () => {
   const { user } = useAuth();
