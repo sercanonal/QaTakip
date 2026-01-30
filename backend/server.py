@@ -180,8 +180,35 @@ except Exception as e:
 ROOT_DIR = Path(__file__).parent
 DATA_DIR = ROOT_DIR / "data"
 DB_PATH = DATA_DIR / "qa_tasks.db"
+ADMIN_WHITELIST_PATH = DATA_DIR / "admin_whitelist.json"
 
 load_dotenv(ROOT_DIR / '.env')
+
+# ============== Admin Whitelist Functions ==============
+
+def load_admin_whitelist():
+    """Load admin whitelist from JSON file"""
+    try:
+        if ADMIN_WHITELIST_PATH.exists():
+            with open(ADMIN_WHITELIST_PATH, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get('admins', [])
+        return []
+    except Exception as e:
+        logger.error(f"Error loading admin whitelist: {e}")
+        return []
+
+def is_admin(username: str, device_id: str) -> bool:
+    """Check if user is admin based on username AND device_id"""
+    admins = load_admin_whitelist()
+    username_upper = username.upper().strip()
+    for admin in admins:
+        if admin.get('username', '').upper().strip() == username_upper:
+            if admin.get('device_id') == device_id:
+                return True
+            # Device ID mismatch - log for security
+            logger.warning(f"Admin username match but device_id mismatch: {username}")
+    return False
 
 # ============== SQLite Database Setup ==============
 
