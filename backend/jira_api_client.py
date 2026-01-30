@@ -39,10 +39,12 @@ class JiraAPIClient:
     
     def _curl_get(self, url: str, params: dict = None) -> Optional[dict]:
         """Execute GET request using curl subprocess"""
-        # Build URL with params
+        import urllib.parse
+        
+        # Build URL with properly encoded params
         if params:
-            param_str = "&".join([f"{k}={v}" for k, v in params.items()])
-            full_url = f"{url}?{param_str}"
+            encoded_params = urllib.parse.urlencode(params)
+            full_url = f"{url}?{encoded_params}"
         else:
             full_url = url
         
@@ -57,24 +59,34 @@ class JiraAPIClient:
         ]
         
         try:
-            logger.info(f"Curl request: {full_url[:80]}...")
+            logger.info(f"=== CURL GET REQUEST ===")
+            logger.info(f"URL: {full_url[:120]}...")
+            logger.info(f"Proxy: {self.proxy_url}")
+            logger.info(f"Command: curl -s -k -x {self.proxy_url} ...")
+            
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.config.REQUEST_TIMEOUT + 10)
             
+            logger.info(f"Curl return code: {result.returncode}")
+            
             if result.returncode == 0 and result.stdout:
+                logger.info(f"Response length: {len(result.stdout)} chars")
                 try:
                     data = json.loads(result.stdout)
-                    logger.info(f"Curl success, got response")
+                    logger.info(f"=== CURL SUCCESS ===")
                     return data
                 except json.JSONDecodeError as e:
                     logger.error(f"JSON parse error: {e}")
-                    logger.error(f"Response: {result.stdout[:200]}")
+                    logger.error(f"Raw response (first 500 chars): {result.stdout[:500]}")
             else:
-                logger.error(f"Curl failed: return={result.returncode}, stderr={result.stderr[:200] if result.stderr else 'none'}")
+                logger.error(f"=== CURL FAILED ===")
+                logger.error(f"Return code: {result.returncode}")
+                logger.error(f"Stdout: {result.stdout[:300] if result.stdout else 'empty'}")
+                logger.error(f"Stderr: {result.stderr[:300] if result.stderr else 'empty'}")
                 
         except subprocess.TimeoutExpired:
-            logger.warning("Curl timeout")
+            logger.error("=== CURL TIMEOUT ===")
         except Exception as e:
-            logger.error(f"Curl error: {e}")
+            logger.error(f"=== CURL EXCEPTION ===: {e}")
         
         return None
     
