@@ -268,31 +268,51 @@ const TeamTracking = () => {
             Çıkış
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Summary Cards */}
       {totals && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="border-border/50 bg-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Ekip Üyesi</p>
-                  <p className="text-2xl font-bold">{totals.total_users}</p>
+        <motion.div 
+          className="grid grid-cols-2 md:grid-cols-4 gap-4"
+          variants={containerVariants}
+        >
+          <motion.div variants={itemVariants} whileHover={{ scale: 1.03 }} transition={{ duration: 0.2 }}>
+            <Card className="border-border/50 bg-card h-full">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Ekip Üyesi</p>
+                    <motion.p 
+                      className="text-2xl font-bold"
+                      key={totals.total_users}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      {totals.total_users}
+                    </motion.p>
+                  </div>
+                  <Users className="w-8 h-8 text-violet-500 opacity-50" />
                 </div>
-                <Users className="w-8 h-8 text-violet-500 opacity-50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/50 bg-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Backlog</p>
-                  <p className="text-2xl font-bold text-zinc-400">{totals.total_backlog}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Tüm açık</p>
-                </div>
-                <ListTodo className="w-8 h-8 text-zinc-500 opacity-50" />
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div variants={itemVariants} whileHover={{ scale: 1.03 }} transition={{ duration: 0.2 }}>
+            <Card className="border-border/50 bg-card h-full">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Backlog</p>
+                    <motion.p 
+                      className="text-2xl font-bold text-zinc-400"
+                      key={totals.total_backlog}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      {totals.total_backlog}
+                    </motion.p>
+                    <p className="text-xs text-muted-foreground mt-1">Tüm açık</p>
+                  </div>
+                  <ListTodo className="w-8 h-8 text-zinc-500 opacity-50" />
               </div>
             </CardContent>
           </Card>
