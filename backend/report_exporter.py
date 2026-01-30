@@ -344,18 +344,18 @@ class ReportExporter:
         
         # ===== CATEGORY BREAKDOWN =====
         if tasks:
-            story.append(Paragraph("🎯 Kategori Bazlı Analiz", section_title_style))
+            story.append(Paragraph("Kategori Bazli Analiz", section_title_style))
             
             category_stats = ReportExporter._calculate_category_stats(tasks)
             
             if category_stats:
                 cat_data = [
                     [
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Kategori</b></font>', styles['Normal']),
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Toplam</b></font>', styles['Normal']),
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Tamamlanan</b></font>', styles['Normal']),
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Devam Eden</b></font>', styles['Normal']),
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Başarı %</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Kategori</b></font>', normal_turkish),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Toplam</b></font>', normal_turkish),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Tamamlanan</b></font>', normal_turkish),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Devam Eden</b></font>', normal_turkish),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Basari %</b></font>', normal_turkish),
                     ]
                 ]
                 
@@ -379,11 +379,11 @@ class ReportExporter:
                     rate_color = '#10B981' if rate >= 70 else '#F59E0B' if rate >= 40 else '#EF4444'
                     
                     cat_data.append([
-                        Paragraph(f'<font size="9" color="{cat_color}"><b>● </b></font><font size="9">{cat_name}</font>', styles['Normal']),
-                        Paragraph(f'<font size="10"><b>{total}</b></font>', styles['Normal']),
-                        Paragraph(f'<font size="10" color="#10B981"><b>{completed}</b></font>', styles['Normal']),
-                        Paragraph(f'<font size="10" color="#3B82F6"><b>{in_prog}</b></font>', styles['Normal']),
-                        Paragraph(f'<font size="10" color="{rate_color}"><b>%{rate}</b></font>', styles['Normal']),
+                        Paragraph(f'<font size="9" color="{cat_color}"><b>* </b></font><font size="9">{cat_name}</font>', normal_turkish),
+                        Paragraph(f'<font size="10"><b>{total}</b></font>', normal_turkish),
+                        Paragraph(f'<font size="10" color="#10B981"><b>{completed}</b></font>', normal_turkish),
+                        Paragraph(f'<font size="10" color="#3B82F6"><b>{in_prog}</b></font>', normal_turkish),
+                        Paragraph(f'<font size="10" color="{rate_color}"><b>%{rate}</b></font>', normal_turkish),
                     ])
                 
                 cat_table = Table(cat_data, colWidths=[5.5*cm, 2.5*cm, 2.8*cm, 2.8*cm, 2.5*cm])
@@ -407,7 +407,7 @@ class ReportExporter:
         
         # ===== PRIORITY BREAKDOWN =====
         if tasks:
-            story.append(Paragraph("⚡ Öncelik Dağılımı", section_title_style))
+            story.append(Paragraph("Oncelik Dagilimi", section_title_style))
             
             priority_stats = ReportExporter._calculate_priority_stats(tasks)
             
