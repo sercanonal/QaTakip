@@ -180,46 +180,20 @@ except Exception as e:
 ROOT_DIR = Path(__file__).parent
 DATA_DIR = ROOT_DIR / "data"
 DB_PATH = DATA_DIR / "qa_tasks.db"
-ADMIN_WHITELIST_PATH = DATA_DIR / "admin_whitelist.json"
-ADMIN_WHITELIST_LOCAL_PATH = DATA_DIR / "admin_whitelist.local.json"
 
 load_dotenv(ROOT_DIR / '.env')
 
-# ============== Admin Whitelist Functions ==============
+# Admin secret key from .env (not in code, not in GitHub)
+ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "")
 
-def load_admin_whitelist():
-    """Load admin whitelist - checks .local file first (not in GitHub), then template"""
-    try:
-        # First try .local file (real admin data, not in GitHub)
-        if ADMIN_WHITELIST_LOCAL_PATH.exists():
-            with open(ADMIN_WHITELIST_LOCAL_PATH, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                logger.info("Admin whitelist loaded from .local file")
-                return data.get('admins', [])
-        
-        # Fallback to template file
-        if ADMIN_WHITELIST_PATH.exists():
-            with open(ADMIN_WHITELIST_PATH, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                logger.warning("Using template admin_whitelist.json - create admin_whitelist.local.json for real admins!")
-                return data.get('admins', [])
-        
-        return []
-    except Exception as e:
-        logger.error(f"Error loading admin whitelist: {e}")
-        return []
+# ============== Admin Functions ==============
 
-def is_admin(username: str, device_id: str) -> bool:
-    """Check if user is admin based on username AND device_id"""
-    admins = load_admin_whitelist()
-    username_upper = username.upper().strip()
-    for admin in admins:
-        if admin.get('username', '').upper().strip() == username_upper:
-            if admin.get('device_id') == device_id:
-                return True
-            # Device ID mismatch - log for security
-            logger.warning(f"Admin username match but device_id mismatch: {username}")
-    return False
+def verify_admin_key(provided_key: str) -> bool:
+    """Verify admin key matches the one in .env"""
+    if not ADMIN_SECRET_KEY:
+        logger.warning("ADMIN_SECRET_KEY not set in .env")
+        return False
+    return provided_key == ADMIN_SECRET_KEY
 
 # ============== SQLite Database Setup ==============
 
