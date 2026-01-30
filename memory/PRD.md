@@ -41,6 +41,11 @@
 ## Bekleyen Doğrulamalar
 - ⏳ Jira Araçları (Bug Bağla, Cycle Add, Jira Generator, API Rerun)
 
+### 30.01.2026 - Product Tree Test Tipi Hatası Düzeltildi (v2.5.1)
+- ✅ **AttributeError Düzeltildi:** `JiraClientCompat` sınıfına `get_test_type_from_case` ve `get_test_case_details` async metodları eklendi
+- ✅ **Test Tipi Okuma:** Test tipleri artık sadece Jira'daki custom field'dan okunuyor (isim kontrolü kaldırıldı)
+- ✅ **Backend Stabil:** Hiçbir `AttributeError` hatası oluşmuyor
+
 ## Bilinen Kısıtlamalar
 - Raporlama sayfası sadece SQLite'a kaydedilen görevleri gösteriyor
 - Jira'dan çekilen görevler geçici cache'te, kalıcı kaydedilmiyor
