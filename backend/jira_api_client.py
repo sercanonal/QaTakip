@@ -246,7 +246,7 @@ class JiraAPIClient:
             "fields": "key,summary,status,assignee,priority,issuetype,project,created,updated,description"
         }
         
-        logger.info(f"=== JIRA SEARCH ===")
+        logger.info("=== JIRA SEARCH ===")
         logger.info(f"JQL: {jql}")
         
         for attempt in range(self.config.MAX_RETRIES):
@@ -265,7 +265,7 @@ class JiraAPIClient:
     
     def get_issues_by_assignee(self, username: str, max_results: int = 100) -> List[Dict[str, Any]]:
         """Fetch issues assigned to a user - tries multiple formats"""
-        logger.info(f"=== GET ISSUES BY ASSIGNEE ===")
+        logger.info("=== GET ISSUES BY ASSIGNEE ===")
         logger.info(f"Username: {username}")
         
         # Try different JQL formats
@@ -283,7 +283,7 @@ class JiraAPIClient:
                 return issues
             logger.info(f"No results for JQL: {jql[:50]}...")
         
-        logger.warning(f"No issues found for any JQL format")
+        logger.warning("No issues found for any JQL format")
         return []
     
     def add_comment(self, issue_key: str, comment: str) -> bool:
