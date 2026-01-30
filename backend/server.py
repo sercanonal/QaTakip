@@ -3317,12 +3317,13 @@ async def run_api_analysis(request: Request):
 async def cycleadd_analyze(request: Request):
     """Analyze tests for cycle add (SSE streaming) - Port from cycleadd.js"""
     
+    # Read body BEFORE generator
+    body = await request.json()
+    cycle_key = body.get("cycleKey", "")
+    add_items = body.get("addItems", [])
+    
     async def generate():
         try:
-            body = await request.json()
-            cycle_key = body.get("cycleKey", "")
-            add_items = body.get("addItems", [])
-            
             yield f"data: {json.dumps({'log': f'🔍 Cycle ID alınıyor: {cycle_key}'})}\n\n"
             
             if not JIRA_API_AVAILABLE:
