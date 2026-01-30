@@ -302,6 +302,37 @@ class JiraAPIClient:
         }
         result = self._smart_curl_post(url, payload)
         return result is not None
+    
+    def search_users(self, query: str, max_results: int = 50) -> List[Dict[str, Any]]:
+        """Search for users by name/username"""
+        logger.info(f"=== SEARCHING USERS: {query} ===")
+        
+        # Try user search endpoint
+        url = f"{self.base_url}{self.jira_path}/user/search"
+        params = {
+            "username": query,
+            "maxResults": max_results
+        }
+        
+        result = self._smart_curl_get(url, params)
+        if result and isinstance(result, list):
+            logger.info(f"Found {len(result)} users matching '{query}'")
+            return result
+        
+        # Try alternative: user picker
+        url2 = f"{self.base_url}{self.jira_path}/user/picker"
+        params2 = {
+            "query": query,
+            "maxResults": max_results
+        }
+        
+        result2 = self._smart_curl_get(url2, params2)
+        if result2 and isinstance(result2, dict) and 'users' in result2:
+            logger.info(f"Found {len(result2['users'])} users via picker")
+            return result2['users']
+        
+        logger.warning(f"No users found for query: {query}")
+        return []
 
 
 # Create singleton instance
