@@ -307,7 +307,13 @@ const Analysis = () => {
     setApiStats({ total: 0, testedInReport: 0, notTestedInReport: 0, notInReport: 0, onlyInReport: 0, passed: 0, failed: 0, externalEndpoints: 0 });
     setApiMetrics({ raporEndpointSayisi: 0, raporaYansiyanTest: 0, coverageOrani: "0", otomasyondaAmaRapordaYok: 0, passedAmaNegatifSayisi: 0, failedEtkilenenEndpointSayisi: 0, tahminiGuncelPass: 0, tahminiGuncelCoverage: "0" });
 
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+
     try {
+      setApiOutput(prev => prev + "⏳ API Analizi başlatılıyor...\n");
+      
       const response = await fetch(`${API_URL}/api/analysis/apianaliz`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -318,7 +324,16 @@ const Analysis = () => {
           days: parseInt(apiForm.days) || 1,
           time: apiForm.time || "00:00",
         }),
+        signal: controller.signal,
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP hata: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error("Response body bulunamadı");
+      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
