@@ -579,16 +579,38 @@ const EndpointNode = ({ endpoint, level }) => {
   
   // Check if specific test types exist and are passed
   // Each endpoint MUST have at least 1 of each: Happy, Alternatif, Negatif
+  // Check both test name AND testType/type custom field from Jira
+  
+  const isHappyTest = (t) => {
+    const name = (t.name || '').toLowerCase();
+    const testType = (t.testType || t.type || t.testTipi || '').toLowerCase();
+    return name.includes('happy') || testType.includes('happy');
+  };
+  
+  const isAlternatifTest = (t) => {
+    const name = (t.name || '').toLowerCase();
+    const testType = (t.testType || t.type || t.testTipi || '').toLowerCase();
+    return name.includes('alternatif') || name.includes('alternative') || 
+           testType.includes('alternatif') || testType.includes('alternative');
+  };
+  
+  const isNegatifTest = (t) => {
+    const name = (t.name || '').toLowerCase();
+    const testType = (t.testType || t.type || t.testTipi || '').toLowerCase();
+    return name.includes('negatif') || name.includes('negative') ||
+           testType.includes('negatif') || testType.includes('negative');
+  };
+  
   const hasHappyPassed = endpoint.tests?.some(t => 
-    t.name?.toLowerCase().includes('happy') && t.status === 'PASSED'
+    isHappyTest(t) && t.status === 'PASSED'
   ) || endpoint.happy;
   
   const hasAlternatifPassed = endpoint.tests?.some(t => 
-    (t.name?.toLowerCase().includes('alternatif') || t.name?.toLowerCase().includes('alternative')) && t.status === 'PASSED'
+    isAlternatifTest(t) && t.status === 'PASSED'
   ) || endpoint.alternatif;
   
   const hasNegatifPassed = endpoint.tests?.some(t => 
-    (t.name?.toLowerCase().includes('negatif') || t.name?.toLowerCase().includes('negative')) && t.status === 'PASSED'
+    isNegatifTest(t) && t.status === 'PASSED'
   ) || endpoint.negatif;
   
   // Calculate coverage percentage based on 3 required test types
