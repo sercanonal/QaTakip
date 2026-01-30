@@ -2959,15 +2959,15 @@ async def delete_qa_project(name: str):
 async def run_analysis(request: Request):
     """Run test analysis (SSE streaming) - Port from analiz.js"""
     
+    # Read body BEFORE generator
+    body = await request.json()
+    cycle_name = body.get("cycleName") or body.get("cycleId", "")
+    days = int(body.get("days", 1))
+    time = body.get("time", "00:00")
+    project_names = body.get("projectNames", ["FraudNG.UITests", "Intertech.FraudNG", "Inter.Fraud.UITests"])
+    
     async def generate():
         try:
-            body = await request.json()
-            # Accept both cycleName and cycleId for compatibility
-            cycle_name = body.get("cycleName") or body.get("cycleId", "")
-            days = int(body.get("days", 1))
-            time = body.get("time", "00:00")
-            project_names = body.get("projectNames", ["FraudNG.UITests", "Intertech.FraudNG", "Inter.Fraud.UITests"])
-            
             projects_str = ", ".join(project_names) if project_names else ""
             
             yield f"data: {json.dumps({'log': '📊 Analiz başlatılıyor...'})}\n\n"
