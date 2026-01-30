@@ -3898,36 +3898,49 @@ async def run_product_tree(request: Request):
                 db_tests = mssql_client.get_test_detail_for_product_tree(project_names, days, time)
                 yield f"data: {json.dumps({'log': f'✅ {len(db_tests)} test verisi bulundu'})}\n\n"
                 
-                # Get Jira test data if available - fetch test types
+                # Get Jira test data if available - fetch test types in BATCH (much faster)
                 if JIRA_API_AVAILABLE:
-                    yield f"data: {json.dumps({'log': '🔗 Jira test tipleri alınıyor...'})}\n\n"
+                    yield f"data: {json.dumps({'log': '🔗 Jira test tipleri BATCH olarak alınıyor...'})}\n\n"
                     issue_keys = list(set(t["key"] for t in db_tests if t.get("key")))
                     
-                    # Fetch test types from Jira for each test
+                    # Batch fetch all test cases at once
+                    yield f"data: {json.dumps({'log': f'📦 {len(issue_keys)} test için Jira sorgusu...'})}\n\n"
+                    jira_tests_map = await jira_client.get_test_cases_batch(issue_keys)
+                    yield f"data: {json.dumps({'log': f'✅ {len(jira_tests_map)} test verisi alındı'})}\n\n"
+                    
+                    # Now assign test types from the batch results
                     test_type_count = 0
                     for test in db_tests:
                         test_key = test.get("key", "")
-                        if test_key:
-                            try:
-                                # Get test type as intValue (812=Happy, 813=Alternatif, 837=Negatif)
-                                type_int = await jira_client.get_test_type_from_case(test_key)
-                                if type_int == 812:
-                                    test["type"] = "✅ Happy Path"
-                                    test_type_count += 1
-                                elif type_int == 813:
-                                    test["type"] = "🔀 Alternatif Senaryo"
-                                    test_type_count += 1
-                                elif type_int == 837:
-                                    test["type"] = "❌ Negatif Senaryo"
-                                    test_type_count += 1
-                                else:
-                                    test["type"] = "🔴 Test Tipi Girilmemiş."
-                            except Exception as e:
-                                logger.warning(f"Could not get test type for {test_key}: {e}")
+                        if test_key and test_key in jira_tests_map:
+                            jira_test = jira_tests_map[test_key]
+                            custom_field_values = jira_test.get("customFieldValues", [])
+                            
+                            # Get test type intValue (812=Happy, 813=Alternatif, 837=Negatif)
+                            type_int = jira_client.get_test_type_from_custom_fields(custom_field_values)
+                            
+                            if type_int == 812:
+                                test["type"] = "✅ Happy Path"
+                                test_type_count += 1
+                            elif type_int == 813:
+                                test["type"] = "🔀 Alternatif Senaryo"
+                                test_type_count += 1
+                            elif type_int == 837:
+                                test["type"] = "❌ Negatif Senaryo"
+                                test_type_count += 1
+                            else:
                                 test["type"] = "🔴 Test Tipi Girilmemiş."
+                            
+                            # Also get jiraEndpoint from customFieldId=27
+                            jira_endpoint = ""
+                            for cfv in custom_field_values:
+                                if cfv.get("customFieldId") == 27:
+                                    jira_endpoint = cfv.get("stringValue", "")
+                                    break
+                            test["jiraEndpoint"] = jira_endpoint or test.get("endpoint", "")
                         else:
                             test["type"] = "🔴 Test Tipi Girilmemiş."
-                        test["jiraEndpoint"] = test.get("endpoint", "")
+                            test["jiraEndpoint"] = test.get("endpoint", "")
                     
                     yield f"data: {json.dumps({'log': f'✅ {test_type_count}/{len(issue_keys)} test tipi alındı'})}\n\n"
                 
