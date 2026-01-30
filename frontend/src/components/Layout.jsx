@@ -233,7 +233,24 @@ const Layout = () => {
             </NavLink>
           ))}
           
-          {/* Admin Panel removed */}
+          {/* Admin-only: Ekip Takibi */}
+          {isAdmin && (
+            <NavLink
+              to="/team-tracking"
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                  isActive
+                    ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg shadow-violet-500/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-violet-500/10"
+                )
+              }
+              data-testid="nav-team-tracking"
+            >
+              <Users className="w-5 h-5 flex-shrink-0" />
+              {sidebarOpen && <span className="font-medium">Ekip Takibi</span>}
+            </NavLink>
+          )}
         </nav>
 
         {/* User Info */}
