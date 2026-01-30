@@ -19,6 +19,7 @@ import {
   Sparkles,
   Activity,
   Zap,
+  TreePine,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
