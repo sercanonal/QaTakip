@@ -3932,11 +3932,16 @@ async def refresh_single_test(request: Request):
 
 # ============== Admin / Team Tracking Endpoints ==============
 
-@api_router.get("/admin/check")
-async def check_admin_status(username: str, device_id: str):
-    """Check if current user is admin"""
-    is_admin_user = is_admin(username, device_id)
-    return {"is_admin": is_admin_user}
+@api_router.post("/admin/verify-key")
+async def verify_admin_key_endpoint(request: Request):
+    """Verify admin key"""
+    try:
+        body = await request.json()
+        admin_key = body.get("admin_key", "")
+        is_valid = verify_admin_key(admin_key)
+        return {"valid": is_valid}
+    except Exception as e:
+        return {"valid": False, "error": str(e)}
 
 
 @api_router.get("/admin/team-tasks")
