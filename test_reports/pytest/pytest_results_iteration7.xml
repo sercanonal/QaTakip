@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="8" skipped="0" tests="14" time="1163.945" timestamp="2026-01-30T14:07:22.865594+00:00" hostname="agent-env-ee1772fa-4408-44f4-82dd-c32b3b111ba5"><testcase classname="backend.tests.test_admin_team_tracking.TestAdminVerifyKey" name="test_verify_key_valid" time="111.499" /><testcase classname="backend.tests.test_admin_team_tracking.TestAdminVerifyKey" name="test_verify_key_invalid" time="0.076" /><testcase classname="backend.tests.test_admin_team_tracking.TestAdminVerifyKey" name="test_verify_key_empty" time="0.046" /><testcase classname="backend.tests.test_admin_team_tracking.TestAdminVerifyKey" name="test_verify_key_missing_field" time="0.039" /><testcase classname="backend.tests.test_admin_team_tracking.TestAdminTeamSummary" name="test_team_summary_unauthorized" time="0.038" /><testcase classname="backend.tests.test_admin_team_tracking.TestAdminTeamSummary" name="test_team_summary_valid_key" time="211.882" /><testcase classname="backend.tests.test_admin_team_tracking.TestAdminTeamSummary" name="test_team_summary_period_params" time="839.724"><failure message="assert 520 == 200&#10; +  where 520 = &lt;Response [520]&gt;.status_code">backend/tests/test_admin_team_tracking.py:113: in test_team_summary_period_params
+    assert response.status_code == 200
+E   assert 520 == 200
+E    +  where 520 = &lt;Response [520]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_admin_team_tracking.TestAdminTeamSummary" name="test_team_summary_response_structure" time="0.100"><failure message="assert 520 == 200&#10; +  where 520 = &lt;Response [520]&gt;.status_code">backend/tests/test_admin_team_tracking.py:124: in test_team_summary_response_structure
+    assert response.status_code == 200
+E   assert 520 == 200
+E    +  where 520 = &lt;Response [520]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_admin_team_tracking.TestAdminUserTasksDetail" name="test_user_tasks_unauthorized" time="0.046"><failure message="assert 520 == 403&#10; +  where 520 = &lt;Response [520]&gt;.status_code">backend/tests/test_admin_team_tracking.py:153: in test_user_tasks_unauthorized
+    assert response.status_code == 403
+E   assert 520 == 403
+E    +  where 520 = &lt;Response [520]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_admin_team_tracking.TestAdminUserTasksDetail" name="test_user_tasks_valid_key" time="0.037"><failure message="assert 520 == 200&#10; +  where 520 = &lt;Response [520]&gt;.status_code">backend/tests/test_admin_team_tracking.py:162: in test_user_tasks_valid_key
+    assert response.status_code == 200
+E   assert 520 == 200
+E    +  where 520 = &lt;Response [520]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_admin_team_tracking.TestAdminUserTasksDetail" name="test_user_tasks_response_structure" time="0.078"><failure message="assert 520 == 200&#10; +  where 520 = &lt;Response [520]&gt;.status_code">backend/tests/test_admin_team_tracking.py:187: in test_user_tasks_response_structure
+    assert response.status_code == 200
+E   assert 520 == 200
+E    +  where 520 = &lt;Response [520]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_admin_team_tracking.TestAdminUserTasksDetail" name="test_user_tasks_period_params" time="0.035"><failure message="assert 520 == 200&#10; +  where 520 = &lt;Response [520]&gt;.status_code">backend/tests/test_admin_team_tracking.py:215: in test_user_tasks_period_params
+    assert response.status_code == 200
+E   assert 520 == 200
+E    +  where 520 = &lt;Response [520]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_admin_team_tracking.TestAdminQATeam" name="test_qa_team_unauthorized" time="0.040"><failure message="assert 520 == 403&#10; +  where 520 = &lt;Response [520]&gt;.status_code">backend/tests/test_admin_team_tracking.py:230: in test_qa_team_unauthorized
+    assert response.status_code == 403
+E   assert 520 == 403
+E    +  where 520 = &lt;Response [520]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_admin_team_tracking.TestAdminQATeam" name="test_qa_team_valid_key" time="0.063"><failure message="assert 520 == 200&#10; +  where 520 = &lt;Response [520]&gt;.status_code">backend/tests/test_admin_team_tracking.py:239: in test_qa_team_valid_key
+    assert response.status_code == 200
+E   assert 520 == 200
+E    +  where 520 = &lt;Response [520]&gt;.status_code</failure></testcase></testsuite></testsuites>
