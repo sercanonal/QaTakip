@@ -102,9 +102,17 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <motion.div 
+      className="space-y-6"
+      initial="initial"
+      animate="animate"
+      variants={containerVariants}
+    >
       {/* Welcome + Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <motion.div 
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        variants={itemVariants}
+      >
         <div>
           <h2 className="font-heading text-2xl font-bold">
             Günaydın, {user?.name?.split(" ")[0]}
@@ -116,19 +124,22 @@ const Dashboard = () => {
             }
           </p>
         </div>
-        <Button asChild className="btn-glow" data-testid="new-task-btn">
-          <Link to="/tasks">
-            <Plus className="w-4 h-4 mr-2" />
-            Yeni Görev
-          </Link>
-        </Button>
-      </div>
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <Button asChild className="btn-glow" data-testid="new-task-btn">
+            <Link to="/tasks">
+              <Plus className="w-4 h-4 mr-2" />
+              Yeni Görev
+            </Link>
+          </Button>
+        </motion.div>
+      </motion.div>
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         
         {/* TODAY FOCUS - Hero Card */}
-        <Card className="lg:col-span-8 border-border/50 bg-card" data-testid="today-focus-card">
+        <motion.div className="lg:col-span-8" variants={itemVariants}>
+          <Card className="border-border/50 bg-card h-full" data-testid="today-focus-card">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 font-heading">
               <Target className="w-5 h-5 text-primary" />
