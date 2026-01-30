@@ -448,17 +448,42 @@ class ReportExporter:
             monthly_stats = ReportExporter._calculate_monthly_stats(tasks)
             
             if monthly_stats:
-                story.append(Paragraph("Aylık Performans", section_title_style))
+                story.append(Paragraph("📈 Aylık Performans Trendi", section_title_style))
                 
-                monthly_data = [['Ay', 'Oluşturulan', 'Tamamlanan', 'Performans']]
+                monthly_data = [
+                    [
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Ay</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Oluşturulan</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Tamamlanan</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Performans</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Trend</b></font>', styles['Normal']),
+                    ]
+                ]
                 
                 sorted_months = sorted(monthly_stats.keys(), reverse=True)[:6]  # Son 6 ay
+                prev_perf = None
                 
                 for month in sorted_months:
-                    stats = monthly_stats[month]
-                    created = stats['created']
-                    completed = stats['completed']
+                    stats_m = monthly_stats[month]
+                    created = stats_m['created']
+                    completed = stats_m['completed']
                     perf = round(completed / created * 100, 1) if created > 0 else 0
+                    
+                    # Trend indicator
+                    if prev_perf is not None:
+                        if perf > prev_perf:
+                            trend = '📈 ↑'
+                            trend_color = '#10B981'
+                        elif perf < prev_perf:
+                            trend = '📉 ↓'
+                            trend_color = '#EF4444'
+                        else:
+                            trend = '➡️ ='
+                            trend_color = '#6B7280'
+                    else:
+                        trend = '—'
+                        trend_color = '#6B7280'
+                    prev_perf = perf
                     
                     # Format month name in Turkish
                     try:
@@ -469,25 +494,30 @@ class ReportExporter:
                     except:
                         month_name = month
                     
-                    monthly_data.append([month_name, str(created), str(completed), f'%{perf}'])
+                    # Performance color
+                    perf_color = '#10B981' if perf >= 70 else '#F59E0B' if perf >= 40 else '#EF4444'
+                    
+                    monthly_data.append([
+                        Paragraph(f'<font size="9"><b>{month_name}</b></font>', styles['Normal']),
+                        Paragraph(f'<font size="10" color="#3B82F6"><b>{created}</b></font>', styles['Normal']),
+                        Paragraph(f'<font size="10" color="#10B981"><b>{completed}</b></font>', styles['Normal']),
+                        Paragraph(f'<font size="10" color="{perf_color}"><b>%{perf}</b></font>', styles['Normal']),
+                        Paragraph(f'<font size="9" color="{trend_color}">{trend}</font>', styles['Normal']),
+                    ])
                 
                 if len(monthly_data) > 1:
-                    monthly_table = Table(monthly_data, colWidths=[5*cm, 3.5*cm, 3.5*cm, 3.5*cm])
+                    monthly_table = Table(monthly_data, colWidths=[4.5*cm, 3*cm, 3*cm, 3*cm, 2.5*cm])
                     monthly_table.setStyle(TableStyle([
-                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(BRAND_INFO)),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, 0), 10),
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3B82F6')),
                         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                         ('TOPPADDING', (0, 0), (-1, 0), 12),
-                        ('FONTSIZE', (0, 1), (-1, -1), 10),
-                        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-                        ('TOPPADDING', (0, 1), (-1, -1), 8),
-                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F0F9FF')]),
-                        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(BRAND_INFO)),
-                        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E5E5E5')),
+                        ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
+                        ('TOPPADDING', (0, 1), (-1, -1), 10),
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#EFF6FF')]),
+                        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#E5E7EB')),
+                        ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#3B82F6')),
                     ]))
                     story.append(monthly_table)
                     story.append(Spacer(1, 1*cm))
