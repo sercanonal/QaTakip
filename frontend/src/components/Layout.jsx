@@ -72,7 +72,8 @@ const Layout = () => {
     
     // Establish SSE connection for real-time notifications
     if (user?.id) {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
+      // Use same base URL as api.js - localhost:8001 for localhost deployment
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || "http://localhost:8001";
       const eventSource = new EventSource(
         `${backendUrl}/api/notifications/stream?user_id=${user.id}`
       );
