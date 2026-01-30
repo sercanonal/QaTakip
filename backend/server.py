@@ -4163,7 +4163,7 @@ async def get_user_tasks_detail(username: str, t: str, months: int = 1):
                 "jira_url": f"https://jira.intertech.com.tr/browse/{issue.get('key', '')}"
             }
             
-            if 'progress' in status_name or 'doing' in status_name or 'development' in status_name:
+            if 'progress' in status_name or 'doing' in status_name or 'development' in status_name or 'test' in status_name:
                 tasks["in_progress"].append(task_info)
             else:
                 tasks["backlog"].append(task_info)
