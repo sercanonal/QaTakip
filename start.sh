@@ -1,6 +1,6 @@
 #!/bin/bash
 # QA Hub - Tek Komutla Kurulum ve Başlatma (Mac)
-# Kullanım: ./start.sh
+# Kullanım: chmod +x start.sh && ./start.sh
 
 echo "╔════════════════════════════════════════╗"
 echo "║   🚀 QA Hub - Kurulum Başlatılıyor    ║"
@@ -19,12 +19,32 @@ cd "$PROJECT_DIR"
 echo ""
 echo -e "${YELLOW}📁 Proje dizini: $PROJECT_DIR${NC}"
 
+# ============== PORT TEMİZLİĞİ ==============
+echo ""
+echo -e "${YELLOW}🧹 Eski process'ler temizleniyor...${NC}"
+
+# Port 3000 temizle
+lsof -ti :3000 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+# Port 8001 temizle  
+lsof -ti :8001 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+# Eski uvicorn process'lerini temizle
+pkill -f "uvicorn server:app" 2>/dev/null || true
+# Eski react process'lerini temizle
+pkill -f "react-scripts start" 2>/dev/null || true
+pkill -f "craco start" 2>/dev/null || true
+
+sleep 2
+echo -e "${GREEN}✅ Portlar temizlendi${NC}"
+
 # ============== FRONTEND .ENV OLUŞTUR ==============
 echo ""
 echo -e "${YELLOW}📝 Frontend .env dosyası oluşturuluyor...${NC}"
+
+# Önce eski .env'i sil ve yenisini oluştur
+rm -f "$PROJECT_DIR/frontend/.env"
 cat > "$PROJECT_DIR/frontend/.env" << 'EOF'
-# Backend API URL - Localhost
 REACT_APP_BACKEND_URL=http://localhost:8001
+REACT_APP_API_URL=http://localhost:8001
 EOF
 echo -e "${GREEN}✅ Frontend .env oluşturuldu${NC}"
 
@@ -57,11 +77,12 @@ echo ""
 echo -e "${YELLOW}⚛️  Frontend kurulumu başlatılıyor...${NC}"
 cd "$PROJECT_DIR/frontend"
 
-# node_modules kontrolü
-if [ ! -d "node_modules" ]; then
-    echo "   📦 npm paketleri yükleniyor (bu biraz sürebilir)..."
-    npm install --silent
-fi
+# Her zaman npm install yap (cache sorunu çözümü için)
+echo "   📦 npm paketleri yükleniyor..."
+npm install --legacy-peer-deps 2>/dev/null || npm install
+
+# npm cache temizle (opsiyonel ama .env sorunlarını çözebilir)
+npm cache clean --force 2>/dev/null || true
 
 echo -e "${GREEN}✅ Frontend kurulumu tamamlandı${NC}"
 
@@ -77,9 +98,6 @@ cd "$PROJECT_DIR/backend"
 source venv/bin/activate
 
 echo -e "${YELLOW}🔧 Backend başlatılıyor (port 8001)...${NC}"
-# Eski process'i öldür
-pkill -f "uvicorn server:app" 2>/dev/null || true
-sleep 1
 
 # Backend'i arka planda başlat
 nohup uvicorn server:app --host 0.0.0.0 --port 8001 > "$PROJECT_DIR/backend.log" 2>&1 &
@@ -88,23 +106,31 @@ echo -e "${GREEN}✅ Backend başlatıldı (PID: $BACKEND_PID)${NC}"
 
 # Backend'in başlamasını bekle
 echo "   ⏳ Backend'in hazır olması bekleniyor..."
-sleep 3
+sleep 5
 
 # Backend kontrolü
-if curl -s http://localhost:8001/api/health > /dev/null 2>&1; then
-    echo -e "${GREEN}   ✅ Backend hazır!${NC}"
-else
-    echo -e "${YELLOW}   ⚠️  Backend henüz hazır değil, devam ediliyor...${NC}"
+MAX_RETRIES=10
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if curl -s http://localhost:8001/api/health > /dev/null 2>&1; then
+        echo -e "${GREEN}   ✅ Backend hazır!${NC}"
+        break
+    fi
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    echo "   ⏳ Backend bekleniyor... ($RETRY_COUNT/$MAX_RETRIES)"
+    sleep 2
+done
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+    echo -e "${RED}   ❌ Backend başlatılamadı! backend.log dosyasını kontrol edin.${NC}"
+    cat "$PROJECT_DIR/backend.log" | tail -20
+    exit 1
 fi
 
 # Frontend'i başlat
 echo ""
 echo -e "${YELLOW}⚛️  Frontend başlatılıyor (port 3000)...${NC}"
 cd "$PROJECT_DIR/frontend"
-
-# Eski process'i öldür
-pkill -f "react-scripts start" 2>/dev/null || true
-sleep 1
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════╗"
@@ -114,15 +140,26 @@ echo "║                                                            ║"
 echo "║   📍 Frontend: http://localhost:3000                      ║"
 echo "║   📍 Backend:  http://localhost:8001                      ║"
 echo "║                                                            ║"
-echo "║   👤 Giriş: SERCANO                                       ║"
+echo "║   👤 Giriş: Kullanıcı adınızı yazın (örn: SERCANO)        ║"
 echo "║                                                            ║"
 echo "║   ⚠️  Kapatmak için: Ctrl+C                               ║"
 echo "║                                                            ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
 
+# Trap ile cleanup
+cleanup() {
+    echo ""
+    echo -e "${YELLOW}🛑 Kapatılıyor...${NC}"
+    pkill -f "uvicorn server:app" 2>/dev/null || true
+    pkill -f "react-scripts start" 2>/dev/null || true
+    pkill -f "craco start" 2>/dev/null || true
+    lsof -ti :3000 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+    lsof -ti :8001 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+    echo -e "${GREEN}✅ Kapatıldı${NC}"
+    exit 0
+}
+trap cleanup SIGINT SIGTERM
+
 # Frontend'i foreground'da başlat
 npm start
-
-# Script sonlandığında backend'i de kapat
-trap "echo ''; echo 'Kapatılıyor...'; pkill -f 'uvicorn server:app'; exit 0" SIGINT SIGTERM
