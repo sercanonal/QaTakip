@@ -3971,82 +3971,105 @@ async def get_team_member_tasks(
     requester_username: str,
     requester_device_id: str
 ):
-    """Get tasks for a specific team member - ADMIN ONLY"""
+    """Get tasks for a specific team member from JIRA - ADMIN ONLY"""
     # Security check: Only admins can access this
     if not is_admin(requester_username, requester_device_id):
         raise HTTPException(status_code=403, detail="Bu özelliğe erişim yetkiniz yok")
     
-    search_username_upper = search_username.upper().strip()
+    search_username_clean = search_username.strip()
     
-    async with aiosqlite.connect(DB_PATH) as db:
-        # Find user by username
-        cursor = await db.execute(
-            "SELECT id, name FROM users WHERE UPPER(name) = ?",
-            (search_username_upper,)
-        )
-        user_row = await cursor.fetchone()
+    # Try to get tasks from Jira
+    jira_tasks = []
+    jira_error = None
+    
+    if JIRA_API_AVAILABLE:
+        try:
+            # Search for user's tasks in Jira
+            # Try different JQL formats for username
+            jql_queries = [
+                f'assignee = "{search_username_clean}" AND status NOT IN (Done, Closed) ORDER BY priority DESC, updated DESC',
+                f'assignee ~ "{search_username_clean}" AND status NOT IN (Done, Closed) ORDER BY priority DESC, updated DESC',
+            ]
+            
+            for jql in jql_queries:
+                logger.info(f"Trying JQL for team tasks: {jql}")
+                issues = jira_client.search_issues(jql, max_results=50)
+                if issues:
+                    jira_tasks = issues
+                    logger.info(f"Found {len(issues)} Jira issues for {search_username_clean}")
+                    break
+            
+            if not jira_tasks:
+                logger.info(f"No Jira issues found for {search_username_clean}")
+                
+        except Exception as e:
+            logger.error(f"Jira search error: {e}")
+            jira_error = str(e)
+    
+    # Format Jira tasks
+    formatted_tasks = []
+    for issue in jira_tasks:
+        fields = issue.get('fields', {})
         
-        if not user_row:
-            return {
-                "found": False,
-                "message": f"'{search_username}' kullanıcısı bulunamadı",
-                "tasks": []
-            }
+        # Map Jira status to our status
+        jira_status = (fields.get('status', {}).get('name', '') or '').lower()
+        if 'progress' in jira_status or 'doing' in jira_status:
+            status = 'in_progress'
+        elif 'backlog' in jira_status or 'to do' in jira_status or 'open' in jira_status:
+            status = 'backlog'
+        else:
+            status = 'in_progress'
         
-        user_id, user_name = user_row
+        # Map Jira priority
+        jira_priority = (fields.get('priority', {}).get('name', '') or '').lower()
+        if 'critical' in jira_priority or 'blocker' in jira_priority:
+            priority = 'critical'
+        elif 'high' in jira_priority or 'major' in jira_priority:
+            priority = 'high'
+        elif 'low' in jira_priority or 'minor' in jira_priority:
+            priority = 'low'
+        else:
+            priority = 'medium'
         
-        # Get backlog and in_progress tasks only
-        cursor = await db.execute(
-            """SELECT id, title, description, category_id, status, priority, created_at, due_date
-               FROM tasks 
-               WHERE (user_id = ? OR assigned_to = ?) 
-               AND status IN ('backlog', 'in_progress', 'today_planned')
-               ORDER BY 
-                   CASE status 
-                       WHEN 'in_progress' THEN 1 
-                       WHEN 'today_planned' THEN 2
-                       WHEN 'backlog' THEN 3 
-                   END,
-                   CASE priority 
-                       WHEN 'critical' THEN 1 
-                       WHEN 'high' THEN 2 
-                       WHEN 'medium' THEN 3 
-                       WHEN 'low' THEN 4 
-                   END""",
-            (user_id, user_id)
-        )
-        rows = await cursor.fetchall()
-        
-        tasks = [
-            {
-                "id": r[0],
-                "title": r[1],
-                "description": r[2],
-                "category_id": r[3],
-                "status": r[4],
-                "priority": r[5],
-                "created_at": r[6],
-                "due_date": r[7]
-            }
-            for r in rows
-        ]
-        
-        # Count by status
-        in_progress_count = len([t for t in tasks if t['status'] == 'in_progress'])
-        backlog_count = len([t for t in tasks if t['status'] in ['backlog', 'today_planned']])
-        
+        formatted_tasks.append({
+            "id": issue.get('key', ''),
+            "title": f"[{issue.get('key', '')}] {fields.get('summary', '')}",
+            "description": fields.get('description', '')[:200] if fields.get('description') else '',
+            "category_id": fields.get('issuetype', {}).get('name', 'Task'),
+            "status": status,
+            "priority": priority,
+            "created_at": fields.get('created', ''),
+            "due_date": fields.get('duedate', ''),
+            "jira_status": fields.get('status', {}).get('name', ''),
+            "jira_key": issue.get('key', ''),
+            "source": "jira"
+        })
+    
+    # Count by status
+    in_progress_count = len([t for t in formatted_tasks if t['status'] == 'in_progress'])
+    backlog_count = len([t for t in formatted_tasks if t['status'] == 'backlog'])
+    
+    if formatted_tasks:
         return {
             "found": True,
             "user": {
-                "id": user_id,
-                "name": user_name
+                "id": search_username_clean,
+                "name": search_username_clean
             },
             "summary": {
                 "in_progress": in_progress_count,
                 "backlog": backlog_count,
-                "total": len(tasks)
+                "total": len(formatted_tasks)
             },
-            "tasks": tasks
+            "tasks": formatted_tasks,
+            "source": "jira"
+        }
+    else:
+        return {
+            "found": False,
+            "message": f"'{search_username_clean}' için Jira'da açık görev bulunamadı" + (f" (Hata: {jira_error})" if jira_error else ""),
+            "tasks": [],
+            "source": "jira"
         }
 
 
