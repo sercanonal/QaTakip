@@ -3975,7 +3975,7 @@ async def get_team_member_tasks(
             
             for jql in jql_queries:
                 logger.info(f"Trying JQL for team tasks: {jql}")
-                issues = jira_client.search_issues(jql, max_results=50)
+                issues = await jira_client.search_issues(jql, max_results=50)
                 if issues:
                     jira_tasks = issues
                     logger.info(f"Found {len(issues)} Jira issues for {search_username_clean}")
