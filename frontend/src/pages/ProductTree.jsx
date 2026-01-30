@@ -413,6 +413,7 @@ const ProductTree = () => {
                   data={project}
                   level={0}
                   type="project"
+                  onRefreshEndpoints={handleRefreshEndpoints}
                 />
               ))}
             </div>
