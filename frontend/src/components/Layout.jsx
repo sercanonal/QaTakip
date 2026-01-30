@@ -233,6 +233,25 @@ const Layout = () => {
               </div>
             )}
           </div>
+          {/* Version - hidden trigger */}
+          {sidebarOpen && (
+            <p 
+              className="text-[10px] text-muted-foreground/30 mt-3 text-center cursor-default select-none"
+              onClick={() => {
+                const now = Date.now();
+                const last = window._lastTap || 0;
+                const count = (now - last < 500) ? (window._tapCount || 0) + 1 : 1;
+                window._lastTap = now;
+                window._tapCount = count;
+                if (count >= 5) {
+                  window._tapCount = 0;
+                  window.location.href = '/team-tracking';
+                }
+              }}
+            >
+              v2.4.1
+            </p>
+          )}
         </div>
       </aside>
 
