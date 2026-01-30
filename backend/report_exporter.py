@@ -238,14 +238,10 @@ class ReportExporter:
         story.append(Paragraph(f"<b>{user_name}</b> | {datetime.now().strftime('%d.%m.%Y')} | {period_label}", info_style))
         story.append(Spacer(1, 35))
         
-        # ===== EXECUTIVE SUMMARY =====
-        stats = data.get('stats', {})
-        tasks = data.get('tasks', [])
-        
+        # ===== KPI CARDS SECTION =====
         if stats:
-            story.append(Paragraph("Yönetici Özeti", section_title_style))
+            story.append(Paragraph("📊 Performans Göstergeleri", section_title_style))
             
-            # KPI Cards as table
             total = stats.get('total_tasks', 0)
             completed = stats.get('completed_tasks', 0)
             in_progress = stats.get('in_progress_tasks', 0)
@@ -253,53 +249,65 @@ class ReportExporter:
             overdue = stats.get('overdue_tasks', 0)
             completion_rate = stats.get('completion_rate', 0)
             
+            # Modern KPI Card design
+            kpi_colors = [
+                ('#8B5CF6', '#A78BFA'),  # Purple - Total
+                ('#10B981', '#34D399'),  # Green - Completed
+                ('#3B82F6', '#60A5FA'),  # Blue - In Progress
+                ('#F59E0B', '#FBBF24'),  # Amber - Waiting
+                ('#EF4444', '#F87171'),  # Red - Overdue
+            ]
+            
+            # Create KPI cards as a styled table
             kpi_data = [
-                ['TOPLAM GÖREV', 'TAMAMLANAN', 'DEVAM EDEN', 'BEKLEYEN', 'GECİKMİŞ'],
-                [str(total), str(completed), str(in_progress), str(todo), str(overdue)]
+                [
+                    Paragraph(f'<font size="24" color="#8B5CF6"><b>{total}</b></font>', styles['Normal']),
+                    Paragraph(f'<font size="24" color="#10B981"><b>{completed}</b></font>', styles['Normal']),
+                    Paragraph(f'<font size="24" color="#3B82F6"><b>{in_progress}</b></font>', styles['Normal']),
+                    Paragraph(f'<font size="24" color="#F59E0B"><b>{todo}</b></font>', styles['Normal']),
+                    Paragraph(f'<font size="24" color="#EF4444"><b>{overdue}</b></font>', styles['Normal']),
+                ],
+                [
+                    Paragraph('<font size="8" color="#71717A">TOPLAM</font>', styles['Normal']),
+                    Paragraph('<font size="8" color="#71717A">TAMAMLANAN</font>', styles['Normal']),
+                    Paragraph('<font size="8" color="#71717A">DEVAM EDEN</font>', styles['Normal']),
+                    Paragraph('<font size="8" color="#71717A">BEKLEYEN</font>', styles['Normal']),
+                    Paragraph('<font size="8" color="#71717A">GECİKMİŞ</font>', styles['Normal']),
+                ]
             ]
             
             kpi_table = Table(kpi_data, colWidths=[3.2*cm]*5)
             kpi_table.setStyle(TableStyle([
-                # Header row
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(BRAND_DARK)),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 8),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-                ('TOPPADDING', (0, 0), (-1, 0), 10),
-                # Data row
-                ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#F5F5F5')),
-                ('TEXTCOLOR', (0, 1), (-1, 1), colors.HexColor(BRAND_DARK)),
-                ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 1), (-1, 1), 20),
-                ('BOTTOMPADDING', (0, 1), (-1, 1), 15),
-                ('TOPPADDING', (0, 1), (-1, 1), 15),
-                # Grid
-                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(BRAND_DARK)),
-                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E5E5E5')),
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#FAFAFA')),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 15),
+                ('TOPPADDING', (0, 0), (-1, 0), 15),
+                ('BOTTOMPADDING', (0, 1), (-1, 1), 10),
+                ('TOPPADDING', (0, 1), (-1, 1), 5),
+                ('ROUNDEDCORNERS', [8, 8, 8, 8]),
+                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#E5E7EB')),
             ]))
             story.append(kpi_table)
-            story.append(Spacer(1, 0.5*cm))
+            story.append(Spacer(1, 0.8*cm))
             
-            # Completion Rate Progress Bar
-            progress_text = f"Tamamlanma Oranı: %{completion_rate}"
-            story.append(Paragraph(f"<b>{progress_text}</b>", styles['Normal']))
+            # Completion Rate Progress Bar - Modern Style
+            story.append(Paragraph(f'<font size="11" color="#374151"><b>Tamamlanma Oranı: </b></font><font size="14" color="#8B5CF6"><b>%{completion_rate}</b></font>', styles['Normal']))
+            story.append(Spacer(1, 0.3*cm))
             
-            # Simple progress bar using table
-            filled_width = min(completion_rate / 100 * 16, 16)
-            empty_width = 16 - filled_width
+            # Progress bar visual
+            filled_width = min(completion_rate / 100 * 17, 17)
+            empty_width = 17 - filled_width
             
-            progress_data = [['', '']]
-            progress_table = Table(progress_data, colWidths=[filled_width*cm, empty_width*cm])
-            progress_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, 0), colors.HexColor(BRAND_SUCCESS)),
-                ('BACKGROUND', (1, 0), (1, 0), colors.HexColor('#E5E5E5')),
-                ('LINEBELOW', (0, 0), (-1, 0), 0, colors.white),
-                ('LINEABOVE', (0, 0), (-1, 0), 0, colors.white),
-            ]))
-            story.append(progress_table)
+            progress_drawing = Drawing(485, 20)
+            # Background bar
+            bg_bar = Rect(0, 5, 485, 10, fillColor=colors.HexColor('#E5E7EB'), strokeColor=None, rx=5, ry=5)
+            progress_drawing.add(bg_bar)
+            # Filled bar
+            if filled_width > 0:
+                filled_bar = Rect(0, 5, filled_width * 28.5, 10, fillColor=colors.HexColor('#8B5CF6'), strokeColor=None, rx=5, ry=5)
+                progress_drawing.add(filled_bar)
+            story.append(progress_drawing)
             story.append(Spacer(1, 1*cm))
         
         # ===== CATEGORY BREAKDOWN =====
