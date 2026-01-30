@@ -432,6 +432,14 @@ async def init_db():
             )
         ''')
         
+        # Settings table for admin key and other configs
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        ''')
+        
         await db.commit()
     
     logger.info(f"SQLite database initialized at {DB_PATH}")
