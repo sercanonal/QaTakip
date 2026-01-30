@@ -3957,7 +3957,7 @@ async def verify_admin_key_endpoint(request: Request):
 
 @api_router.get("/admin/qa-team")
 async def get_qa_team_members(t: str):
-    """Get QA team members from Jira (users with 'kalite' in name)"""
+    """Get QA team members from Jira (users with 'kalite güvence' in name)"""
     if t != _sys_cfg_v2:
         raise HTTPException(status_code=403, detail="Yetkisiz erisim")
     
@@ -3965,11 +3965,14 @@ async def get_qa_team_members(t: str):
     
     if JIRA_API_AVAILABLE:
         try:
-            # Search for users with "kalite" in their name
-            users = await jira_client.search_users("kalite", max_results=100)
+            # Search for users with "kalite güvence" in their name
+            users = await jira_client.search_users("kalite güvence", max_results=100)
+            
+            # If no results, try shorter term
+            if not users:
+                users = await jira_client.search_users("kalite", max_results=100)
             
             for user in users:
-                # Handle different Jira user response formats
                 display_name = user.get('displayName') or user.get('name') or ''
                 username = user.get('name') or user.get('key') or user.get('accountId') or ''
                 email = user.get('emailAddress') or ''
@@ -3989,6 +3992,207 @@ async def get_qa_team_members(t: str):
         "users": qa_users,
         "total": len(qa_users)
     }
+
+
+@api_router.get("/admin/team-summary")
+async def get_team_summary(t: str, months: int = 1):
+    """
+    Get summary dashboard for all QA team members
+    Returns list of users with their task counts (Backlog, In Progress, Completed)
+    Excludes Cancelled tasks from all counts
+    """
+    if t != _sys_cfg_v2:
+        raise HTTPException(status_code=403, detail="Yetkisiz erisim")
+    
+    team_data = []
+    
+    if not JIRA_API_AVAILABLE:
+        return {
+            "success": False,
+            "error": "Jira bağlantısı mevcut değil",
+            "team": [],
+            "period_months": months
+        }
+    
+    try:
+        # First get QA team members
+        users = await jira_client.search_users("kalite güvence", max_results=100)
+        if not users:
+            users = await jira_client.search_users("kalite", max_results=100)
+        
+        logger.info(f"Processing {len(users)} QA team members for summary")
+        
+        # Calculate date range
+        from datetime import datetime, timedelta
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=months * 30)
+        date_str = start_date.strftime("%Y-%m-%d")
+        
+        for user in users:
+            username = user.get('name') or user.get('key') or ''
+            display_name = user.get('displayName') or username
+            
+            if not username:
+                continue
+            
+            user_stats = {
+                "username": username,
+                "displayName": display_name,
+                "email": user.get('emailAddress', ''),
+                "backlog": 0,
+                "in_progress": 0,
+                "completed": 0,
+                "total_active": 0
+            }
+            
+            try:
+                # JQL for open tasks (excluding Cancelled)
+                jql_open = f'assignee = "{username}" AND status NOT IN (Done, Closed, Resolved, Cancelled, "İptal Edildi") AND created >= "{date_str}" ORDER BY status ASC'
+                open_issues = await jira_client.search_issues(jql_open, max_results=200)
+                
+                for issue in open_issues:
+                    fields = issue.get('fields', {})
+                    status_name = (fields.get('status', {}).get('name', '') or '').lower()
+                    
+                    if 'progress' in status_name or 'doing' in status_name or 'development' in status_name:
+                        user_stats["in_progress"] += 1
+                    else:
+                        user_stats["backlog"] += 1
+                
+                # JQL for completed tasks (excluding Cancelled)
+                jql_done = f'assignee = "{username}" AND status IN (Done, Closed, Resolved) AND resolved >= "{date_str}" ORDER BY resolved DESC'
+                done_issues = await jira_client.search_issues(jql_done, max_results=200)
+                user_stats["completed"] = len(done_issues)
+                
+                user_stats["total_active"] = user_stats["backlog"] + user_stats["in_progress"]
+                
+            except Exception as e:
+                logger.error(f"Error getting stats for {username}: {e}")
+            
+            team_data.append(user_stats)
+        
+        # Sort by total active tasks (descending)
+        team_data.sort(key=lambda x: x["total_active"], reverse=True)
+        
+        # Calculate totals
+        totals = {
+            "total_users": len(team_data),
+            "total_backlog": sum(u["backlog"] for u in team_data),
+            "total_in_progress": sum(u["in_progress"] for u in team_data),
+            "total_completed": sum(u["completed"] for u in team_data)
+        }
+        
+        return {
+            "success": True,
+            "team": team_data,
+            "totals": totals,
+            "period_months": months,
+            "date_range": {
+                "start": date_str,
+                "end": end_date.strftime("%Y-%m-%d")
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting team summary: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "team": [],
+            "period_months": months
+        }
+
+
+@api_router.get("/admin/user-tasks-detail")
+async def get_user_tasks_detail(username: str, t: str, months: int = 1):
+    """
+    Get detailed task list for a specific user
+    Excludes Cancelled tasks
+    """
+    if t != _sys_cfg_v2:
+        raise HTTPException(status_code=403, detail="Yetkisiz erisim")
+    
+    if not JIRA_API_AVAILABLE:
+        return {
+            "success": False,
+            "error": "Jira bağlantısı mevcut değil",
+            "tasks": []
+        }
+    
+    try:
+        from datetime import datetime, timedelta
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=months * 30)
+        date_str = start_date.strftime("%Y-%m-%d")
+        
+        tasks = {
+            "backlog": [],
+            "in_progress": [],
+            "completed": []
+        }
+        
+        # Get open tasks (excluding Cancelled)
+        jql_open = f'assignee = "{username}" AND status NOT IN (Done, Closed, Resolved, Cancelled, "İptal Edildi") AND created >= "{date_str}" ORDER BY priority DESC, updated DESC'
+        open_issues = await jira_client.search_issues(jql_open, max_results=100)
+        
+        for issue in open_issues:
+            fields = issue.get('fields', {})
+            status_name = (fields.get('status', {}).get('name', '') or '').lower()
+            
+            task_info = {
+                "key": issue.get('key', ''),
+                "summary": fields.get('summary', ''),
+                "status": fields.get('status', {}).get('name', ''),
+                "priority": fields.get('priority', {}).get('name', ''),
+                "created": fields.get('created', '')[:10] if fields.get('created') else '',
+                "updated": fields.get('updated', '')[:10] if fields.get('updated') else '',
+                "issueType": fields.get('issuetype', {}).get('name', ''),
+                "project": fields.get('project', {}).get('key', ''),
+                "jira_url": f"https://jira.intertech.com.tr/browse/{issue.get('key', '')}"
+            }
+            
+            if 'progress' in status_name or 'doing' in status_name or 'development' in status_name:
+                tasks["in_progress"].append(task_info)
+            else:
+                tasks["backlog"].append(task_info)
+        
+        # Get completed tasks
+        jql_done = f'assignee = "{username}" AND status IN (Done, Closed, Resolved) AND resolved >= "{date_str}" ORDER BY resolved DESC'
+        done_issues = await jira_client.search_issues(jql_done, max_results=100)
+        
+        for issue in done_issues:
+            fields = issue.get('fields', {})
+            tasks["completed"].append({
+                "key": issue.get('key', ''),
+                "summary": fields.get('summary', ''),
+                "status": fields.get('status', {}).get('name', ''),
+                "priority": fields.get('priority', {}).get('name', ''),
+                "created": fields.get('created', '')[:10] if fields.get('created') else '',
+                "resolved": fields.get('resolutiondate', '')[:10] if fields.get('resolutiondate') else '',
+                "issueType": fields.get('issuetype', {}).get('name', ''),
+                "project": fields.get('project', {}).get('key', ''),
+                "jira_url": f"https://jira.intertech.com.tr/browse/{issue.get('key', '')}"
+            })
+        
+        return {
+            "success": True,
+            "username": username,
+            "tasks": tasks,
+            "counts": {
+                "backlog": len(tasks["backlog"]),
+                "in_progress": len(tasks["in_progress"]),
+                "completed": len(tasks["completed"])
+            },
+            "period_months": months
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting user tasks detail: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "tasks": {"backlog": [], "in_progress": [], "completed": []}
+        }
 
 
 @api_router.get("/admin/team-tasks")
