@@ -260,6 +260,32 @@ const Settings = () => {
               <p className="text-sm text-muted-foreground">Bu cihaza kayıtlı</p>
             </div>
           </div>
+          
+          {/* Device ID - Admin yetkisi için gerekli */}
+          <div className="mt-4 p-3 rounded-lg bg-secondary/30 border border-border/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Cihaz Kimliği (Device ID)</p>
+                <code className="text-xs font-mono bg-background px-2 py-1 rounded">
+                  {user?.device_id || localStorage.getItem('qa_device_id') || 'Bilinmiyor'}
+                </code>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const deviceId = user?.device_id || localStorage.getItem('qa_device_id');
+                  navigator.clipboard.writeText(deviceId || '');
+                  toast.success("Device ID kopyalandı!");
+                }}
+              >
+                Kopyala
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Bu ID, admin yetkisi almak için yöneticinize iletmeniz gerekebilir.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
