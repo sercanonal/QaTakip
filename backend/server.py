@@ -3640,17 +3640,18 @@ def build_product_tree(endpoints: list, tests: list, team_name: str) -> dict:
 async def run_product_tree(request: Request):
     """Run Product Tree analysis (SSE streaming)"""
     
+    # Read body BEFORE generator
+    body = await request.json()
+    jira_team_id = int(body.get("jiraTeamId", 0))
+    report_date = body.get("reportDate", "")
+    project_names = body.get("projectNames", [])
+    days = int(body.get("days", 1))
+    time = body.get("time", "00:00")
+    
     async def generate():
         global _product_tree_cache
         
         try:
-            body = await request.json()
-            jira_team_id = int(body.get("jiraTeamId", 0))
-            report_date = body.get("reportDate", "")
-            project_names = body.get("projectNames", [])
-            days = int(body.get("days", 1))
-            time = body.get("time", "00:00")
-            
             yield f"data: {json.dumps({'log': '🌳 Test Kapsam Ağacı analizi başlatılıyor...'})}\n\n"
             yield f"data: {json.dumps({'log': f'   Team ID: {jira_team_id}'})}\n\n"
             yield f"data: {json.dumps({'log': f'   Tarih: {report_date}'})}\n\n"
