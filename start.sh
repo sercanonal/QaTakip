@@ -14,6 +14,9 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Proxy ayarı (varsayılan: auto - önce direct, sonra proxy dener)
+USE_PROXY="${USE_PROXY:-auto}"
+
 # Proje kök dizini
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_DIR"
