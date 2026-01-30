@@ -700,31 +700,59 @@ const EndpointNode = ({ endpoint, level }) => {
       {/* Tests */}
       {isExpanded && hasTests && (
         <div className="ml-6 mt-1 space-y-1">
-          {endpoint.tests.map((test, idx) => (
-            <div
-              key={idx}
-              className={cn(
-                "flex items-center gap-2 p-2 rounded border text-sm",
-                test.status === "PASSED" 
-                  ? "bg-green-500/10 border-green-500/30" 
-                  : "bg-red-500/10 border-red-500/30"
-              )}
-            >
-              <Badge className={test.status === "PASSED" ? "bg-green-500" : "bg-red-500"}>
-                {test.status === "PASSED" ? "✓" : "✗"} {test.status}
-              </Badge>
-              <span className="font-medium truncate">{test.name || "Unnamed Test"}</span>
-              <a
-                href={`https://jira.intertech.com.tr/secure/Tests.jspa#/testCase/${test.key}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline ml-auto"
-                onClick={(e) => e.stopPropagation()}
+          {endpoint.tests.map((test, idx) => {
+            // Determine test type label and color
+            const testType = (test.testType || test.type || '').toLowerCase();
+            let typeLabel = '';
+            let typeColor = 'bg-gray-500/20 text-gray-400';
+            
+            if (testType.includes('happy')) {
+              typeLabel = 'HP';
+              typeColor = 'bg-emerald-500/20 text-emerald-400';
+            } else if (testType.includes('alternatif') || testType.includes('alternative')) {
+              typeLabel = 'AS';
+              typeColor = 'bg-blue-500/20 text-blue-400';
+            } else if (testType.includes('negatif') || testType.includes('negative')) {
+              typeLabel = 'NS';
+              typeColor = 'bg-purple-500/20 text-purple-400';
+            } else {
+              typeLabel = '?';
+              typeColor = 'bg-red-500/20 text-red-400';
+            }
+            
+            return (
+              <div
+                key={idx}
+                className={cn(
+                  "flex items-center gap-2 p-2 rounded border text-sm",
+                  test.status === "PASSED" 
+                    ? "bg-green-500/10 border-green-500/30" 
+                    : "bg-red-500/10 border-red-500/30"
+                )}
               >
-                {test.key}
-              </a>
-            </div>
-          ))}
+                <Badge className={test.status === "PASSED" ? "bg-green-500" : "bg-red-500"}>
+                  {test.status === "PASSED" ? "✓" : "✗"} {test.status}
+                </Badge>
+                <span className="font-medium truncate flex-1">{test.name || "Unnamed Test"}</span>
+                {/* Test Type Badge - small shadow style */}
+                <span className={cn(
+                  "px-2 py-0.5 rounded text-xs font-medium shadow-sm",
+                  typeColor
+                )}>
+                  {typeLabel}
+                </span>
+                <a
+                  href={`https://jira.intertech.com.tr/secure/Tests.jspa#/testCase/${test.key}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline ml-2 shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {test.key}
+                </a>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
