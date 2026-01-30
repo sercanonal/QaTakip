@@ -23,6 +23,7 @@ cd "$PROJECT_DIR"
 
 echo ""
 echo -e "${YELLOW}📁 Proje dizini: $PROJECT_DIR${NC}"
+echo -e "${CYAN}🌐 Proxy modu: $USE_PROXY (auto=önce direct dener)${NC}"
 
 # ============== PORT TEMİZLİĞİ ==============
 echo ""
