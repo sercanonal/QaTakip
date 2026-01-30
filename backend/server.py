@@ -77,6 +77,15 @@ try:
         async def get_test_case_details(self, test_key):
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(None, self._sync.get_test_case_details, test_key)
+        
+        async def get_test_cases_batch(self, test_keys, project_id=12700):
+            """Batch fetch test cases - much faster than one by one"""
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.get_test_cases_batch, test_keys, project_id)
+        
+        def get_test_type_from_custom_fields(self, custom_field_values):
+            """Sync method - extract test type from customFieldValues"""
+            return self._sync.get_test_type_from_custom_fields(custom_field_values)
     
     jira_client = JiraClientCompat(_sync_jira_client)
     JIRA_AVAILABLE = True
