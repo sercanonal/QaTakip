@@ -238,26 +238,32 @@ const ProductTree = () => {
               />
             </div>
             
-            {/* Projects */}
+            {/* Project Selection - Single select from QA Projects */}
             <div className="space-y-2 col-span-full">
-              <Label>Projeler</Label>
-              <div className="flex flex-wrap gap-3">
-                {PROJECT_OPTIONS.map((project) => (
-                  <div key={project.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={project.value}
-                      checked={selectedProjects.includes(project.value)}
-                      onCheckedChange={() => handleProjectToggle(project.value)}
-                    />
-                    <label
-                      htmlFor={project.value}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      {project.label}
-                    </label>
-                  </div>
-                ))}
-              </div>
+              <Label htmlFor="project">Proje Seçimi</Label>
+              <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <SelectTrigger data-testid="project-select">
+                  <SelectValue placeholder="Proje seçin..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {qaProjects.length > 0 ? (
+                    qaProjects.map((project) => (
+                      <SelectItem key={project.name} value={project.name}>
+                        {project.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-projects" disabled>
+                      Proje bulunamadı - Ayarlardan ekleyin
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {qaProjects.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Proje listesi Ayarlar sayfasından yönetilir.
+                </p>
+              )}
             </div>
           </div>
           
@@ -265,7 +271,7 @@ const ProductTree = () => {
           <div className="mt-6">
             <Button
               onClick={runAnalysis}
-              disabled={isRunning || !jiraTeamId || !reportDate}
+              disabled={isRunning || !jiraTeamId || !reportDate || !selectedProject}
               className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
               data-testid="run-analysis-btn"
             >
