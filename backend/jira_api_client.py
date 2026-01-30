@@ -411,33 +411,6 @@ class JiraAPIClient:
         
         logger.warning(f"Could not find test type for {test_key}")
         return "unknown"
-        
-        # Check Jira custom fields format
-        if isinstance(custom_fields, dict):
-            for key, value in custom_fields.items():
-                if isinstance(value, dict) and value.get("name"):
-                    name = value.get("name", "").lower()
-                    if "happy" in name:
-                        return "Happy Path"
-                    elif "alternatif" in name or "alternative" in name:
-                        return "Alternatif Senaryo"
-                    elif "negatif" in name or "negative" in name:
-                        return "Negatif Senaryo"
-        
-        # Check fields directly
-        fields = details.get("fields", {})
-        if fields:
-            for key, value in fields.items():
-                if key.startswith("customfield_") and isinstance(value, dict):
-                    val_name = (value.get("value", "") or value.get("name", "") or "").lower()
-                    if "happy" in val_name:
-                        return "Happy Path"
-                    elif "alternatif" in val_name or "alternative" in val_name:
-                        return "Alternatif Senaryo"
-                    elif "negatif" in val_name or "negative" in val_name:
-                        return "Negatif Senaryo"
-        
-        return "unknown"
     
     async def get_test_types_batch(self, test_keys: List[str]) -> Dict[str, str]:
         """Get test types for multiple test cases"""
