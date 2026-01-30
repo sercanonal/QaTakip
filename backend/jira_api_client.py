@@ -1,156 +1,211 @@
 """
-Jira API Client for QA Hub
-Port from axiosClient.js
+Jira REST API Client - Synchronous Implementation
+Port from axiosClient.js - uses requests library for reliability
 """
-import httpx
+
+import requests
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any, List
+import os
+import urllib3
 
-logger = logging.getLogger(__name__)
+# Disable SSL warnings for internal Jira server
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Jira API Configuration
-JIRA_BASE_URL = "https://jira.intertech.com.tr"
-JIRA_API_URL = f"{JIRA_BASE_URL}/rest/tests/1.0/"
-JIRA_AUTH_TOKEN = "Basic aW50ZWdyYXRpb25fdXNlcjpkMkBDQig1ZA=="
+logger = logging.getLogger("jira_client")
 
-# HTTP client with SHORT timeout for fast failure detection
-def get_client():
-    return httpx.AsyncClient(
-        base_url=JIRA_API_URL,
-        headers={
-            "Authorization": JIRA_AUTH_TOKEN,
-            "Content-Type": "application/json"
-        },
-        timeout=httpx.Timeout(10.0, connect=5.0),  # Short timeout for fast failure
-        verify=False  # VPN arkasında SSL sorunları için
-    )
+class JiraConfig:
+    """Jira Configuration"""
+    BASE_URL = "https://jira.intertech.com.tr"
+    API_PATH = "/rest/api/2"
+    # Token: Basic aW50ZWdyYXRpb25fdXNlcjpkMkBDQig1ZA==
+    AUTH_TOKEN = os.getenv("JIRA_AUTH_TOKEN", "Basic aW50ZWdyYXRpb25fdXNlcjpkMkBDQig1ZA==")
+    REQUEST_TIMEOUT = 60  # Increased timeout
+    MAX_RETRIES = 2
 
-# ============== TEST RUN OPERATIONS ==============
-
-async def get_test_run(cycle_key: str) -> Dict[str, Any]:
-    """Get test run info by cycle key"""
-    fields = "id,key,name,projectId,projectVersionId,environmentId,plannedStartDate,plannedEndDate,iteration(name),executionTime,estimatedTime"
+class JiraAPIClient:
+    """Synchronous HTTP client for Jira REST API"""
     
-    async with get_client() as client:
-        response = await client.get(f"testrun/{cycle_key}", params={"fields": fields})
-        response.raise_for_status()
-        return response.json()
-
-async def get_test_run_items(testrun_id: int) -> List[Dict[str, Any]]:
-    """Get test run items"""
-    fields = "id,index,issueCount,$lastTestResult"
+    def __init__(self):
+        self.config = JiraConfig()
+        self.base_url = self.config.BASE_URL
+        self.api_path = self.config.API_PATH
+        self.headers = {
+            "Authorization": self.config.AUTH_TOKEN,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        # Create session for connection pooling
+        self.session = requests.Session()
+        self.session.headers.update(self.headers)
+        self.session.verify = False  # Skip SSL verification for internal server
     
-    async with get_client() as client:
-        response = await client.get(f"testrun/{testrun_id}/testrunitems", params={"fields": fields})
-        response.raise_for_status()
-        data = response.json()
+    def search_issues(self, jql: str, max_results: int = 100) -> List[Dict[str, Any]]:
+        """Execute JQL search and return issues"""
+        url = f"{self.base_url}{self.api_path}/search"
+        params = {
+            "jql": jql,
+            "maxResults": max_results,
+            "fields": "key,summary,status,assignee,created,updated,priority,issuetype,description,project"
+        }
         
-        if isinstance(data, list):
-            return data
-        return data.get("testRunItems", [])
-
-async def get_last_test_results(testrun_id: int) -> List[Dict[str, Any]]:
-    """Get last test results for a test run"""
-    async with get_client() as client:
-        response = await client.get(f"testrun/{testrun_id}/testrunitems/lasttestresults")
-        response.raise_for_status()
-        return response.json()
-
-async def get_test_results_by_item_id(testrun_id: int, item_id: int) -> List[Dict[str, Any]]:
-    """Get test results for a specific item"""
-    fields = "id,testResultStatusId,automated,estimatedTime,customFieldValues,executionTime,executionDate,plannedStartDate,plannedEndDate,actualStartDate,actualEndDate,environmentId,jiraVersionId,sprintId,comment,userKey,assignedTo,testScriptResults(id,testResultStatusId,executionDate,comment,index,description,expectedResult,testData,traceLinks,attachments,sourceScriptType,parameterSetId,customFieldValues,stepAttachmentsMapping),traceLinks,attachments"
-    
-    async with get_client() as client:
-        response = await client.get(
-            f"testrun/{testrun_id}/testresults",
-            params={"fields": fields, "itemId": item_id}
-        )
-        response.raise_for_status()
-        return response.json() or []
-
-async def get_test_case(test_key: str) -> Dict[str, Any]:
-    """Get test case details by key"""
-    fields = "id,projectId,archived,key,name,objective,majorVersion,latestVersion,precondition,folder(id,fullName),status,priority,estimatedTime,averageTime,componentId,owner,labels,customFieldValues,testScript(id,text,steps(index,reflectRef,description,text,expectedResult,testData,attachments,customFieldValues,id,stepParameters(id,testCaseParameterId,value),testCase(projectId,id,key,name,archived,majorVersion,latestVersion,parameters(id,name,defaultValue,index)))),testData,parameters(id,name,defaultValue,index),paramType"
-    
-    async with get_client() as client:
-        response = await client.get(f"testcase/{test_key}", params={"fields": fields})
-        response.raise_for_status()
-        return response.json()
-
-async def get_cycle_info(cycle_id: int) -> Dict[str, Any]:
-    """Get cycle info with test run items"""
-    fields = "id,index,issueCount,$lastTestResult"
-    
-    async with get_client() as client:
-        response = await client.get(f"testrun/{cycle_id}/testrunitems", params={"fields": fields})
-        response.raise_for_status()
-        data = response.json()
+        for attempt in range(self.config.MAX_RETRIES):
+            try:
+                logger.info(f"Jira API request (attempt {attempt + 1}): {url}")
+                logger.info(f"JQL: {jql}")
+                
+                response = self.session.get(
+                    url,
+                    params=params,
+                    timeout=self.config.REQUEST_TIMEOUT
+                )
+                
+                logger.info(f"Response status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    issues = data.get('issues', [])
+                    total = data.get('total', 0)
+                    logger.info(f"Found {len(issues)} issues out of {total} total")
+                    return issues
+                elif response.status_code == 401:
+                    logger.error("Jira authentication failed")
+                    return []
+                elif response.status_code == 400:
+                    logger.error(f"Invalid JQL: {jql}")
+                    return []
+                else:
+                    logger.error(f"Jira API error: {response.status_code}")
+                    
+            except requests.exceptions.Timeout:
+                logger.warning(f"Jira API timeout (attempt {attempt + 1}/{self.config.MAX_RETRIES})")
+            except requests.exceptions.ConnectionError as e:
+                logger.error(f"Connection error: {e}")
+            except Exception as e:
+                logger.error(f"Unexpected error: {e}")
         
-        # Return in expected format
-        if isinstance(data, list):
-            return {"testRunItems": data}
-        return data
-
-# ============== BUG OPERATIONS ==============
-
-async def link_bug_to_test_result(test_result_id: int, issue_id: int, type_id: int = 3):
-    """Link a bug to a test result"""
-    payload = [{"testResultId": test_result_id, "issueId": issue_id, "typeId": type_id}]
+        return []
     
-    async with get_client() as client:
-        response = await client.post("tracelink/testresult/bulk/create", json=payload)
-        response.raise_for_status()
-        return response.json() if response.content else None
-
-async def refresh_issue_count_cache(testrun_id: int):
-    """Refresh issue count cache for a test run"""
-    payload = {"id": testrun_id}
+    def get_issues_by_assignee(self, username: str, max_results: int = 100) -> List[Dict[str, Any]]:
+        """Fetch issues assigned to a user"""
+        # Try with quotes first
+        jql = f'assignee = "{username}" ORDER BY updated DESC'
+        issues = self.search_issues(jql, max_results)
+        
+        if not issues:
+            # Try without quotes
+            jql = f'assignee = {username} ORDER BY updated DESC'
+            issues = self.search_issues(jql, max_results)
+        
+        return issues
     
-    async with get_client() as client:
+    def get_test_run(self, cycle_key: str) -> Optional[Dict[str, Any]]:
+        """Get test run (cycle) details from Jira"""
+        # First try to get from Zephyr Scale API
+        url = f"{self.base_url}/rest/atm/1.0/testrun/{cycle_key}"
+        
         try:
-            response = await client.post(f"testrun/{testrun_id}/refreshissuecountcache", json=payload)
-            response.raise_for_status()
+            response = self.session.get(url, timeout=self.config.REQUEST_TIMEOUT)
+            if response.status_code == 200:
+                return response.json()
+            
+            # Fallback: try Zephyr Squad API
+            url = f"{self.base_url}/rest/zapi/latest/cycle"
+            params = {"cycleId": cycle_key}
+            response = self.session.get(url, params=params, timeout=self.config.REQUEST_TIMEOUT)
+            if response.status_code == 200:
+                return response.json()
+                
         except Exception as e:
-            logger.warning(f"Cache refresh failed (non-critical): {e}")
+            logger.error(f"Error getting test run {cycle_key}: {e}")
+        
+        return {"id": cycle_key, "key": cycle_key}  # Return basic info if API fails
+    
+    def get_test_executions(self, cycle_id: str) -> List[Dict[str, Any]]:
+        """Get test executions for a cycle"""
+        # Try Zephyr Scale API
+        url = f"{self.base_url}/rest/atm/1.0/testrun/{cycle_id}/testresults"
+        
+        try:
+            response = self.session.get(url, timeout=self.config.REQUEST_TIMEOUT)
+            if response.status_code == 200:
+                return response.json()
+        except Exception as e:
+            logger.error(f"Error getting test executions: {e}")
+        
+        return []
+    
+    def add_comment(self, issue_key: str, comment: str) -> bool:
+        """Add a comment to an issue"""
+        url = f"{self.base_url}{self.api_path}/issue/{issue_key}/comment"
+        
+        try:
+            response = self.session.post(
+                url,
+                json={"body": comment},
+                timeout=self.config.REQUEST_TIMEOUT
+            )
+            return response.status_code in [200, 201]
+        except Exception as e:
+            logger.error(f"Error adding comment to {issue_key}: {e}")
+            return False
+    
+    def update_issue(self, issue_key: str, fields: Dict[str, Any]) -> bool:
+        """Update issue fields"""
+        url = f"{self.base_url}{self.api_path}/issue/{issue_key}"
+        
+        try:
+            response = self.session.put(
+                url,
+                json={"fields": fields},
+                timeout=self.config.REQUEST_TIMEOUT
+            )
+            return response.status_code in [200, 204]
+        except Exception as e:
+            logger.error(f"Error updating {issue_key}: {e}")
+            return False
+    
+    def link_issues(self, inward_key: str, outward_key: str, link_type: str = "Relates") -> bool:
+        """Link two issues together"""
+        url = f"{self.base_url}{self.api_path}/issueLink"
+        
+        payload = {
+            "type": {"name": link_type},
+            "inwardIssue": {"key": inward_key},
+            "outwardIssue": {"key": outward_key}
+        }
+        
+        try:
+            response = self.session.post(
+                url,
+                json=payload,
+                timeout=self.config.REQUEST_TIMEOUT
+            )
+            return response.status_code in [200, 201]
+        except Exception as e:
+            logger.error(f"Error linking {inward_key} to {outward_key}: {e}")
+            return False
 
-async def get_issue_key(issue_id: int) -> str:
-    """Get issue key from issue ID"""
-    try:
-        async with httpx.AsyncClient(
-            base_url=JIRA_BASE_URL,
-            headers={
-                "Authorization": JIRA_AUTH_TOKEN,
-                "Content-Type": "application/json"
-            },
-            timeout=httpx.Timeout(15.0),
-            verify=False
-        ) as client:
-            response = await client.get(f"/rest/api/2/issue/{issue_id}")
-            response.raise_for_status()
-            return response.json().get("key", f"ID:{issue_id}")
-    except Exception:
-        return f"ID:{issue_id}"
 
-# ============== CYCLE OPERATIONS ==============
+# Create singleton instance
+jira_api_client = JiraAPIClient()
 
-async def save_cycle(body: Dict[str, Any]) -> Dict[str, Any]:
-    """Save/update cycle items"""
-    async with get_client() as client:
-        response = await client.put("testrunitem/bulk/save", json=body)
-        response.raise_for_status()
-        return response.json() if response.content else {}
 
-# ============== STATUS INFO ==============
-
-STATUS_INFO = {
-    216: {"name": "Not Executed", "color": "#cfcfc4"},
-    217: {"name": "In Progress", "color": "#f0ad4e"},
-    218: {"name": "Pass", "color": "#3abb4b"},
-    219: {"name": "Fail", "color": "#df2f36"},
-    220: {"name": "Blocked", "color": "#4b88e7"},
-    5116: {"name": "Pass(Manuel)", "color": "#38761d"}
-}
-
-def get_status_name(status_id: int) -> str:
-    """Get status name from ID"""
-    return STATUS_INFO.get(status_id, {}).get("name", str(status_id))
+# Helper function for formatted issue output
+def format_issue(issue: Dict[str, Any]) -> Dict[str, Any]:
+    """Format Jira issue for frontend display"""
+    fields = issue.get('fields', {})
+    
+    return {
+        "key": issue.get('key'),
+        "summary": fields.get('summary', ''),
+        "description": fields.get('description', ''),
+        "status": fields.get('status', {}).get('name', 'Unknown'),
+        "priority": fields.get('priority', {}).get('name', 'Medium'),
+        "assignee": fields.get('assignee', {}).get('displayName', 'Unassigned') if fields.get('assignee') else 'Unassigned',
+        "created": fields.get('created', ''),
+        "updated": fields.get('updated', ''),
+        "project": fields.get('project', {}).get('key', ''),
+        "issuetype": fields.get('issuetype', {}).get('name', ''),
+        "jira_url": f"https://jira.intertech.com.tr/browse/{issue.get('key')}"
+    }
