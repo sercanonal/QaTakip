@@ -90,6 +90,7 @@ PRIORITY_LABELS = {
 CATEGORY_LABELS = {
     'api-test': 'API Testi',
     'ui-test': 'UI Testi',
+    'maintenance': 'Bakım',
     'regression': 'Regresyon',
     'bug-tracking': 'Bug Tracking',
     'documentation': 'Test Dokümantasyonu'
