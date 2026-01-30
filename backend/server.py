@@ -1607,7 +1607,7 @@ async def notification_stream(request: Request, user_id: str):
                     yield f"data: {json.dumps(notification)}\n\n"
                 except asyncio.TimeoutError:
                     # Send heartbeat to keep connection alive
-                    yield f": heartbeat\n\n"
+                    yield ": heartbeat\n\n"
                 except Exception as e:
                     logger.error(f"Error in SSE stream: {e}")
                     break
@@ -1754,7 +1754,7 @@ async def admin_delete_user(user_id: str):
         
         await db.commit()
         
-        return {"message": f"Kullanıcı ve tüm verileri silindi"}
+        return {"message": "Kullanıcı ve tüm verileri silindi"}
 
 # ============== JIRA INTEGRATION ROUTES ==============
 
@@ -2478,16 +2478,16 @@ async def bugbagla_analyze(request: Request):
                 
                 # Demo data
                 mock_will_bind = [
-                    {"testKey": f"TEST-001", "testName": "Login Test - Invalid", "status": 219, "testResultId": 1001, "bugIds": [5001], "bugKeys": ["BUG-101"]},
-                    {"testKey": f"TEST-002", "testName": "Payment Flow - Timeout", "status": 219, "testResultId": 1002, "bugIds": [5002], "bugKeys": ["BUG-102"]},
+                    {"testKey": "TEST-001", "testName": "Login Test - Invalid", "status": 219, "testResultId": 1001, "bugIds": [5001], "bugKeys": ["BUG-101"]},
+                    {"testKey": "TEST-002", "testName": "Payment Flow - Timeout", "status": 219, "testResultId": 1002, "bugIds": [5002], "bugKeys": ["BUG-102"]},
                 ]
                 mock_will_skip = [
                     {"testKey": "TEST-003", "testName": "Dashboard Load", "status": 218, "reason": "Status filtresi dışında (Pass)"},
                     {"testKey": "TEST-004", "testName": "Profile Update", "status": 219, "reason": "Base cycle'da test bulunamadı"},
                 ]
                 
-                yield f"data: {json.dumps({'log': f'📊 Analiz Tamamlandı! (Demo)'})}\n\n"
-                yield f"data: {json.dumps({'log': f'   • Toplam: 10'})}\n\n"
+                yield f"data: {json.dumps({'log': '📊 Analiz Tamamlandı! (Demo)'})}\n\n"
+                yield f"data: {json.dumps({'log': '   • Toplam: 10'})}\n\n"
                 yield f"data: {json.dumps({'log': f'   • Bağlanacak: {len(mock_will_bind)}'})}\n\n"
                 yield f"data: {json.dumps({'log': f'   • Atlanacak: {len(mock_will_skip)}'})}\n\n"
                 
@@ -3336,9 +3336,9 @@ async def cycleadd_analyze(request: Request):
                             "testId": 10000 + idx
                         })
                 
-                yield f"data: {json.dumps({'log': f'✅ Cycle ID bulundu: 12345 (Demo)'})}\n\n"
+                yield f"data: {json.dumps({'log': '✅ Cycle ID bulundu: 12345 (Demo)'})}\n\n"
                 yield f"data: {json.dumps({'log': f'📋 {len(add_items)} test analiz ediliyor...'})}\n\n"
-                yield f"data: {json.dumps({'log': f'📊 Analiz tamamlandı!'})}\n\n"
+                yield f"data: {json.dumps({'log': '📊 Analiz tamamlandı!'})}\n\n"
                 yield f"data: {json.dumps({'log': f'   Eklenecek: {len(will_be_added)} test'})}\n\n"
                 yield f"data: {json.dumps({'log': f'   Atlanacak: {len(will_be_skipped)} test'})}\n\n"
                 
@@ -3498,12 +3498,12 @@ async def cycleadd_execute(request: Request):
             save_body = body.get("saveBody", {})
             
             added_count = len(save_body.get("addedTestRunItems", []))
-            yield f"data: {json.dumps({'log': f'🚀 Cycle güncelleniyor...'})}\n\n"
+            yield f"data: {json.dumps({'log': '🚀 Cycle güncelleniyor...'})}\n\n"
             yield f"data: {json.dumps({'log': f'   Eklenecek test sayısı: {added_count}'})}\n\n"
             
             if not JIRA_API_AVAILABLE:
                 yield f"data: {json.dumps({'log': '⚠️ VPN bağlantısı gerekli - DEMO modu'})}\n\n"
-                yield f"data: {json.dumps({'log': f'✅ İşlem tamamlandı! (Demo)'})}\n\n"
+                yield f"data: {json.dumps({'log': '✅ İşlem tamamlandı! (Demo)'})}\n\n"
                 yield f"data: {json.dumps({'log': f'   Eklenen: {added_count} test'})}\n\n"
                 yield f"data: {json.dumps({'success': True, 'added': added_count, 'message': f'{added_count} test başarıyla eklendi! (Demo)'})}\n\n"
                 return
