@@ -237,47 +237,51 @@ const Dashboard = () => {
               </p>
             </CardContent>
           </Card>
+          </motion.div>
 
           {/* Status Summary */}
-          <Card className="border-border/50 bg-card">
-            <CardContent className="pt-6 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ListTodo className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm">Yapılacak</span>
-                </div>
-                <span className="font-mono text-sm">{stats?.todo_tasks || 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-info" />
-                  <span className="text-sm">Devam Eden</span>
-                </div>
-                <span className="font-mono text-sm">{stats?.in_progress_tasks || 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-success" />
-                  <span className="text-sm">Tamamlanan</span>
-                </div>
-                <span className="font-mono text-sm">{stats?.completed_tasks || 0}</span>
-              </div>
-              {stats?.overdue_tasks > 0 && (
-                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+          <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
+            <Card className="border-border/50 bg-card">
+              <CardContent className="pt-6 space-y-3">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-destructive" />
-                    <span className="text-sm text-destructive">Geciken</span>
+                    <ListTodo className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">Yapılacak</span>
                   </div>
-                  <span className="font-mono text-sm text-destructive">{stats?.overdue_tasks}</span>
+                  <span className="font-mono text-sm">{stats?.todo_tasks || 0}</span>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-info" />
+                    <span className="text-sm">Devam Eden</span>
+                  </div>
+                  <span className="font-mono text-sm">{stats?.in_progress_tasks || 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-success" />
+                    <span className="text-sm">Tamamlanan</span>
+                  </div>
+                  <span className="font-mono text-sm">{stats?.completed_tasks || 0}</span>
+                </div>
+                {stats?.overdue_tasks > 0 && (
+                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-destructive" />
+                      <span className="text-sm text-destructive">Geciken</span>
+                    </div>
+                    <span className="font-mono text-sm text-destructive">{stats?.overdue_tasks}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
       </div>
 
       {/* Recent Activity - Simplified */}
-      <Card className="border-border/50 bg-card">
+      <motion.div variants={itemVariants}>
+        <Card className="border-border/50 bg-card">
         <CardHeader className="flex flex-row items-center justify-between py-4">
           <CardTitle className="font-heading text-base">Son Eklenenler</CardTitle>
           <Button variant="ghost" size="sm" asChild data-testid="view-all-tasks">
