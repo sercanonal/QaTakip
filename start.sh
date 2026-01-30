@@ -86,8 +86,9 @@ echo "   📦 Python paketleri yükleniyor..."
 pip install -q --upgrade pip
 pip install -q -r requirements.txt
 
-# openpyxl ekle (opsiyonel ama uyarıyı kaldırır)
-pip install -q openpyxl 2>/dev/null || true
+# Rapor export için gerekli paketler
+echo "   📦 Rapor export paketleri yükleniyor..."
+pip install -q openpyxl python-docx reportlab 2>/dev/null || true
 
 echo -e "${GREEN}✅ Backend kurulumu tamamlandı${NC}"
 
