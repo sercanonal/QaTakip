@@ -3942,6 +3942,110 @@ async def refresh_single_test(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/product-tree/refresh-controller")
+async def refresh_controller_endpoints(request: Request):
+    """Refresh test data for a specific controller's endpoints"""
+    try:
+        body = await request.json()
+        controller_name = body.get("controllerName", "")
+        endpoints = body.get("endPoints", [])
+        jira_team_id = body.get("jiraTeamId", "")
+        report_date = body.get("reportDate", "")
+        days = body.get("days", "1")
+        time_filter = body.get("time", "00:00")
+        
+        if not endpoints:
+            return {"success": False, "error": "Endpoint listesi boş"}
+        
+        if not JIRA_API_AVAILABLE:
+            return {"success": False, "error": "Jira bağlantısı yok"}
+        
+        logger.info(f"Refreshing {len(endpoints)} endpoints for controller: {controller_name}")
+        
+        # Re-fetch test data for each endpoint
+        refreshed_endpoints = []
+        
+        for endpoint in endpoints:
+            try:
+                # Get fresh test data from Jira for this endpoint
+                full_path = endpoint.get("fullPath", "")
+                method = endpoint.get("method", "")
+                
+                # Search for tests related to this endpoint
+                # JQL to find tests matching this endpoint path
+                search_term = full_path.split("/")[-1] if "/" in full_path else full_path
+                
+                endpoint_data = {
+                    "fullPath": full_path,
+                    "method": method,
+                    "isTested": endpoint.get("isTested", False),
+                    "tests": [],
+                    "happy": False,
+                    "alternatif": False,
+                    "negatif": False
+                }
+                
+                # Try to fetch tests for this endpoint
+                if jira_team_id and search_term:
+                    try:
+                        jql = f'project = "TOAY" AND "Zephyr Scale Folder" ~ "{search_term}"'
+                        test_results = await jira_client.search_issues(jql, max_results=50)
+                        
+                        for test in test_results:
+                            fields = test.get("fields", {})
+                            test_name = fields.get("summary", "")
+                            test_status = "NOT_EXECUTED"
+                            
+                            # Check custom fields for status
+                            custom_fields = fields.get("customFieldValues", [])
+                            for cf in custom_fields:
+                                if cf.get("name") == "lastTestResultStatus":
+                                    test_status = cf.get("value", {}).get("name", "NOT_EXECUTED")
+                            
+                            test_info = {
+                                "key": test.get("key", ""),
+                                "name": test_name,
+                                "status": test_status
+                            }
+                            endpoint_data["tests"].append(test_info)
+                            
+                            # Check test type based on name
+                            name_lower = test_name.lower()
+                            if "happy" in name_lower:
+                                if test_status == "PASSED":
+                                    endpoint_data["happy"] = True
+                            elif "alternatif" in name_lower or "alternative" in name_lower:
+                                if test_status == "PASSED":
+                                    endpoint_data["alternatif"] = True
+                            elif "negatif" in name_lower or "negative" in name_lower:
+                                if test_status == "PASSED":
+                                    endpoint_data["negatif"] = True
+                        
+                        endpoint_data["isTested"] = len(endpoint_data["tests"]) > 0
+                        
+                    except Exception as e:
+                        logger.warning(f"Could not fetch tests for {full_path}: {e}")
+                        # Keep original endpoint data
+                        endpoint_data = endpoint
+                
+                refreshed_endpoints.append(endpoint_data)
+                
+            except Exception as e:
+                logger.error(f"Error refreshing endpoint {endpoint.get('fullPath', '')}: {e}")
+                refreshed_endpoints.append(endpoint)
+        
+        return {
+            "success": True,
+            "controllerName": controller_name,
+            "endPoints": refreshed_endpoints,
+            "refreshedCount": len(refreshed_endpoints)
+        }
+        
+    except Exception as e:
+        logger.error(f"Refresh controller error: {e}")
+        return {"success": False, "error": str(e)}
+
+
 # ============== Admin / Team Tracking Endpoints ==============
 
 @api_router.post("/admin/verify-key")
