@@ -1173,35 +1173,35 @@ const Analysis = () => {
                           />
                         </div>
                       </div>
-                      <Select value={apiStatusFilter} onValueChange={setApiStatusFilter}>
+                      <Select value={apiStatusFilter || "all"} onValueChange={(v) => setApiStatusFilter(v === "all" ? "" : v)}>
                         <SelectTrigger className="w-[140px] border-violet-500/30">
                           <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Tümü</SelectItem>
+                          <SelectItem value="all">Tümü</SelectItem>
                           <SelectItem value="Passed">Passed</SelectItem>
                           <SelectItem value="Failed">Failed</SelectItem>
                           <SelectItem value="None">None</SelectItem>
                         </SelectContent>
                       </Select>
-                      <Select value={apiRaporFilter} onValueChange={setApiRaporFilter}>
+                      <Select value={apiRaporFilter || "all"} onValueChange={(v) => setApiRaporFilter(v === "all" ? "" : v)}>
                         <SelectTrigger className="w-[160px] border-violet-500/30">
                           <SelectValue placeholder="Rapor" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Tümü</SelectItem>
+                          <SelectItem value="all">Tümü</SelectItem>
                           <SelectItem value="true">Yansımış</SelectItem>
                           <SelectItem value="false">Yansımamış</SelectItem>
                           <SelectItem value="notest">Test Yok</SelectItem>
                           <SelectItem value="null">Raporda Yok</SelectItem>
                         </SelectContent>
                       </Select>
-                      <Select value={apiExternalFilter} onValueChange={setApiExternalFilter}>
+                      <Select value={apiExternalFilter || "all"} onValueChange={(v) => setApiExternalFilter(v === "all" ? "" : v)}>
                         <SelectTrigger className="w-[140px] border-violet-500/30">
                           <SelectValue placeholder="External" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Tümü</SelectItem>
+                          <SelectItem value="all">Tümü</SelectItem>
                           <SelectItem value="true">External</SelectItem>
                           <SelectItem value="false">Internal</SelectItem>
                         </SelectContent>
