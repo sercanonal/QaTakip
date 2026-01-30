@@ -440,25 +440,20 @@ const TreeNode = ({ name, data, level, type, onRefreshEndpoints }) => {
       let totalRequired = data.endPoints.length * 3; // 3 test types per endpoint
       let totalPassed = 0;
       
-      // Helper functions to check test types
+      // Helper functions to check test types - ONLY check testType field, NOT name
       const isHappyTest = (t) => {
-        const name = (t.name || '').toLowerCase();
         const testType = (t.testType || t.type || '').toLowerCase();
-        return name.includes('happy') || testType.includes('happy');
+        return testType.includes('happy');
       };
       
       const isAlternatifTest = (t) => {
-        const name = (t.name || '').toLowerCase();
         const testType = (t.testType || t.type || '').toLowerCase();
-        return name.includes('alternatif') || name.includes('alternative') || 
-               testType.includes('alternatif') || testType.includes('alternative');
+        return testType.includes('alternatif') || testType.includes('alternative');
       };
       
       const isNegatifTest = (t) => {
-        const name = (t.name || '').toLowerCase();
         const testType = (t.testType || t.type || '').toLowerCase();
-        return name.includes('negatif') || name.includes('negative') ||
-               testType.includes('negatif') || testType.includes('negative');
+        return testType.includes('negatif') || testType.includes('negative');
       };
       
       data.endPoints.forEach(endpoint => {
