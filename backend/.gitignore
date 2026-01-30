@@ -1,0 +1,20 @@
+# Admin whitelist - GitHub'a gitmemeli
+data/admin_whitelist.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+.env
+
+# Database
+*.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
