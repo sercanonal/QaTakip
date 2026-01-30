@@ -434,9 +434,47 @@ const TreeNode = ({ name, data, level, type, onRefreshEndpoints }) => {
     : type === "controller" ? data.endPoints && data.endPoints.length > 0
     : false;
   
-  const total = data.totalEndpoints || 0;
-  const tested = data.testedEndpoints || 0;
-  const percentage = total > 0 ? Math.round((tested / total) * 100) : 0;
+  // Calculate coverage based on 3 required test types per endpoint
+  const calculateCoverage = () => {
+    if (type === "controller" && data.endPoints) {
+      let totalRequired = data.endPoints.length * 3; // 3 test types per endpoint
+      let totalPassed = 0;
+      
+      data.endPoints.forEach(endpoint => {
+        const hasHappy = endpoint.tests?.some(t => 
+          t.name?.toLowerCase().includes('happy') && t.status === 'PASSED'
+        ) || endpoint.happy;
+        const hasAlternatif = endpoint.tests?.some(t => 
+          (t.name?.toLowerCase().includes('alternatif') || t.name?.toLowerCase().includes('alternative')) && t.status === 'PASSED'
+        ) || endpoint.alternatif;
+        const hasNegatif = endpoint.tests?.some(t => 
+          (t.name?.toLowerCase().includes('negatif') || t.name?.toLowerCase().includes('negative')) && t.status === 'PASSED'
+        ) || endpoint.negatif;
+        
+        if (hasHappy) totalPassed++;
+        if (hasAlternatif) totalPassed++;
+        if (hasNegatif) totalPassed++;
+      });
+      
+      return {
+        total: totalRequired,
+        passed: totalPassed,
+        percentage: totalRequired > 0 ? Math.round((totalPassed / totalRequired) * 100) : 0
+      };
+    }
+    
+    // For project/app levels, use the original calculation
+    const total = data.totalEndpoints || 0;
+    const tested = data.testedEndpoints || 0;
+    return {
+      total: total * 3, // 3 test types per endpoint
+      passed: tested * 3, // Approximate - assumes tested means all 3 types
+      percentage: total > 0 ? Math.round((tested / total) * 100) : 0
+    };
+  };
+  
+  const coverage = calculateCoverage();
+  const percentage = coverage.percentage;
   
   const getIcon = () => {
     switch (type) {
