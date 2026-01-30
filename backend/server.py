@@ -99,10 +99,12 @@ try:
         
         # Stub methods for compatibility
         async def get_cycle_info(self, cycle_id):
-            return await self.get_test_executions(cycle_id)
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.get_cycle_info, cycle_id)
         
         async def get_test_run_items(self, run_id):
-            return await self.get_test_executions(run_id)
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.get_test_executions, run_id)
         
         async def get_test_results_by_item_id(self, run_id, item_id):
             return []
