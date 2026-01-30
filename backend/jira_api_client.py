@@ -177,11 +177,27 @@ class JiraAPIClient:
         return []
     
     def get_issues_by_assignee(self, username: str, max_results: int = 100) -> List[Dict[str, Any]]:
-        """Fetch issues assigned to a user"""
-        # URL encode the JQL
-        import urllib.parse
-        jql = f'assignee = "{username}" ORDER BY updated DESC'
-        return self.search_issues(jql, max_results)
+        """Fetch issues assigned to a user - tries multiple formats"""
+        logger.info(f"=== GET ISSUES BY ASSIGNEE ===")
+        logger.info(f"Username: {username}")
+        
+        # Try different JQL formats
+        jql_queries = [
+            f'assignee = "{username}" ORDER BY updated DESC',
+            f'assignee = {username} ORDER BY updated DESC',
+            f'assignee ~ "{username}" ORDER BY updated DESC',
+        ]
+        
+        for jql in jql_queries:
+            logger.info(f"Trying JQL: {jql}")
+            issues = self.search_issues(jql, max_results)
+            if issues:
+                logger.info(f"Found {len(issues)} issues with JQL: {jql[:50]}...")
+                return issues
+            logger.info(f"No results for JQL: {jql[:50]}...")
+        
+        logger.warning(f"No issues found for any JQL format")
+        return []
     
     def add_comment(self, issue_key: str, comment: str) -> bool:
         """Add a comment to an issue"""
