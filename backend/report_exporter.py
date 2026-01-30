@@ -312,43 +312,63 @@ class ReportExporter:
         
         # ===== CATEGORY BREAKDOWN =====
         if tasks:
-            story.append(Paragraph("Kategori Bazlı Analiz", section_title_style))
+            story.append(Paragraph("🎯 Kategori Bazlı Analiz", section_title_style))
             
             category_stats = ReportExporter._calculate_category_stats(tasks)
             
             if category_stats:
-                cat_data = [['Kategori', 'Toplam', 'Tamamlanan', 'Devam Eden', 'Tamamlanma %']]
+                cat_data = [
+                    [
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Kategori</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Toplam</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Tamamlanan</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Devam Eden</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Başarı %</b></font>', styles['Normal']),
+                    ]
+                ]
+                
+                cat_colors = {
+                    'api-test': '#3B82F6',
+                    'ui-test': '#10B981',
+                    'regression': '#F59E0B',
+                    'bug-tracking': '#EF4444',
+                    'documentation': '#8B5CF6',
+                }
                 
                 for cat_id, cat_stats in category_stats.items():
                     cat_name = CATEGORY_LABELS.get(cat_id, cat_id)
+                    cat_color = cat_colors.get(cat_id, '#6B7280')
                     total = cat_stats['total']
                     completed = cat_stats['completed']
                     in_prog = cat_stats['in_progress']
                     rate = round(completed / total * 100, 1) if total > 0 else 0
                     
-                    cat_data.append([cat_name, str(total), str(completed), str(in_prog), f'%{rate}'])
+                    # Color-coded rate
+                    rate_color = '#10B981' if rate >= 70 else '#F59E0B' if rate >= 40 else '#EF4444'
+                    
+                    cat_data.append([
+                        Paragraph(f'<font size="9" color="{cat_color}"><b>● </b></font><font size="9">{cat_name}</font>', styles['Normal']),
+                        Paragraph(f'<font size="10"><b>{total}</b></font>', styles['Normal']),
+                        Paragraph(f'<font size="10" color="#10B981"><b>{completed}</b></font>', styles['Normal']),
+                        Paragraph(f'<font size="10" color="#3B82F6"><b>{in_prog}</b></font>', styles['Normal']),
+                        Paragraph(f'<font size="10" color="{rate_color}"><b>%{rate}</b></font>', styles['Normal']),
+                    ])
                 
-                cat_table = Table(cat_data, colWidths=[5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 3*cm])
+                cat_table = Table(cat_data, colWidths=[5.5*cm, 2.5*cm, 2.8*cm, 2.8*cm, 2.5*cm])
                 cat_table.setStyle(TableStyle([
                     # Header
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(BRAND_PRIMARY)),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#7C3AED')),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                     ('TOPPADDING', (0, 0), (-1, 0), 12),
                     # Data rows
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                    ('FONTSIZE', (0, 1), (-1, -1), 10),
-                    ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-                    ('TOPPADDING', (0, 1), (-1, -1), 8),
-                    # Alternating row colors
+                    ('BOTTOMPADDING', (0, 1), (-1, -1), 10),
+                    ('TOPPADDING', (0, 1), (-1, -1), 10),
                     ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9FAFB')]),
-                    # Grid
-                    ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(BRAND_PRIMARY)),
-                    ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E5E5E5')),
+                    # Rounded corners effect with box
+                    ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#E5E7EB')),
+                    ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#7C3AED')),
                 ]))
                 story.append(cat_table)
                 story.append(Spacer(1, 1*cm))
