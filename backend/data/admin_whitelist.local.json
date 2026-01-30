@@ -1,0 +1,10 @@
+{
+  "description": "GERCEK ADMIN LISTESI - Bu dosya GitHub'a GITMEZ!",
+  "admins": [
+    {
+      "username": "SERCANO",
+      "device_id": "DEVICE_ID_BURAYA",
+      "note": "Ana admin - Sercan"
+    }
+  ]
+}
