@@ -4049,7 +4049,8 @@ async def get_team_summary(t: str, months: int = 1):
             try:
                 # JQL for open tasks (excluding Cancelled) - NO date filter for open tasks
                 # We want ALL currently open tasks regardless of when they were created
-                jql_open = f'assignee = "{username}" AND status NOT IN (Done, Closed, Resolved, Cancelled, "İptal Edildi") ORDER BY status ASC'
+                jql_open = f'assignee = "{username}" AND status NOT IN (Done, Closed, Resolved, Cancelled) ORDER BY status ASC'
+                logger.info(f"Querying open issues for {username}: {jql_open[:100]}...")
                 open_issues = await jira_client.search_issues(jql_open, max_results=200)
                 
                 logger.info(f"User {username}: Found {len(open_issues)} open issues")
