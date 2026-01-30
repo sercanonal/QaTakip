@@ -510,18 +510,18 @@ class ReportExporter:
                             trend = '-- DN'
                             trend_color = '#EF4444'
                         else:
-                            trend = '➡️ ='
+                            trend = '== EQ'
                             trend_color = '#6B7280'
                     else:
-                        trend = '—'
+                        trend = '-'
                         trend_color = '#6B7280'
                     prev_perf = perf
                     
-                    # Format month name in Turkish
+                    # Format month name in Turkish (ASCII safe)
                     try:
                         month_date = datetime.strptime(month, '%Y-%m')
-                        month_names = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-                                      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+                        month_names = ['Ocak', 'Subat', 'Mart', 'Nisan', 'Mayis', 'Haziran',
+                                      'Temmuz', 'Agustos', 'Eylul', 'Ekim', 'Kasim', 'Aralik']
                         month_name = f"{month_names[month_date.month - 1]} {month_date.year}"
                     except:
                         month_name = month
@@ -530,11 +530,11 @@ class ReportExporter:
                     perf_color = '#10B981' if perf >= 70 else '#F59E0B' if perf >= 40 else '#EF4444'
                     
                     monthly_data.append([
-                        Paragraph(f'<font size="9"><b>{month_name}</b></font>', styles['Normal']),
-                        Paragraph(f'<font size="10" color="#3B82F6"><b>{created}</b></font>', styles['Normal']),
-                        Paragraph(f'<font size="10" color="#10B981"><b>{completed}</b></font>', styles['Normal']),
-                        Paragraph(f'<font size="10" color="{perf_color}"><b>%{perf}</b></font>', styles['Normal']),
-                        Paragraph(f'<font size="9" color="{trend_color}">{trend}</font>', styles['Normal']),
+                        Paragraph(f'<font size="9"><b>{month_name}</b></font>', normal_turkish),
+                        Paragraph(f'<font size="10" color="#3B82F6"><b>{created}</b></font>', normal_turkish),
+                        Paragraph(f'<font size="10" color="#10B981"><b>{completed}</b></font>', normal_turkish),
+                        Paragraph(f'<font size="10" color="{perf_color}"><b>%{perf}</b></font>', normal_turkish),
+                        Paragraph(f'<font size="9" color="{trend_color}">{trend}</font>', normal_turkish),
                     ])
                 
                 if len(monthly_data) > 1:
@@ -567,16 +567,16 @@ class ReportExporter:
             story.append(task_header_drawing)
             
             story.append(Spacer(1, -45))
-            story.append(Paragraph("📋 Görev Detayları", section_title_style))
+            story.append(Paragraph("Gorev Detaylari", section_title_style))
             story.append(Spacer(1, 10))
             
             task_data = [
                 [
-                    Paragraph('<font size="8" color="#FFFFFF"><b>#</b></font>', styles['Normal']),
-                    Paragraph('<font size="8" color="#FFFFFF"><b>Başlık</b></font>', styles['Normal']),
-                    Paragraph('<font size="8" color="#FFFFFF"><b>Kategori</b></font>', styles['Normal']),
-                    Paragraph('<font size="8" color="#FFFFFF"><b>Durum</b></font>', styles['Normal']),
-                    Paragraph('<font size="8" color="#FFFFFF"><b>Öncelik</b></font>', styles['Normal']),
+                    Paragraph('<font size="8" color="#FFFFFF"><b>#</b></font>', normal_turkish),
+                    Paragraph('<font size="8" color="#FFFFFF"><b>Baslik</b></font>', normal_turkish),
+                    Paragraph('<font size="8" color="#FFFFFF"><b>Kategori</b></font>', normal_turkish),
+                    Paragraph('<font size="8" color="#FFFFFF"><b>Durum</b></font>', normal_turkish),
+                    Paragraph('<font size="8" color="#FFFFFF"><b>Oncelik</b></font>', normal_turkish),
                 ]
             ]
             
