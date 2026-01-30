@@ -2667,11 +2667,12 @@ async def bugbagla_analyze(request: Request):
 async def bugbagla_bind(request: Request):
     """Bind bug to test results (SSE streaming) - Port from bugbagla.js executeBugBagla"""
     
+    # Read body BEFORE generator
+    body = await request.json()
+    bindings = body.get("bindings", [])
+    
     async def generate():
         try:
-            body = await request.json()
-            bindings = body.get("bindings", [])
-            
             yield f"data: {json.dumps({'log': '🔗 Buglar bağlanıyor...'})}\n\n"
             
             if not JIRA_API_AVAILABLE:
