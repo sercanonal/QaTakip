@@ -289,7 +289,7 @@ class JiraAPIClient:
     def add_comment(self, issue_key: str, comment: str) -> bool:
         """Add a comment to an issue"""
         url = f"{self.base_url}{self.jira_path}/issue/{issue_key}/comment"
-        result = self._curl_post(url, {"body": comment})
+        result = self._smart_curl_post(url, {"body": comment})
         return result is not None
     
     def link_issues(self, inward_key: str, outward_key: str, link_type: str = "Relates") -> bool:
@@ -300,7 +300,7 @@ class JiraAPIClient:
             "inwardIssue": {"key": inward_key},
             "outwardIssue": {"key": outward_key}
         }
-        result = self._curl_post(url, payload)
+        result = self._smart_curl_post(url, payload)
         return result is not None
 
 
