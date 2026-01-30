@@ -4052,13 +4052,10 @@ async def get_team_member_tasks(
 
 
 @api_router.get("/admin/all-users")
-async def get_all_users_for_admin(
-    requester_username: str,
-    requester_device_id: str
-):
-    """Get list of all users - ADMIN ONLY"""
-    if not is_admin(requester_username, requester_device_id):
-        raise HTTPException(status_code=403, detail="Bu özelliğe erişim yetkiniz yok")
+async def get_all_users_for_admin(admin_key: str):
+    """Get list of all users - ADMIN KEY REQUIRED"""
+    if not verify_admin_key(admin_key):
+        raise HTTPException(status_code=403, detail="Geçersiz admin anahtarı")
     
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
