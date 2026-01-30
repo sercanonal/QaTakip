@@ -203,7 +203,13 @@ const Analysis = () => {
       failedNotInRegression: 0,
     });
 
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+
     try {
+      setAnalysisOutput(prev => prev + "⏳ Analiz başlatılıyor...\n");
+      
       const response = await fetch(`${API_URL}/api/analysis/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -213,7 +219,16 @@ const Analysis = () => {
           time: analysisForm.time || "00:00",
           projectNames: selectedProjects,
         }),
+        signal: controller.signal,
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP hata: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error("Response body bulunamadı");
+      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
