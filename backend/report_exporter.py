@@ -619,99 +619,150 @@ class ReportExporter:
     
     @staticmethod
     def generate_excel_report(data: Dict[str, Any]) -> bytes:
-        """Generate professional Excel report with charts"""
+        """Generate professional canvas-style Excel report with charts"""
         wb = Workbook()
         
-        # Styles
-        title_font = Font(size=24, bold=True, color="E11D48")
-        header_font = Font(size=12, bold=True, color="FFFFFF")
+        # Modern Styles
+        title_font = Font(size=28, bold=True, color="8B5CF6")
+        subtitle_font = Font(size=12, color="71717A")
+        header_font = Font(size=11, bold=True, color="FFFFFF")
+        value_font = Font(size=14, bold=True, color="18181B")
+        
+        # Modern color fills
         header_fill = PatternFill(start_color="18181B", end_color="18181B", fill_type="solid")
-        accent_fill = PatternFill(start_color="E11D48", end_color="E11D48", fill_type="solid")
+        purple_fill = PatternFill(start_color="7C3AED", end_color="7C3AED", fill_type="solid")
+        blue_fill = PatternFill(start_color="3B82F6", end_color="3B82F6", fill_type="solid")
+        green_fill = PatternFill(start_color="10B981", end_color="10B981", fill_type="solid")
+        amber_fill = PatternFill(start_color="F59E0B", end_color="F59E0B", fill_type="solid")
+        red_fill = PatternFill(start_color="EF4444", end_color="EF4444", fill_type="solid")
         light_fill = PatternFill(start_color="F9FAFB", end_color="F9FAFB", fill_type="solid")
+        purple_light = PatternFill(start_color="F3E8FF", end_color="F3E8FF", fill_type="solid")
+        
         thin_border = Border(
-            left=Side(style='thin', color='E5E5E5'),
-            right=Side(style='thin', color='E5E5E5'),
-            top=Side(style='thin', color='E5E5E5'),
-            bottom=Side(style='thin', color='E5E5E5')
+            left=Side(style='thin', color='E5E7EB'),
+            right=Side(style='thin', color='E5E7EB'),
+            top=Side(style='thin', color='E5E7EB'),
+            bottom=Side(style='thin', color='E5E7EB')
         )
         
         user_name = data.get('user_name', 'Kullanıcı')
+        period_label = data.get('period_label', 'Son 30 Gün')
         stats = data.get('stats', {})
         tasks = data.get('tasks', [])
         
         # ===== DASHBOARD SHEET =====
         ws_dash = wb.active
-        ws_dash.title = "Dashboard"
+        ws_dash.title = "📊 Dashboard"
         
-        # Title
-        ws_dash.merge_cells('A1:G1')
-        ws_dash['A1'] = "QA Task Manager - Performans Raporu"
+        # Header section with gradient effect
+        ws_dash.merge_cells('A1:H3')
+        ws_dash['A1'] = "🚀 QA Hub - Performans Raporu"
         ws_dash['A1'].font = title_font
-        ws_dash['A1'].alignment = Alignment(horizontal='center')
+        ws_dash['A1'].alignment = Alignment(horizontal='center', vertical='center')
+        ws_dash['A1'].fill = PatternFill(start_color="18181B", end_color="18181B", fill_type="solid")
         
-        ws_dash.merge_cells('A2:G2')
-        ws_dash['A2'] = f"Hazırlayan: {user_name} | Tarih: {datetime.now().strftime('%d.%m.%Y')}"
-        ws_dash['A2'].alignment = Alignment(horizontal='center')
-        ws_dash['A2'].font = Font(color="71717A")
+        # Apply dark header to entire row range
+        for col in range(1, 9):
+            for row in range(1, 4):
+                ws_dash.cell(row=row, column=col).fill = PatternFill(start_color="18181B", end_color="18181B", fill_type="solid")
+        
+        ws_dash.merge_cells('A4:H4')
+        ws_dash['A4'] = f"👤 {user_name}  |  📅 {datetime.now().strftime('%d.%m.%Y')}  |  📆 {period_label}"
+        ws_dash['A4'].alignment = Alignment(horizontal='center')
+        ws_dash['A4'].font = subtitle_font
+        ws_dash['A4'].fill = purple_light
+        
+        # Row heights
+        ws_dash.row_dimensions[1].height = 25
+        ws_dash.row_dimensions[2].height = 25
+        ws_dash.row_dimensions[3].height = 25
+        ws_dash.row_dimensions[4].height = 30
         
         # KPI Section
-        ws_dash['A4'] = "PERFORMANS GÖSTERGELERİ"
-        ws_dash['A4'].font = Font(size=14, bold=True, color="E11D48")
-        ws_dash.merge_cells('A4:G4')
+        ws_dash.merge_cells('A6:H6')
+        ws_dash['A6'] = "📈 PERFORMANS GÖSTERGELERİ"
+        ws_dash['A6'].font = Font(size=14, bold=True, color="8B5CF6")
+        ws_dash['A6'].fill = light_fill
         
         if stats:
-            kpi_headers = ['Toplam Görev', 'Tamamlanan', 'Devam Eden', 'Bekleyen', 'Gecikmiş', 'Tamamlanma %']
-            kpi_values = [
-                stats.get('total_tasks', 0),
-                stats.get('completed_tasks', 0),
-                stats.get('in_progress_tasks', 0),
-                stats.get('todo_tasks', 0),
-                stats.get('overdue_tasks', 0),
-                f"%{stats.get('completion_rate', 0)}"
+            kpi_data = [
+                ('🎯 Toplam', stats.get('total_tasks', 0), purple_fill),
+                ('✅ Tamamlanan', stats.get('completed_tasks', 0), green_fill),
+                ('🔄 Devam Eden', stats.get('in_progress_tasks', 0), blue_fill),
+                ('⏳ Bekleyen', stats.get('todo_tasks', 0), amber_fill),
+                ('⚠️ Gecikmiş', stats.get('overdue_tasks', 0), red_fill),
+                ('📊 Başarı %', f"%{stats.get('completion_rate', 0)}", purple_fill),
             ]
             
-            for col, (header, value) in enumerate(zip(kpi_headers, kpi_values), 1):
-                header_cell = ws_dash.cell(row=6, column=col, value=header)
-                header_cell.font = header_font
-                header_cell.fill = header_fill
+            for col, (label, value, fill) in enumerate(kpi_data, 1):
+                # Header cell
+                header_cell = ws_dash.cell(row=8, column=col, value=label)
+                header_cell.font = Font(size=10, bold=True, color="FFFFFF")
+                header_cell.fill = fill
                 header_cell.alignment = Alignment(horizontal='center')
                 header_cell.border = thin_border
                 
-                value_cell = ws_dash.cell(row=7, column=col, value=value)
-                value_cell.font = Font(size=18, bold=True)
+                # Value cell
+                value_cell = ws_dash.cell(row=9, column=col, value=value)
+                value_cell.font = Font(size=20, bold=True)
                 value_cell.alignment = Alignment(horizontal='center')
                 value_cell.border = thin_border
                 
-                ws_dash.column_dimensions[get_column_letter(col)].width = 15
+                ws_dash.column_dimensions[get_column_letter(col)].width = 14
+            
+            ws_dash.row_dimensions[8].height = 30
+            ws_dash.row_dimensions[9].height = 40
         
         # Category Analysis Section
         if tasks:
-            ws_dash['A10'] = "KATEGORİ ANALİZİ"
-            ws_dash['A10'].font = Font(size=14, bold=True, color="E11D48")
+            ws_dash.merge_cells('A12:H12')
+            ws_dash['A12'] = "🎯 KATEGORİ ANALİZİ"
+            ws_dash['A12'].font = Font(size=14, bold=True, color="7C3AED")
+            ws_dash['A12'].fill = purple_light
             
             category_stats = ReportExporter._calculate_category_stats(tasks)
             
-            cat_headers = ['Kategori', 'Toplam', 'Tamamlanan', 'Devam Eden', 'Tamamlanma %']
-            for col, header in enumerate(cat_headers, 1):
-                cell = ws_dash.cell(row=12, column=col, value=header)
+            cat_headers = ['Kategori', 'Toplam', 'Tamamlanan', 'Devam Eden', 'Başarı %']
+            cat_header_fills = [purple_fill, header_fill, green_fill, blue_fill, purple_fill]
+            
+            for col, (header, fill) in enumerate(zip(cat_headers, cat_header_fills), 1):
+                cell = ws_dash.cell(row=14, column=col, value=header)
                 cell.font = header_font
-                cell.fill = accent_fill
+                cell.fill = fill
                 cell.alignment = Alignment(horizontal='center')
                 cell.border = thin_border
             
-            row = 13
+            row = 15
+            cat_icons = {
+                'api-test': '🔌',
+                'ui-test': '🖥️',
+                'regression': '🔄',
+                'bug-tracking': '🐛',
+                'documentation': '📝',
+            }
+            
             for cat_id, cat_stats in category_stats.items():
+                icon = cat_icons.get(cat_id, '📋')
                 cat_name = CATEGORY_LABELS.get(cat_id, cat_id)
                 total = cat_stats['total']
                 completed = cat_stats['completed']
                 in_prog = cat_stats['in_progress']
                 rate = round(completed / total * 100, 1) if total > 0 else 0
                 
-                ws_dash.cell(row=row, column=1, value=cat_name).border = thin_border
+                ws_dash.cell(row=row, column=1, value=f"{icon} {cat_name}").border = thin_border
                 ws_dash.cell(row=row, column=2, value=total).border = thin_border
                 ws_dash.cell(row=row, column=3, value=completed).border = thin_border
                 ws_dash.cell(row=row, column=4, value=in_prog).border = thin_border
                 ws_dash.cell(row=row, column=5, value=f"%{rate}").border = thin_border
+                
+                # Color code completion rate
+                rate_cell = ws_dash.cell(row=row, column=5)
+                if rate >= 70:
+                    rate_cell.font = Font(bold=True, color="10B981")
+                elif rate >= 40:
+                    rate_cell.font = Font(bold=True, color="F59E0B")
+                else:
+                    rate_cell.font = Font(bold=True, color="EF4444")
                 
                 for col in range(1, 6):
                     ws_dash.cell(row=row, column=col).alignment = Alignment(horizontal='center')
@@ -720,35 +771,68 @@ class ReportExporter:
                 
                 row += 1
             
-            # Add pie chart for categories
+            # Add pie chart
             if len(category_stats) > 0:
                 pie = PieChart()
                 pie.title = "Kategori Dağılımı"
-                labels = Reference(ws_dash, min_col=1, min_row=13, max_row=row-1)
-                data_ref = Reference(ws_dash, min_col=2, min_row=12, max_row=row-1)
+                labels = Reference(ws_dash, min_col=1, min_row=15, max_row=row-1)
+                data_ref = Reference(ws_dash, min_col=2, min_row=14, max_row=row-1)
                 pie.add_data(data_ref, titles_from_data=True)
                 pie.set_categories(labels)
-                pie.width = 12
-                pie.height = 8
-                ws_dash.add_chart(pie, "G10")
+                pie.width = 14
+                pie.height = 10
+                ws_dash.add_chart(pie, "G12")
+        
+        # Column widths for dashboard
+        ws_dash.column_dimensions['A'].width = 20
+        for col in range(2, 9):
+            ws_dash.column_dimensions[get_column_letter(col)].width = 14
         
         # ===== TASKS SHEET =====
-        ws_tasks = wb.create_sheet("Görevler")
+        ws_tasks = wb.create_sheet("📋 Görevler")
         
-        task_headers = ["#", "Başlık", "Kategori", "Durum", "Öncelik", "Oluşturulma", "Tamamlanma"]
-        for col, header in enumerate(task_headers, 1):
+        # Header styling for tasks sheet
+        task_headers = ["#", "📝 Başlık", "📁 Kategori", "📊 Durum", "⚡ Öncelik", "📅 Oluşturulma", "✅ Tamamlanma"]
+        header_fills_task = [header_fill, purple_fill, blue_fill, green_fill, amber_fill, header_fill, green_fill]
+        
+        for col, (header, fill) in enumerate(zip(task_headers, header_fills_task), 1):
             cell = ws_tasks.cell(row=1, column=col, value=header)
             cell.font = header_font
-            cell.fill = header_fill
+            cell.fill = fill
             cell.alignment = Alignment(horizontal='center')
             cell.border = thin_border
+        
+        ws_tasks.row_dimensions[1].height = 30
+        
+        status_colors = {
+            'completed': '10B981',
+            'in_progress': '3B82F6',
+            'blocked': 'EF4444',
+            'backlog': '6B7280',
+            'today_planned': 'F59E0B'
+        }
+        
+        priority_colors = {
+            'critical': 'DC2626',
+            'high': 'EA580C',
+            'medium': 'CA8A04',
+            'low': '65A30D'
+        }
         
         for row_num, task in enumerate(tasks, 2):
             ws_tasks.cell(row=row_num, column=1, value=row_num-1).border = thin_border
             ws_tasks.cell(row=row_num, column=2, value=task.get('title', '')).border = thin_border
             ws_tasks.cell(row=row_num, column=3, value=CATEGORY_LABELS.get(task.get('category_id', ''), task.get('category_id', ''))).border = thin_border
-            ws_tasks.cell(row=row_num, column=4, value=STATUS_LABELS.get(task.get('status', ''), task.get('status', ''))).border = thin_border
-            ws_tasks.cell(row=row_num, column=5, value=PRIORITY_LABELS.get(task.get('priority', ''), task.get('priority', ''))).border = thin_border
+            
+            status = task.get('status', '')
+            status_cell = ws_tasks.cell(row=row_num, column=4, value=STATUS_LABELS.get(status, status))
+            status_cell.border = thin_border
+            status_cell.font = Font(bold=True, color=status_colors.get(status, '6B7280'))
+            
+            priority = task.get('priority', '')
+            priority_cell = ws_tasks.cell(row=row_num, column=5, value=PRIORITY_LABELS.get(priority, priority))
+            priority_cell.border = thin_border
+            priority_cell.font = Font(bold=True, color=priority_colors.get(priority, '6B7280'))
             
             created = task.get('created_at', '')
             if created:
@@ -773,33 +857,37 @@ class ReportExporter:
                 if row_num % 2 == 0:
                     ws_tasks.cell(row=row_num, column=col).fill = light_fill
         
-        # Column widths
+        # Column widths for tasks
         ws_tasks.column_dimensions['A'].width = 5
-        ws_tasks.column_dimensions['B'].width = 40
+        ws_tasks.column_dimensions['B'].width = 45
         ws_tasks.column_dimensions['C'].width = 18
         ws_tasks.column_dimensions['D'].width = 15
         ws_tasks.column_dimensions['E'].width = 12
-        ws_tasks.column_dimensions['F'].width = 15
-        ws_tasks.column_dimensions['G'].width = 15
+        ws_tasks.column_dimensions['F'].width = 14
+        ws_tasks.column_dimensions['G'].width = 14
         
         # ===== MONTHLY STATS SHEET =====
-        ws_monthly = wb.create_sheet("Aylık İstatistik")
+        ws_monthly = wb.create_sheet("📈 Aylık Trend")
         
         monthly_stats = ReportExporter._calculate_monthly_stats(tasks)
         
-        monthly_headers = ['Ay', 'Oluşturulan', 'Tamamlanan', 'Performans %']
-        for col, header in enumerate(monthly_headers, 1):
+        monthly_headers = ['📅 Ay', '📊 Oluşturulan', '✅ Tamamlanan', '📈 Performans %']
+        monthly_fills = [blue_fill, purple_fill, green_fill, blue_fill]
+        
+        for col, (header, fill) in enumerate(zip(monthly_headers, monthly_fills), 1):
             cell = ws_monthly.cell(row=1, column=col, value=header)
             cell.font = header_font
-            cell.fill = PatternFill(start_color="3B82F6", end_color="3B82F6", fill_type="solid")
+            cell.fill = fill
             cell.alignment = Alignment(horizontal='center')
             cell.border = thin_border
         
+        ws_monthly.row_dimensions[1].height = 30
+        
         row = 2
         for month in sorted(monthly_stats.keys(), reverse=True):
-            stats = monthly_stats[month]
-            created = stats['created']
-            completed = stats['completed']
+            stats_m = monthly_stats[month]
+            created = stats_m['created']
+            completed = stats_m['completed']
             perf = round(completed / created * 100, 1) if created > 0 else 0
             
             try:
@@ -813,7 +901,15 @@ class ReportExporter:
             ws_monthly.cell(row=row, column=1, value=month_name).border = thin_border
             ws_monthly.cell(row=row, column=2, value=created).border = thin_border
             ws_monthly.cell(row=row, column=3, value=completed).border = thin_border
-            ws_monthly.cell(row=row, column=4, value=f"%{perf}").border = thin_border
+            
+            perf_cell = ws_monthly.cell(row=row, column=4, value=f"%{perf}")
+            perf_cell.border = thin_border
+            if perf >= 70:
+                perf_cell.font = Font(bold=True, color="10B981")
+            elif perf >= 40:
+                perf_cell.font = Font(bold=True, color="F59E0B")
+            else:
+                perf_cell.font = Font(bold=True, color="EF4444")
             
             for col in range(1, 5):
                 ws_monthly.cell(row=row, column=col).alignment = Alignment(horizontal='center')
@@ -822,16 +918,17 @@ class ReportExporter:
             
             row += 1
         
-        # Column widths
+        # Column widths for monthly
         for col in range(1, 5):
-            ws_monthly.column_dimensions[get_column_letter(col)].width = 18
+            ws_monthly.column_dimensions[get_column_letter(col)].width = 20
         
-        # Add bar chart
+        # Add bar chart for monthly performance
         if row > 2:
             chart = BarChart()
-            chart.title = "Aylık Performans"
+            chart.title = "📈 Aylık Performans Trendi"
             chart.x_axis.title = "Ay"
             chart.y_axis.title = "Görev Sayısı"
+            chart.style = 12
             
             data_ref = Reference(ws_monthly, min_col=2, max_col=3, min_row=1, max_row=row-1)
             cats = Reference(ws_monthly, min_col=1, min_row=2, max_row=row-1)
@@ -839,8 +936,8 @@ class ReportExporter:
             chart.add_data(data_ref, titles_from_data=True)
             chart.set_categories(cats)
             chart.shape = 4
-            chart.width = 15
-            chart.height = 10
+            chart.width = 18
+            chart.height = 12
             
             ws_monthly.add_chart(chart, "F1")
         
