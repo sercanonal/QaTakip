@@ -1,6 +1,6 @@
 """
-Jira REST API Client - Synchronous Implementation
-Port from axiosClient.js - uses requests library for reliability
+Jira/Zephyr Scale API Client - Port from axiosClient.js
+Uses Zephyr Scale (TM4J) API: /rest/tests/1.0/
 """
 
 import requests
@@ -15,21 +15,29 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logger = logging.getLogger("jira_client")
 
 class JiraConfig:
-    """Jira Configuration"""
+    """Jira/Zephyr Configuration - Port from axiosClient.js"""
     BASE_URL = "https://jira.intertech.com.tr"
-    API_PATH = "/rest/api/2"
+    # Zephyr Scale API path (NOT standard Jira API)
+    ZEPHYR_API_PATH = "/rest/tests/1.0"
+    # Standard Jira API for issue operations
+    JIRA_API_PATH = "/rest/api/2"
     # Token: Basic aW50ZWdyYXRpb25fdXNlcjpkMkBDQig1ZA==
     AUTH_TOKEN = os.getenv("JIRA_AUTH_TOKEN", "Basic aW50ZWdyYXRpb25fdXNlcjpkMkBDQig1ZA==")
-    REQUEST_TIMEOUT = 60  # Increased timeout
+    REQUEST_TIMEOUT = 60
     MAX_RETRIES = 2
 
+
 class JiraAPIClient:
-    """Synchronous HTTP client for Jira REST API"""
+    """
+    HTTP client for Jira/Zephyr Scale API
+    Port from axiosClient.js
+    """
     
     def __init__(self):
         self.config = JiraConfig()
         self.base_url = self.config.BASE_URL
-        self.api_path = self.config.API_PATH
+        self.zephyr_path = self.config.ZEPHYR_API_PATH
+        self.jira_path = self.config.JIRA_API_PATH
         self.headers = {
             "Authorization": self.config.AUTH_TOKEN,
             "Content-Type": "application/json",
@@ -40,19 +48,21 @@ class JiraAPIClient:
         self.session.headers.update(self.headers)
         self.session.verify = False  # Skip SSL verification for internal server
     
-    def search_issues(self, jql: str, max_results: int = 100) -> List[Dict[str, Any]]:
-        """Execute JQL search and return issues"""
-        url = f"{self.base_url}{self.api_path}/search"
+    # ============== ZEPHYR SCALE API (Test Management) ==============
+    
+    def get_test_run(self, cycle_name: str) -> Dict[str, Any]:
+        """
+        Get test run (cycle) details - Port from getCycleIdFromName
+        URL: /rest/tests/1.0/testrun/{cycleName}
+        """
+        url = f"{self.base_url}{self.zephyr_path}/testrun/{cycle_name}"
         params = {
-            "jql": jql,
-            "maxResults": max_results,
-            "fields": "key,summary,status,assignee,created,updated,priority,issuetype,description,project"
+            "fields": "id,key,name,projectId,projectVersionId,environmentId,plannedStartDate,plannedEndDate,iteration(name),executionTime,estimatedTime"
         }
         
         for attempt in range(self.config.MAX_RETRIES):
             try:
-                logger.info(f"Jira API request (attempt {attempt + 1}): {url}")
-                logger.info(f"JQL: {jql}")
+                logger.info(f"Zephyr API request (attempt {attempt + 1}): {url}")
                 
                 response = self.session.get(
                     url,
@@ -64,31 +74,104 @@ class JiraAPIClient:
                 
                 if response.status_code == 200:
                     data = response.json()
-                    issues = data.get('issues', [])
-                    total = data.get('total', 0)
-                    logger.info(f"Found {len(issues)} issues out of {total} total")
-                    return issues
-                elif response.status_code == 401:
-                    logger.error("Jira authentication failed")
-                    return []
-                elif response.status_code == 400:
-                    logger.error(f"Invalid JQL: {jql}")
-                    return []
+                    logger.info(f"Got test run: id={data.get('id')}, key={data.get('key')}")
+                    return data
+                elif response.status_code == 404:
+                    logger.error(f"Test run not found: {cycle_name}")
+                    return {"id": cycle_name, "key": cycle_name, "error": "not_found"}
                 else:
-                    logger.error(f"Jira API error: {response.status_code}")
+                    logger.error(f"Zephyr API error: {response.status_code} - {response.text[:200]}")
                     
             except requests.exceptions.Timeout:
-                logger.warning(f"Jira API timeout (attempt {attempt + 1}/{self.config.MAX_RETRIES})")
+                logger.warning(f"Zephyr API timeout (attempt {attempt + 1}/{self.config.MAX_RETRIES})")
             except requests.exceptions.ConnectionError as e:
                 logger.error(f"Connection error: {e}")
             except Exception as e:
                 logger.error(f"Unexpected error: {e}")
         
+        return {"id": cycle_name, "key": cycle_name, "error": "timeout"}
+    
+    def get_cycle_info(self, cycle_id: str) -> Dict[str, Any]:
+        """
+        Get cycle test items - Port from getCycleInfo
+        URL: /rest/tests/1.0/testrun/{cycleId}/testrunitems
+        """
+        url = f"{self.base_url}{self.zephyr_path}/testrun/{cycle_id}/testrunitems"
+        params = {
+            "fields": "id,index,issueCount,$lastTestResult"
+        }
+        
+        for attempt in range(self.config.MAX_RETRIES):
+            try:
+                logger.info(f"Getting cycle info: {url}")
+                
+                response = self.session.get(
+                    url,
+                    params=params,
+                    timeout=self.config.REQUEST_TIMEOUT
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    items = data.get("testRunItems", [])
+                    logger.info(f"Got {len(items)} test run items")
+                    return data
+                else:
+                    logger.error(f"Error getting cycle info: {response.status_code}")
+                    
+            except requests.exceptions.Timeout:
+                logger.warning(f"Timeout getting cycle info (attempt {attempt + 1})")
+            except Exception as e:
+                logger.error(f"Error: {e}")
+        
+        return {"testRunItems": []}
+    
+    def get_test_executions(self, cycle_id: str) -> List[Dict[str, Any]]:
+        """Get test executions for a cycle"""
+        data = self.get_cycle_info(cycle_id)
+        return data.get("testRunItems", [])
+    
+    # ============== STANDARD JIRA API (Issues) ==============
+    
+    def search_issues(self, jql: str, max_results: int = 100) -> List[Dict[str, Any]]:
+        """Execute JQL search and return issues"""
+        url = f"{self.base_url}{self.jira_path}/search"
+        params = {
+            "jql": jql,
+            "maxResults": max_results,
+            "fields": "key,summary,status,assignee,created,updated,priority,issuetype,description,project"
+        }
+        
+        for attempt in range(self.config.MAX_RETRIES):
+            try:
+                logger.info(f"Jira search (attempt {attempt + 1}): {jql[:50]}...")
+                
+                response = self.session.get(
+                    url,
+                    params=params,
+                    timeout=self.config.REQUEST_TIMEOUT
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    issues = data.get('issues', [])
+                    logger.info(f"Found {len(issues)} issues")
+                    return issues
+                elif response.status_code == 401:
+                    logger.error("Jira authentication failed")
+                    return []
+                else:
+                    logger.error(f"Jira API error: {response.status_code}")
+                    
+            except requests.exceptions.Timeout:
+                logger.warning(f"Jira search timeout (attempt {attempt + 1})")
+            except Exception as e:
+                logger.error(f"Error: {e}")
+        
         return []
     
     def get_issues_by_assignee(self, username: str, max_results: int = 100) -> List[Dict[str, Any]]:
         """Fetch issues assigned to a user"""
-        # Try with quotes first
         jql = f'assignee = "{username}" ORDER BY updated DESC'
         issues = self.search_issues(jql, max_results)
         
@@ -99,45 +182,9 @@ class JiraAPIClient:
         
         return issues
     
-    def get_test_run(self, cycle_key: str) -> Optional[Dict[str, Any]]:
-        """Get test run (cycle) details from Jira"""
-        # First try to get from Zephyr Scale API
-        url = f"{self.base_url}/rest/atm/1.0/testrun/{cycle_key}"
-        
-        try:
-            response = self.session.get(url, timeout=self.config.REQUEST_TIMEOUT)
-            if response.status_code == 200:
-                return response.json()
-            
-            # Fallback: try Zephyr Squad API
-            url = f"{self.base_url}/rest/zapi/latest/cycle"
-            params = {"cycleId": cycle_key}
-            response = self.session.get(url, params=params, timeout=self.config.REQUEST_TIMEOUT)
-            if response.status_code == 200:
-                return response.json()
-                
-        except Exception as e:
-            logger.error(f"Error getting test run {cycle_key}: {e}")
-        
-        return {"id": cycle_key, "key": cycle_key}  # Return basic info if API fails
-    
-    def get_test_executions(self, cycle_id: str) -> List[Dict[str, Any]]:
-        """Get test executions for a cycle"""
-        # Try Zephyr Scale API
-        url = f"{self.base_url}/rest/atm/1.0/testrun/{cycle_id}/testresults"
-        
-        try:
-            response = self.session.get(url, timeout=self.config.REQUEST_TIMEOUT)
-            if response.status_code == 200:
-                return response.json()
-        except Exception as e:
-            logger.error(f"Error getting test executions: {e}")
-        
-        return []
-    
     def add_comment(self, issue_key: str, comment: str) -> bool:
         """Add a comment to an issue"""
-        url = f"{self.base_url}{self.api_path}/issue/{issue_key}/comment"
+        url = f"{self.base_url}{self.jira_path}/issue/{issue_key}/comment"
         
         try:
             response = self.session.post(
@@ -147,27 +194,12 @@ class JiraAPIClient:
             )
             return response.status_code in [200, 201]
         except Exception as e:
-            logger.error(f"Error adding comment to {issue_key}: {e}")
-            return False
-    
-    def update_issue(self, issue_key: str, fields: Dict[str, Any]) -> bool:
-        """Update issue fields"""
-        url = f"{self.base_url}{self.api_path}/issue/{issue_key}"
-        
-        try:
-            response = self.session.put(
-                url,
-                json={"fields": fields},
-                timeout=self.config.REQUEST_TIMEOUT
-            )
-            return response.status_code in [200, 204]
-        except Exception as e:
-            logger.error(f"Error updating {issue_key}: {e}")
+            logger.error(f"Error adding comment: {e}")
             return False
     
     def link_issues(self, inward_key: str, outward_key: str, link_type: str = "Relates") -> bool:
         """Link two issues together"""
-        url = f"{self.base_url}{self.api_path}/issueLink"
+        url = f"{self.base_url}{self.jira_path}/issueLink"
         
         payload = {
             "type": {"name": link_type},
@@ -183,7 +215,7 @@ class JiraAPIClient:
             )
             return response.status_code in [200, 201]
         except Exception as e:
-            logger.error(f"Error linking {inward_key} to {outward_key}: {e}")
+            logger.error(f"Error linking issues: {e}")
             return False
 
 
