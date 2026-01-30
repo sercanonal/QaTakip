@@ -4052,6 +4052,8 @@ async def get_team_summary(t: str, months: int = 1):
                 jql_open = f'assignee = "{username}" AND status NOT IN (Done, Closed, Resolved, Cancelled, "İptal Edildi") ORDER BY status ASC'
                 open_issues = await jira_client.search_issues(jql_open, max_results=200)
                 
+                logger.info(f"User {username}: Found {len(open_issues)} open issues")
+                
                 for issue in open_issues:
                     fields = issue.get('fields', {})
                     status_name = (fields.get('status', {}).get('name', '') or '').lower()
@@ -4060,6 +4062,8 @@ async def get_team_summary(t: str, months: int = 1):
                         user_stats["in_progress"] += 1
                     else:
                         user_stats["backlog"] += 1
+                
+                logger.info(f"User {username}: backlog={user_stats['backlog']}, in_progress={user_stats['in_progress']}")
                 
                 # JQL for completed tasks - only tasks resolved in the selected time period
                 jql_done = f'assignee = "{username}" AND status IN (Done, Closed, Resolved) AND resolved >= "{date_str}" ORDER BY resolved DESC'
