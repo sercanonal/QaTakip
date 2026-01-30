@@ -55,6 +55,10 @@ try:
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(None, self._sync.get_issues_by_assignee, identifier)
         
+        async def search_issues(self, jql, max_results=100):
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.search_issues, jql, max_results)
+        
         def transform_issue(self, issue):
             return format_issue(issue)
     
