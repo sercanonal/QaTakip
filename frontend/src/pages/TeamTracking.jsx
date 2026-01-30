@@ -21,8 +21,9 @@ import {
   AlertCircle,
   Clock,
   ListTodo,
-  ShieldAlert,
-  User,
+  Lock,
+  ExternalLink,
+  Key,
 } from "lucide-react";
 
 const STATUS_LABELS = {
@@ -53,48 +54,50 @@ const PRIORITY_COLORS = {
 
 const TeamTracking = () => {
   const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [adminKey, setAdminKey] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [searchUsername, setSearchUsername] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
-  const [allUsers, setAllUsers] = useState([]);
 
-  // Check admin status on mount
+  // Check if admin key is saved in session
   useEffect(() => {
-    checkAdminStatus();
-  }, [user]);
-
-  const checkAdminStatus = async () => {
-    if (!user?.name || !user?.device_id) {
-      setLoading(false);
-      return;
+    const savedKey = sessionStorage.getItem('admin_key');
+    if (savedKey) {
+      setAdminKey(savedKey);
+      verifyKey(savedKey);
     }
+  }, []);
 
+  const verifyKey = async (key) => {
+    setVerifying(true);
     try {
-      const deviceId = user.device_id || localStorage.getItem('qa_device_id');
-      const response = await api.get(`/admin/check?username=${encodeURIComponent(user.name)}&device_id=${encodeURIComponent(deviceId)}`);
-      setIsAdmin(response.data.is_admin);
-      
-      if (response.data.is_admin) {
-        loadAllUsers();
+      const response = await api.post('/admin/verify-key', { admin_key: key });
+      if (response.data.valid) {
+        setIsAuthenticated(true);
+        sessionStorage.setItem('admin_key', key);
+        toast.success("Admin girişi başarılı!");
+      } else {
+        setIsAuthenticated(false);
+        sessionStorage.removeItem('admin_key');
+        toast.error("Geçersiz admin anahtarı");
       }
     } catch (error) {
-      console.error("Admin check error:", error);
-      setIsAdmin(false);
+      setIsAuthenticated(false);
+      toast.error("Doğrulama başarısız");
     } finally {
-      setLoading(false);
+      setVerifying(false);
     }
   };
 
-  const loadAllUsers = async () => {
-    try {
-      const deviceId = user.device_id || localStorage.getItem('qa_device_id');
-      const response = await api.get(`/admin/all-users?requester_username=${encodeURIComponent(user.name)}&requester_device_id=${encodeURIComponent(deviceId)}`);
-      setAllUsers(response.data.users || []);
-    } catch (error) {
-      console.error("Error loading users:", error);
+  const handleKeySubmit = (e) => {
+    e.preventDefault();
+    if (!adminKey.trim()) {
+      toast.error("Admin anahtarı girin");
+      return;
     }
+    verifyKey(adminKey);
   };
 
   const handleSearch = async () => {
@@ -107,15 +110,19 @@ const TeamTracking = () => {
     setSearchResult(null);
 
     try {
-      const deviceId = user.device_id || localStorage.getItem('qa_device_id');
       const response = await api.get(
-        `/admin/team-tasks?search_username=${encodeURIComponent(searchUsername)}&requester_username=${encodeURIComponent(user.name)}&requester_device_id=${encodeURIComponent(deviceId)}`
+        `/admin/team-tasks?search_username=${encodeURIComponent(searchUsername)}&admin_key=${encodeURIComponent(adminKey)}`
       );
       setSearchResult(response.data);
+      
+      if (response.data.found) {
+        toast.success(`${response.data.summary?.total || 0} görev bulundu`);
+      }
     } catch (error) {
       if (error.response?.status === 403) {
-        toast.error("Bu özelliğe erişim yetkiniz yok");
-        setIsAdmin(false);
+        toast.error("Erişim reddedildi");
+        setIsAuthenticated(false);
+        sessionStorage.removeItem('admin_key');
       } else {
         toast.error("Arama yapılamadı");
       }
@@ -124,36 +131,59 @@ const TeamTracking = () => {
     }
   };
 
-  const handleUserClick = (username) => {
-    setSearchUsername(username);
-    // Auto search
-    setTimeout(() => {
-      document.getElementById('search-btn')?.click();
-    }, 100);
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setAdminKey("");
+    setSearchResult(null);
+    sessionStorage.removeItem('admin_key');
+    toast.info("Çıkış yapıldı");
   };
 
-  if (loading) {
+  // Not authenticated - show login form
+  if (!isAuthenticated) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // Not admin - show access denied
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh] text-center">
-        <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
-          <ShieldAlert className="w-10 h-10 text-red-500" />
-        </div>
-        <h2 className="text-2xl font-bold mb-2">Erişim Engellendi</h2>
-        <p className="text-muted-foreground max-w-md">
-          Bu sayfaya erişim yetkiniz bulunmuyor. Admin yetkisi için yöneticinize başvurun.
-        </p>
-        <p className="text-xs text-muted-foreground mt-4">
-          Device ID'nizi Ayarlar sayfasında bulabilirsiniz.
-        </p>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="w-full max-w-md border-border/50 bg-card">
+          <CardHeader className="text-center">
+            <div className="w-16 h-16 rounded-full bg-violet-500/10 flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-8 h-8 text-violet-500" />
+            </div>
+            <CardTitle className="text-xl">Ekip Takibi</CardTitle>
+            <CardDescription>
+              Bu özelliğe erişmek için admin anahtarı gereklidir.
+              <br />
+              <span className="text-xs text-muted-foreground">Anahtarı yöneticinizden alabilirsiniz.</span>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleKeySubmit} className="space-y-4">
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="password"
+                  placeholder="Admin anahtarını girin..."
+                  value={adminKey}
+                  onChange={(e) => setAdminKey(e.target.value)}
+                  className="pl-10"
+                  data-testid="admin-key-input"
+                />
+              </div>
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={verifying}
+                data-testid="admin-login-btn"
+              >
+                {verifying ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Lock className="w-4 h-4 mr-2" />
+                )}
+                Giriş Yap
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -161,39 +191,43 @@ const TeamTracking = () => {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header */}
-      <div>
-        <h2 className="font-heading text-2xl font-bold flex items-center gap-2">
-          <Users className="w-6 h-6 text-primary" />
-          Ekip Takibi
-        </h2>
-        <p className="text-muted-foreground">
-          Ekip üyelerinin görevlerini görüntüleyin (Backlog ve Devam Eden)
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-heading text-2xl font-bold flex items-center gap-2">
+            <Users className="w-6 h-6 text-violet-500" />
+            Ekip Takibi
+          </h2>
+          <p className="text-muted-foreground">
+            Jira'dan ekip üyelerinin görevlerini görüntüleyin
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleLogout}>
+          Çıkış
+        </Button>
       </div>
 
       {/* Search Card */}
       <Card className="border-border/50 bg-card">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Search className="w-5 h-5 text-primary" />
-            Kullanıcı Ara
+            <Search className="w-5 h-5 text-violet-500" />
+            Jira Kullanıcı Ara
           </CardTitle>
           <CardDescription>
-            Intertech kullanıcı adı ile arama yapın
+            Jira kullanıcı adı ile arama yapın (Intertech AD kullanıcı adı)
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
             <Input
-              placeholder="Kullanıcı adı girin (örn: SERCANO)"
+              placeholder="Kullanıcı adı girin (örn: sercano, burakg)"
               value={searchUsername}
-              onChange={(e) => setSearchUsername(e.target.value.toUpperCase())}
+              onChange={(e) => setSearchUsername(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               className="flex-1"
               data-testid="search-username-input"
             />
             <Button 
-              id="search-btn"
               onClick={handleSearch} 
               disabled={searching}
               data-testid="search-btn"
@@ -208,27 +242,6 @@ const TeamTracking = () => {
               )}
             </Button>
           </div>
-
-          {/* Quick user list */}
-          {allUsers.length > 0 && (
-            <div className="mt-4">
-              <p className="text-xs text-muted-foreground mb-2">Hızlı seçim:</p>
-              <div className="flex flex-wrap gap-2">
-                {allUsers.slice(0, 10).map((u) => (
-                  <Button
-                    key={u.id}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleUserClick(u.name)}
-                    className="h-7 text-xs"
-                  >
-                    <User className="w-3 h-3 mr-1" />
-                    {u.name}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -239,8 +252,11 @@ const TeamTracking = () => {
             {searchResult.found ? (
               <>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <User className="w-5 h-5 text-primary" />
+                  <Users className="w-5 h-5 text-violet-500" />
                   {searchResult.user?.name}
+                  <Badge variant="outline" className="ml-2 bg-violet-500/10 text-violet-400">
+                    Jira
+                  </Badge>
                 </CardTitle>
                 <CardDescription>
                   <div className="flex gap-4 mt-2">
@@ -269,7 +285,7 @@ const TeamTracking = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Görev</TableHead>
-                    <TableHead>Durum</TableHead>
+                    <TableHead>Jira Durumu</TableHead>
                     <TableHead>Öncelik</TableHead>
                     <TableHead>Bitiş Tarihi</TableHead>
                   </TableRow>
@@ -279,27 +295,33 @@ const TeamTracking = () => {
                     <TableRow key={task.id}>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{task.title}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{task.title}</p>
+                            {task.jira_key && (
+                              <a 
+                                href={`https://jira.intertech.com.tr/browse/${task.jira_key}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-violet-500 hover:text-violet-400"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
                           {task.description && (
-                            <p className="text-xs text-muted-foreground line-clamp-1">
+                            <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
                               {task.description}
                             </p>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge 
-                          variant="outline" 
-                          className={STATUS_COLORS[task.status] || ''}
-                        >
-                          {STATUS_LABELS[task.status] || task.status}
+                        <Badge variant="outline" className={STATUS_COLORS[task.status] || ''}>
+                          {task.jira_status || STATUS_LABELS[task.status] || task.status}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge 
-                          variant="outline" 
-                          className={PRIORITY_COLORS[task.priority] || ''}
-                        >
+                        <Badge variant="outline" className={PRIORITY_COLORS[task.priority] || ''}>
                           {PRIORITY_LABELS[task.priority] || task.priority}
                         </Badge>
                       </TableCell>
@@ -317,7 +339,7 @@ const TeamTracking = () => {
             <CardContent>
               <div className="text-center py-8 text-muted-foreground">
                 <ListTodo className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>Bu kullanıcının aktif görevi bulunmuyor</p>
+                <p>Bu kullanıcının açık görevi bulunmuyor</p>
               </div>
             </CardContent>
           )}
