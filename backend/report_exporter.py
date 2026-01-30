@@ -609,11 +609,11 @@ class ReportExporter:
                 priority_color = priority_colors.get(priority, '#6B7280')
                 
                 task_data.append([
-                    Paragraph(f'<font size="8">{idx}</font>', styles['Normal']),
-                    Paragraph(f'<font size="8">{title}</font>', styles['Normal']),
-                    Paragraph(f'<font size="8">{category}</font>', styles['Normal']),
-                    Paragraph(f'<font size="8" color="{status_color}"><b>{status_label}</b></font>', styles['Normal']),
-                    Paragraph(f'<font size="8" color="{priority_color}"><b>{priority_label}</b></font>', styles['Normal']),
+                    Paragraph(f'<font size="8">{idx}</font>', normal_turkish),
+                    Paragraph(f'<font size="8">{title}</font>', normal_turkish),
+                    Paragraph(f'<font size="8">{category}</font>', normal_turkish),
+                    Paragraph(f'<font size="8" color="{status_color}"><b>{status_label}</b></font>', normal_turkish),
+                    Paragraph(f'<font size="8" color="{priority_color}"><b>{priority_label}</b></font>', normal_turkish),
                 ])
             
             task_table = Table(task_data, colWidths=[1*cm, 8*cm, 3*cm, 2.5*cm, 2*cm])
@@ -638,9 +638,9 @@ class ReportExporter:
         footer_drawing = Drawing(525, 50)
         footer_bg = Rect(0, 0, 525, 50, fillColor=colors.HexColor('#18181B'), strokeColor=None)
         footer_drawing.add(footer_bg)
-        footer_text = String(262, 30, "QA Hub - Performans Raporu", fontSize=10, fillColor=colors.HexColor('#A78BFA'), textAnchor='middle')
+        footer_text = String(262, 30, "QA Hub - Performans Raporu", fontSize=10, fillColor=colors.HexColor('#A78BFA'), textAnchor='middle', fontName=TURKISH_FONT)
         footer_drawing.add(footer_text)
-        footer_date = String(262, 12, f"Oluşturulma: {datetime.now().strftime('%d.%m.%Y %H:%M')} | Intertech QA Ekibi", fontSize=8, fillColor=colors.HexColor('#71717A'), textAnchor='middle')
+        footer_date = String(262, 12, f"Olusturulma: {datetime.now().strftime('%d.%m.%Y %H:%M')} | Intertech QA Ekibi", fontSize=8, fillColor=colors.HexColor('#71717A'), textAnchor='middle', fontName=TURKISH_FONT)
         footer_drawing.add(footer_date)
         story.append(footer_drawing)
         
