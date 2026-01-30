@@ -371,8 +371,9 @@ const ProductTree = () => {
 };
 
 // Tree Node Component
-const TreeNode = ({ name, data, level, type }) => {
+const TreeNode = ({ name, data, level, type, onRefreshEndpoints }) => {
   const [isExpanded, setIsExpanded] = useState(level < 1);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const hasChildren = type === "project" ? data.apps && Object.keys(data.apps).length > 0
     : type === "app" ? data.controllers && Object.keys(data.controllers).length > 0
@@ -397,6 +398,18 @@ const TreeNode = ({ name, data, level, type }) => {
     if (percentage >= 50) return "bg-yellow-500";
     return "bg-red-500";
   };
+
+  const handleRefresh = async (e) => {
+    e.stopPropagation();
+    if (onRefreshEndpoints && type === "controller") {
+      setIsRefreshing(true);
+      try {
+        await onRefreshEndpoints(name, data);
+      } finally {
+        setIsRefreshing(false);
+      }
+    }
+  };
   
   return (
     <div className={cn("", level > 0 && "ml-6 border-l border-border pl-4")}>
@@ -417,6 +430,17 @@ const TreeNode = ({ name, data, level, type }) => {
         
         <span className="font-medium truncate max-w-[300px]">{name}</span>
         
+        {/* Refresh button for controller level */}
+        {type === "controller" && onRefreshEndpoints && (
+          <button
+            onClick={handleRefresh}
+            className="p-1 rounded hover:bg-muted transition-colors ml-2"
+            title="TOAY listesini yenile"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5 text-muted-foreground hover:text-primary", isRefreshing && "animate-spin")} />
+          </button>
+        )}
+        
         <Badge className={cn("ml-auto", getPercentageColor())}>
           {percentage}%
         </Badge>
@@ -429,11 +453,11 @@ const TreeNode = ({ name, data, level, type }) => {
       {isExpanded && hasChildren && (
         <div className="mt-1">
           {type === "project" && data.apps && Object.entries(data.apps).map(([appName, appData]) => (
-            <TreeNode key={appName} name={appName} data={appData} level={level + 1} type="app" />
+            <TreeNode key={appName} name={appName} data={appData} level={level + 1} type="app" onRefreshEndpoints={onRefreshEndpoints} />
           ))}
           
           {type === "app" && data.controllers && Object.entries(data.controllers).map(([ctrlName, ctrlData]) => (
-            <TreeNode key={ctrlName} name={ctrlName} data={ctrlData} level={level + 1} type="controller" />
+            <TreeNode key={ctrlName} name={ctrlName} data={ctrlData} level={level + 1} type="controller" onRefreshEndpoints={onRefreshEndpoints} />
           ))}
           
           {type === "controller" && data.endPoints && data.endPoints.map((endpoint, idx) => (
