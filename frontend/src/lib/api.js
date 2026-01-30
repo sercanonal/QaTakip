@@ -10,7 +10,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 10000, // 10 saniye timeout
+  timeout: 120000, // 120 saniye timeout (Jira toplu sorguları için)
 });
 
 // Add user_id to requests that need it
