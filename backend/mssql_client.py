@@ -168,3 +168,67 @@ def get_all_api_tests(project_names: List[str], days: int, time: str) -> List[Di
         }
         for r in results
     ]
+
+# ============== PRODUCT TREE QUERIES ==============
+
+def get_team_name(jira_team_id: int) -> str:
+    """Get team name from JIRA_TEAM table"""
+    query = f"""
+    SELECT JIRA_TEAM_NAME FROM [TEST_DATA_MANAGEMENT].[TEAM].[JIRA_TEAM](nolock) 
+    WHERE JIRA_TEAM_ID = {jira_team_id}
+    """
+    results = query_data(query)
+    if results:
+        return results[0]["JIRA_TEAM_NAME"]
+    return f"Team-{jira_team_id}"
+
+def get_product_tree_rapor_data(jira_team_id: int, report_date: str) -> List[Dict[str, Any]]:
+    """Get endpoint data for product tree analysis"""
+    query = f"""
+    SELECT * FROM [TEST_DATA_MANAGEMENT].[COR].[MICROSERVICE_ENDPOINTS](nolock) 
+    WHERE JIRA_TEAM_ID = {jira_team_id} AND TRAN_UPDATED_DATETIME = '{report_date}' AND IS_EXTERNAL = 0
+    """
+    
+    results = query_data(query)
+    return [
+        {
+            "app": r["PROJECT_NAME"],
+            "endpoint": r["PATH"],
+            "isTested": r["IS_USABLE"] == 1,
+            "method": r.get("HTTP_METHOD", "GET")
+        }
+        for r in results
+    ]
+
+def get_test_detail_for_product_tree(project_names: List[str], days: int, time: str) -> List[Dict[str, Any]]:
+    """Get test details for product tree - aggregates by endpoint"""
+    time_with_seconds = f"{time}:00"
+    project_names_str = ", ".join([f"'{p}'" for p in project_names])
+    
+    query = f"""
+    SELECT 
+        TARGET_APP_NAME, 
+        ENDPOINT_NAME, 
+        ISSUE_ID, 
+        CASE 
+            WHEN MAX(CASE WHEN TEST_STATUS = 'PASSED' THEN 1 ELSE 0 END) = 1 THEN 'PASSED'
+            ELSE 'FAILED'
+        END as TEST_STATUS,
+        TEST_NAME
+    FROM [TEST_DATA_MANAGEMENT].[COR].[TEST_AUTOMATION_FRAMEWORK_SUMMARY_LOG](nolock) 
+    WHERE PROJECT_NAME IN ({project_names_str}) 
+    AND START_TIME >= DATEADD(DAY, -{days}, CAST(CAST(GETDATE() AS DATE) AS DATETIME) + CAST('{time_with_seconds}' AS DATETIME))
+    GROUP BY TARGET_APP_NAME, ENDPOINT_NAME, ISSUE_ID, TEST_NAME
+    """
+    
+    results = query_data(query)
+    return [
+        {
+            "key": r["ISSUE_ID"],
+            "name": r["TEST_NAME"],
+            "app": r["TARGET_APP_NAME"],
+            "status": r["TEST_STATUS"],
+            "endpoint": r["ENDPOINT_NAME"]
+        }
+        for r in results
+    ]
