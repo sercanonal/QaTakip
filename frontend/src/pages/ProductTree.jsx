@@ -537,6 +537,7 @@ const EndpointNode = ({ endpoint, level }) => {
   };
   
   // Check if specific test types exist and are passed
+  // Each endpoint MUST have at least 1 of each: Happy, Alternatif, Negatif
   const hasHappyPassed = endpoint.tests?.some(t => 
     t.name?.toLowerCase().includes('happy') && t.status === 'PASSED'
   ) || endpoint.happy;
@@ -548,6 +549,13 @@ const EndpointNode = ({ endpoint, level }) => {
   const hasNegatifPassed = endpoint.tests?.some(t => 
     (t.name?.toLowerCase().includes('negatif') || t.name?.toLowerCase().includes('negative')) && t.status === 'PASSED'
   ) || endpoint.negatif;
+  
+  // Calculate coverage percentage based on 3 required test types
+  const passedTypes = [hasHappyPassed, hasAlternatifPassed, hasNegatifPassed].filter(Boolean).length;
+  const coveragePercent = Math.round((passedTypes / 3) * 100);
+  
+  // Determine if fully tested (all 3 types passed)
+  const isFullyCovered = passedTypes === 3;
   
   return (
     <div className={cn("ml-6 border-l border-border pl-4")}>
@@ -573,11 +581,47 @@ const EndpointNode = ({ endpoint, level }) => {
         </code>
         
         <div className="ml-auto flex items-center gap-2">
-          {endpoint.isTested ? (
-            <Badge variant="outline" className="text-green-600 border-green-600">
-              <CheckCircle2 className="w-3 h-3 mr-1" />
-              Tested
-            </Badge>
+          {/* Coverage percentage based on 3 required test types */}
+          <Badge className={cn(
+            "text-xs",
+            coveragePercent === 100 ? "bg-green-500" :
+            coveragePercent >= 66 ? "bg-yellow-500" :
+            coveragePercent >= 33 ? "bg-orange-500" : "bg-red-500"
+          )}>
+            {coveragePercent}%
+          </Badge>
+          
+          <span className="text-xs text-muted-foreground">
+            ({passedTypes}/3)
+          </span>
+          
+          {/* Test Type Badges - Green for passed, Red for missing/not passed */}
+          <Badge className={cn(
+            "transition-colors text-xs",
+            hasHappyPassed 
+              ? "bg-green-500/20 text-green-400 border border-green-500/40" 
+              : "bg-red-500/20 text-red-400 border border-red-500/40"
+          )}>
+            {hasHappyPassed ? "✅" : "❌"} HP
+          </Badge>
+          <Badge className={cn(
+            "transition-colors text-xs",
+            hasAlternatifPassed 
+              ? "bg-green-500/20 text-green-400 border border-green-500/40" 
+              : "bg-red-500/20 text-red-400 border border-red-500/40"
+          )}>
+            {hasAlternatifPassed ? "✅" : "❌"} AS
+          </Badge>
+          <Badge className={cn(
+            "transition-colors text-xs",
+            hasNegatifPassed 
+              ? "bg-green-500/20 text-green-400 border border-green-500/40" 
+              : "bg-red-500/20 text-red-400 border border-red-500/40"
+          )}>
+            {hasNegatifPassed ? "✅" : "❌"} NS
+          </Badge>
+        </div>
+      </div>
           ) : (
             <Badge variant="outline" className="text-red-600 border-red-600">
               <XCircle className="w-3 h-3 mr-1" />
