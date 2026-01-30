@@ -4036,32 +4036,29 @@ async def refresh_controller_endpoints(request: Request):
                     test_name = test.get("name", "")
                     test_status = test.get("status", "NOT_EXECUTED")
                     
-                    # Get fresh test type from Jira
-                    test_type = "unknown"
+                    # Get fresh test type from Jira (intValue: 812=Happy, 813=Alternatif, 837=Negatif)
+                    type_int = 0
                     if test_key:
                         try:
-                            test_type = jira_client.get_test_type_from_case(test_key)
-                            logger.info(f"Test {test_key}: type = {test_type}")
+                            type_int = await jira_client.get_test_type_from_case(test_key)
+                            logger.info(f"Test {test_key}: type_int = {type_int}")
                         except Exception as e:
                             logger.warning(f"Could not get test type for {test_key}: {e}")
                     
-                    # Determine type label
+                    # Determine type label based on intValue
                     type_label = "🔴 Test Tipi Girilmemiş."
-                    if test_type and test_type != "unknown":
-                        if "happy" in test_type.lower():
-                            type_label = "✅ Happy Path"
-                            if test_status == "PASSED":
-                                endpoint_data["happy"] = True
-                        elif "alternatif" in test_type.lower() or "alternative" in test_type.lower():
-                            type_label = "🔀 Alternatif Senaryo"
-                            if test_status == "PASSED":
-                                endpoint_data["alternatif"] = True
-                        elif "negatif" in test_type.lower() or "negative" in test_type.lower():
-                            type_label = "❌ Negatif Senaryo"
-                            if test_status == "PASSED":
-                                endpoint_data["negatif"] = True
-                        else:
-                            type_label = f"🔴 {test_type}"
+                    if type_int == 812:
+                        type_label = "✅ Happy Path"
+                        if test_status == "PASSED":
+                            endpoint_data["happy"] = True
+                    elif type_int == 813:
+                        type_label = "🔀 Alternatif Senaryo"
+                        if test_status == "PASSED":
+                            endpoint_data["alternatif"] = True
+                    elif type_int == 837:
+                        type_label = "❌ Negatif Senaryo"
+                        if test_status == "PASSED":
+                            endpoint_data["negatif"] = True
                     
                     test_info = {
                         "key": test_key,
