@@ -157,7 +157,7 @@ class ReportExporter:
     
     @staticmethod
     def generate_pdf_report(data: Dict[str, Any]) -> bytes:
-        """Generate professional canvas-style PDF report with modern design"""
+        """Generate professional canvas-style PDF report with modern design and Turkish support"""
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
             buffer, 
@@ -170,7 +170,7 @@ class ReportExporter:
         story = []
         styles = getSampleStyleSheet()
         
-        # Custom styles - Modern dark theme
+        # Custom styles - Modern dark theme with Turkish font support
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
@@ -178,7 +178,7 @@ class ReportExporter:
             textColor=colors.HexColor('#FFFFFF'),
             spaceAfter=8,
             alignment=1,
-            fontName='Helvetica-Bold'
+            fontName=TURKISH_FONT_BOLD
         )
         
         subtitle_style = ParagraphStyle(
@@ -187,7 +187,8 @@ class ReportExporter:
             fontSize=14,
             textColor=colors.HexColor('#A78BFA'),
             spaceAfter=20,
-            alignment=1
+            alignment=1,
+            fontName=TURKISH_FONT
         )
         
         section_title_style = ParagraphStyle(
@@ -197,7 +198,7 @@ class ReportExporter:
             textColor=colors.HexColor('#8B5CF6'),
             spaceBefore=25,
             spaceAfter=15,
-            fontName='Helvetica-Bold'
+            fontName=TURKISH_FONT_BOLD
         )
         
         kpi_label_style = ParagraphStyle(
@@ -205,7 +206,8 @@ class ReportExporter:
             parent=styles['Normal'],
             fontSize=9,
             textColor=colors.HexColor('#71717A'),
-            alignment=1
+            alignment=1,
+            fontName=TURKISH_FONT
         )
         
         kpi_value_style = ParagraphStyle(
@@ -214,7 +216,15 @@ class ReportExporter:
             fontSize=28,
             textColor=colors.HexColor('#FFFFFF'),
             alignment=1,
-            fontName='Helvetica-Bold'
+            fontName=TURKISH_FONT_BOLD
+        )
+        
+        # Normal text style with Turkish support
+        normal_turkish = ParagraphStyle(
+            'NormalTurkish',
+            parent=styles['Normal'],
+            fontName=TURKISH_FONT,
+            fontSize=10
         )
         
         # Get user info
