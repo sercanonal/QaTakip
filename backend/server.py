@@ -3109,15 +3109,16 @@ async def run_analysis(request: Request):
 async def run_api_analysis(request: Request):
     """Run API analysis (SSE streaming) - Port from apianaliz.js"""
     
+    # Read body BEFORE generator
+    body = await request.json()
+    jira_team_id = int(body.get("jiraTeamId", 0))
+    report_date = body.get("reportDate", "")
+    project_names = body.get("projectNames", [])
+    days = int(body.get("days", 1))
+    time = body.get("time", "00:00")
+    
     async def generate():
         try:
-            body = await request.json()
-            jira_team_id = int(body.get("jiraTeamId", 0))
-            report_date = body.get("reportDate", "")
-            project_names = body.get("projectNames", [])
-            days = int(body.get("days", 1))
-            time = body.get("time", "00:00")
-            
             projects_str = ", ".join(project_names) if project_names else "Yok"
             
             yield f"data: {json.dumps({'log': '📊 API Analiz başlatılıyor...'})}\n\n"
