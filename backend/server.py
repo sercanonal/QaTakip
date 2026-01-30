@@ -3503,11 +3503,12 @@ async def cycleadd_analyze(request: Request):
 async def cycleadd_execute(request: Request):
     """Execute cycle add (SSE streaming) - Port from cycleadd.js executeCycleAdd"""
     
+    # Read body BEFORE generator
+    body = await request.json()
+    save_body = body.get("saveBody", {})
+    
     async def generate():
         try:
-            body = await request.json()
-            save_body = body.get("saveBody", {})
-            
             added_count = len(save_body.get("addedTestRunItems", []))
             yield f"data: {json.dumps({'log': '🚀 Cycle güncelleniyor...'})}\n\n"
             yield f"data: {json.dumps({'log': f'   Eklenecek test sayısı: {added_count}'})}\n\n"
