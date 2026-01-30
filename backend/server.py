@@ -40,10 +40,25 @@ try:
 except Exception as e:
     logger.warning(f"LDAPS not available (optional): {e}")
 
-# Jira Client (optional)
+# Jira Client (uses new jira_api_client)
 JIRA_AVAILABLE = False
+jira_client = None
 try:
-    from jira_client import jira_client
+    from jira_api_client import jira_api_client as _sync_jira_client, format_issue
+    
+    # Simple wrapper for the old jira_client interface
+    class JiraClientCompat:
+        def __init__(self, sync_client):
+            self._sync = sync_client
+        
+        async def get_issues_by_assignee(self, identifier):
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.get_issues_by_assignee, identifier)
+        
+        def transform_issue(self, issue):
+            return format_issue(issue)
+    
+    jira_client = JiraClientCompat(_sync_jira_client)
     JIRA_AVAILABLE = True
     logger.info("Jira client loaded successfully")
 except Exception as e:
