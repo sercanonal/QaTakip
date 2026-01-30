@@ -4040,7 +4040,7 @@ async def get_team_member_tasks(
 ):
     """Get tasks for a specific team member from JIRA - ADMIN KEY REQUIRED"""
     # Security check: Verify admin key
-    if not verify_admin_key(admin_key):
+    if not await verify_admin_key_async(admin_key):
         raise HTTPException(status_code=403, detail="Geçersiz admin anahtarı")
     
     search_username_clean = search_username.strip()
