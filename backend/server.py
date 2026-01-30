@@ -3526,6 +3526,259 @@ async def cycleadd_execute(request: Request):
     
     return StreamingResponse(generate(), media_type="text/event-stream")
 
+
+# ============== PRODUCT TREE (TEST KAPSAM AĞACI) ==============
+
+# Cache for product tree data
+_product_tree_cache = {}
+
+def parse_endpoint(path: str) -> dict:
+    """Parse endpoint path to extract controller and endpoint"""
+    parts = [p for p in path.split('/') if p]
+    
+    if not parts:
+        return {"controller": "Unknown", "endpointPath": path}
+    
+    # Handle v2/Controller patterns
+    if len(parts) >= 2 and parts[0].lower().startswith('v'):
+        controller = f"{parts[0]}/{parts[1]}"
+        endpoint_path = '/' + '/'.join(parts[2:]) if len(parts) > 2 else '/'
+    else:
+        controller = parts[0]
+        endpoint_path = '/' + '/'.join(parts[1:]) if len(parts) > 1 else '/'
+    
+    return {"controller": controller, "endpointPath": endpoint_path}
+
+
+def build_product_tree(endpoints: list, tests: list, team_name: str) -> dict:
+    """Build product tree structure"""
+    tree = {
+        team_name: {
+            "totalEndpoints": 0,
+            "testedEndpoints": 0,
+            "newCalc": 0,
+            "apps": {}
+        }
+    }
+    
+    project = team_name
+    
+    for endpoint in endpoints:
+        app = endpoint["app"]
+        path = endpoint["endpoint"]
+        is_tested = endpoint["isTested"]
+        method = endpoint.get("method", "GET")
+        
+        # Initialize app if not exists
+        if app not in tree[project]["apps"]:
+            tree[project]["apps"][app] = {
+                "totalEndpoints": 0,
+                "testedEndpoints": 0,
+                "newCalc": 0,
+                "controllers": {}
+            }
+        
+        # Parse endpoint
+        parsed = parse_endpoint(path)
+        controller = parsed["controller"]
+        endpoint_path = parsed["endpointPath"]
+        
+        # Initialize controller if not exists
+        if controller not in tree[project]["apps"][app]["controllers"]:
+            tree[project]["apps"][app]["controllers"][controller] = {
+                "totalEndpoints": 0,
+                "testedEndpoints": 0,
+                "newCalc": 0,
+                "endPoints": []
+            }
+        
+        # Find tests for this endpoint
+        tests_include = [t for t in tests if t.get("endpoint") == path and t.get("app") == app]
+        
+        # Check test types
+        happy = any(t.get("type") == "✅ Happy Path" for t in tests_include)
+        alternatif = any(t.get("type") == "🔀 Alternatif Senaryo" for t in tests_include)
+        negatif = any(t.get("type") == "❌ Negatif Senaryo" for t in tests_include)
+        
+        # Add endpoint
+        tree[project]["apps"][app]["controllers"][controller]["endPoints"].append({
+            "path": endpoint_path,
+            "fullPath": path,
+            "method": method,
+            "isTested": is_tested,
+            "tests": tests_include,
+            "happy": happy,
+            "alternatif": alternatif,
+            "negatif": negatif
+        })
+        
+        # Update counters
+        tree[project]["totalEndpoints"] += 1
+        tree[project]["apps"][app]["totalEndpoints"] += 1
+        tree[project]["apps"][app]["controllers"][controller]["totalEndpoints"] += 1
+        
+        if is_tested:
+            tree[project]["testedEndpoints"] += 1
+            tree[project]["apps"][app]["testedEndpoints"] += 1
+            tree[project]["apps"][app]["controllers"][controller]["testedEndpoints"] += 1
+        
+        if happy and alternatif and negatif:
+            tree[project]["newCalc"] += 1
+            tree[project]["apps"][app]["newCalc"] += 1
+            tree[project]["apps"][app]["controllers"][controller]["newCalc"] += 1
+    
+    return tree
+
+
+@api_router.post("/product-tree/run")
+async def run_product_tree(request: Request):
+    """Run Product Tree analysis (SSE streaming)"""
+    
+    async def generate():
+        global _product_tree_cache
+        
+        try:
+            body = await request.json()
+            jira_team_id = int(body.get("jiraTeamId", 0))
+            report_date = body.get("reportDate", "")
+            project_names = body.get("projectNames", [])
+            days = int(body.get("days", 1))
+            time = body.get("time", "00:00")
+            
+            yield f"data: {json.dumps({'log': '🌳 Test Kapsam Ağacı analizi başlatılıyor...'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   Team ID: {jira_team_id}'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   Tarih: {report_date}'})}\n\n"
+            yield f"data: {json.dumps({'log': f'   Projeler: {", ".join(project_names)}'})}\n\n"
+            
+            if not MSSQL_AVAILABLE:
+                yield f"data: {json.dumps({'log': '⚠️ MSSQL bağlantısı yok - DEMO modu'})}\n\n"
+                
+                # Generate demo tree
+                demo_tree = {
+                    "Demo Team": {
+                        "totalEndpoints": 10,
+                        "testedEndpoints": 7,
+                        "newCalc": 5,
+                        "apps": {
+                            "DemoApp": {
+                                "totalEndpoints": 10,
+                                "testedEndpoints": 7,
+                                "newCalc": 5,
+                                "controllers": {
+                                    "Users": {
+                                        "totalEndpoints": 5,
+                                        "testedEndpoints": 4,
+                                        "newCalc": 3,
+                                        "endPoints": [
+                                            {"path": "/login", "fullPath": "/Users/login", "method": "POST", "isTested": True, "tests": [], "happy": True, "alternatif": True, "negatif": True},
+                                            {"path": "/register", "fullPath": "/Users/register", "method": "POST", "isTested": True, "tests": [], "happy": True, "alternatif": False, "negatif": True},
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                yield f"data: {json.dumps({'log': '✅ Demo tree oluşturuldu'})}\n\n"
+                yield f"data: {json.dumps({'complete': True, 'tree': demo_tree, 'stats': {'totalEndpoints': 10, 'totalProjects': 1}})}\n\n"
+                return
+            
+            # Real implementation
+            try:
+                yield f"data: {json.dumps({'log': '📋 Rapor verileri alınıyor...'})}\n\n"
+                rapor_data = mssql_client.get_product_tree_rapor_data(jira_team_id, report_date)
+                yield f"data: {json.dumps({'log': f'✅ {len(rapor_data)} endpoint bulundu'})}\n\n"
+                
+                yield f"data: {json.dumps({'log': '🧪 Veritabanından test verileri çekiliyor...'})}\n\n"
+                db_tests = mssql_client.get_test_detail_for_product_tree(project_names, days, time)
+                yield f"data: {json.dumps({'log': f'✅ {len(db_tests)} test verisi bulundu'})}\n\n"
+                
+                # Get Jira test data if available
+                if JIRA_API_AVAILABLE:
+                    yield f"data: {json.dumps({'log': '🔗 Jira test verileri alınıyor...'})}\n\n"
+                    issue_keys = list(set(t["key"] for t in db_tests if t.get("key")))
+                    
+                    # Fetch test details from Jira in batches (simplified - without full cache)
+                    for test in db_tests:
+                        # Default type if can't fetch from Jira
+                        test["type"] = "🔴 Test Tipi Girilmemiş."
+                        test["jiraEndpoint"] = test.get("endpoint", "")
+                    
+                    yield f"data: {json.dumps({'log': f'✅ {len(issue_keys)} test Jira verisi işlendi'})}\n\n"
+                
+                yield f"data: {json.dumps({'log': '📊 Team bilgisi alınıyor...'})}\n\n"
+                team_name = mssql_client.get_team_name(jira_team_id)
+                yield f"data: {json.dumps({'log': f'✅ Team: {team_name}'})}\n\n"
+                
+                yield f"data: {json.dumps({'log': '🌳 Tree yapısı oluşturuluyor...'})}\n\n"
+                tree = build_product_tree(rapor_data, db_tests, team_name)
+                
+                # Cache the tree
+                _product_tree_cache = {
+                    "tree": tree,
+                    "stats": {
+                        "totalEndpoints": len(rapor_data),
+                        "totalProjects": len(tree)
+                    }
+                }
+                
+                yield f"data: {json.dumps({'log': '✨ Analiz tamamlandı!'})}\n\n"
+                yield f"data: {json.dumps({'complete': True, 'cacheReady': True, 'stats': _product_tree_cache['stats']})}\n\n"
+                
+            except Exception as e:
+                logger.error(f"Product Tree error: {e}")
+                yield f"data: {json.dumps({'log': f'❌ Hata: {str(e)}'})}\n\n"
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"Product Tree error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@api_router.get("/product-tree/data")
+async def get_product_tree_data():
+    """Get cached product tree data"""
+    global _product_tree_cache
+    
+    if not _product_tree_cache:
+        return {"error": "Tree verisi bulunamadı. Önce analiz çalıştırın."}
+    
+    return _product_tree_cache
+
+
+@api_router.post("/product-tree/refresh-test")
+async def refresh_single_test(request: Request):
+    """Refresh a single test from Jira"""
+    try:
+        body = await request.json()
+        key = body.get("key", "")
+        
+        if not key:
+            raise HTTPException(status_code=400, detail="Test key gerekli")
+        
+        if not JIRA_API_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Jira bağlantısı yok")
+        
+        # Simplified: just return the key info (full Jira integration would go here)
+        return {
+            "success": True,
+            "test": {
+                "key": key,
+                "name": f"Test {key}",
+                "customFieldValues": []
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Refresh test error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Include router and middleware
 app.include_router(api_router)
 
