@@ -3964,15 +3964,11 @@ async def refresh_single_test(request: Request):
 
 @api_router.post("/product-tree/refresh-controller")
 async def refresh_controller_endpoints(request: Request):
-    """Refresh test data for a specific controller's endpoints"""
+    """Refresh test data for a specific controller's endpoints - fetches test types from Jira"""
     try:
         body = await request.json()
         controller_name = body.get("controllerName", "")
         endpoints = body.get("endPoints", [])
-        jira_team_id = body.get("jiraTeamId", "")
-        report_date = body.get("reportDate", "")
-        days = body.get("days", "1")
-        time_filter = body.get("time", "00:00")
         
         if not endpoints:
             return {"success": False, "error": "Endpoint listesi boş"}
@@ -3982,22 +3978,19 @@ async def refresh_controller_endpoints(request: Request):
         
         logger.info(f"Refreshing {len(endpoints)} endpoints for controller: {controller_name}")
         
-        # Re-fetch test data for each endpoint
+        # Re-fetch test types from Jira for each endpoint's tests
         refreshed_endpoints = []
         
         for endpoint in endpoints:
             try:
-                # Get fresh test data from Jira for this endpoint
                 full_path = endpoint.get("fullPath", "")
                 method = endpoint.get("method", "")
-                
-                # Search for tests related to this endpoint
-                # JQL to find tests matching this endpoint path
-                search_term = full_path.split("/")[-1] if "/" in full_path else full_path
+                tests = endpoint.get("tests", [])
                 
                 endpoint_data = {
                     "fullPath": full_path,
                     "method": method,
+                    "path": endpoint.get("path", ""),
                     "isTested": endpoint.get("isTested", False),
                     "tests": [],
                     "happy": False,
@@ -4005,22 +3998,65 @@ async def refresh_controller_endpoints(request: Request):
                     "negatif": False
                 }
                 
-                # Try to fetch tests for this endpoint
-                if jira_team_id and search_term:
-                    try:
-                        jql = f'project = "TOAY" AND "Zephyr Scale Folder" ~ "{search_term}"'
-                        test_results = await jira_client.search_issues(jql, max_results=50)
-                        
-                        for test in test_results:
-                            fields = test.get("fields", {})
-                            test_name = fields.get("summary", "")
-                            test_status = "NOT_EXECUTED"
-                            
-                            # Check custom fields for status
-                            custom_fields = fields.get("customFieldValues", [])
-                            for cf in custom_fields:
-                                if cf.get("name") == "lastTestResultStatus":
-                                    test_status = cf.get("value", {}).get("name", "NOT_EXECUTED")
+                # Refresh test types from Jira for each test
+                for test in tests:
+                    test_key = test.get("key", "")
+                    test_name = test.get("name", "")
+                    test_status = test.get("status", "NOT_EXECUTED")
+                    
+                    # Get fresh test type from Jira
+                    test_type = "unknown"
+                    if test_key:
+                        try:
+                            test_type = jira_client.get_test_type_from_case(test_key)
+                            logger.info(f"Test {test_key}: type = {test_type}")
+                        except Exception as e:
+                            logger.warning(f"Could not get test type for {test_key}: {e}")
+                    
+                    # Determine type label
+                    type_label = "🔴 Test Tipi Girilmemiş."
+                    if test_type and test_type != "unknown":
+                        if "happy" in test_type.lower():
+                            type_label = "✅ Happy Path"
+                            if test_status == "PASSED":
+                                endpoint_data["happy"] = True
+                        elif "alternatif" in test_type.lower() or "alternative" in test_type.lower():
+                            type_label = "🔀 Alternatif Senaryo"
+                            if test_status == "PASSED":
+                                endpoint_data["alternatif"] = True
+                        elif "negatif" in test_type.lower() or "negative" in test_type.lower():
+                            type_label = "❌ Negatif Senaryo"
+                            if test_status == "PASSED":
+                                endpoint_data["negatif"] = True
+                        else:
+                            type_label = f"🔴 {test_type}"
+                    
+                    test_info = {
+                        "key": test_key,
+                        "name": test_name,
+                        "status": test_status,
+                        "type": type_label,
+                        "testType": test_type
+                    }
+                    endpoint_data["tests"].append(test_info)
+                
+                endpoint_data["isTested"] = len(endpoint_data["tests"]) > 0
+                refreshed_endpoints.append(endpoint_data)
+                
+            except Exception as e:
+                logger.error(f"Error refreshing endpoint {endpoint.get('fullPath', '')}: {e}")
+                refreshed_endpoints.append(endpoint)
+        
+        return {
+            "success": True,
+            "controllerName": controller_name,
+            "endPoints": refreshed_endpoints,
+            "refreshedCount": len(refreshed_endpoints)
+        }
+        
+    except Exception as e:
+        logger.error(f"Refresh controller error: {e}")
+        return {"success": False, "error": str(e)}
                             
                             test_info = {
                                 "key": test.get("key", ""),
