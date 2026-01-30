@@ -363,18 +363,54 @@ class JiraAPIClient:
         details = self.get_test_case_details(test_key)
         
         if not details:
+            logger.warning(f"No details found for {test_key}")
             return "unknown"
         
-        # Check Zephyr Scale custom fields
+        logger.info(f"Test case {test_key} details keys: {list(details.keys())}")
+        
+        # Check Zephyr Scale customFields array
         custom_fields = details.get("customFields", [])
+        logger.info(f"customFields type: {type(custom_fields)}, content: {custom_fields[:3] if isinstance(custom_fields, list) else custom_fields}")
+        
         if isinstance(custom_fields, list):
             for cf in custom_fields:
                 cf_name = (cf.get("name", "") or "").lower()
-                if "test tipi" in cf_name or "test type" in cf_name:
+                logger.info(f"Checking custom field: {cf_name}")
+                if "test tipi" in cf_name or "test type" in cf_name or "tipi" in cf_name:
                     value = cf.get("value", {})
+                    logger.info(f"Found test type field! Value: {value}")
                     if isinstance(value, dict):
-                        return value.get("name", "unknown")
+                        return value.get("name", str(value))
                     return str(value)
+        
+        # Check customFieldValues (alternative Zephyr format)
+        custom_field_values = details.get("customFieldValues", [])
+        if isinstance(custom_field_values, list):
+            for cfv in custom_field_values:
+                cfv_name = (cfv.get("name", "") or "").lower()
+                if "test tipi" in cfv_name or "test type" in cfv_name:
+                    value = cfv.get("value", {})
+                    logger.info(f"Found test type in customFieldValues! Value: {value}")
+                    if isinstance(value, dict):
+                        return value.get("name", str(value))
+                    return str(value)
+        
+        # Check fields directly (Jira format)
+        fields = details.get("fields", {})
+        if fields:
+            logger.info(f"Checking fields: {list(fields.keys())[:10]}")
+            for key, value in fields.items():
+                if key.startswith("customfield_") and value:
+                    if isinstance(value, dict):
+                        val_name = value.get("value", "") or value.get("name", "")
+                        if val_name:
+                            val_lower = val_name.lower()
+                            if "happy" in val_lower or "alternatif" in val_lower or "negatif" in val_lower:
+                                logger.info(f"Found test type in {key}: {val_name}")
+                                return val_name
+        
+        logger.warning(f"Could not find test type for {test_key}")
+        return "unknown"
         
         # Check Jira custom fields format
         if isinstance(custom_fields, dict):
