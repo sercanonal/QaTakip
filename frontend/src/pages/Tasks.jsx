@@ -295,8 +295,8 @@ const Tasks = () => {
   const tasksByStatus = COLUMNS.reduce((acc, col) => {
     acc[col.id] = filteredTasks.filter(t => t.status === col.id);
     
-    // Add Jira tasks to backlog column
-    if (col.id === "backlog" && jiraTasks.length > 0) {
+    // Add Jira tasks to backlog column (only if showJiraTasks is true)
+    if (col.id === "backlog" && jiraTasks.length > 0 && showJiraTasks) {
       const jiraTasksFormatted = jiraTasks.map(jt => ({
         id: `jira-${jt.key}`,
         title: `[JIRA] ${jt.summary}`,
