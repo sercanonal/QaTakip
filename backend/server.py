@@ -3994,10 +3994,43 @@ async def verify_admin_key_endpoint(request: Request):
     try:
         body = await request.json()
         admin_key = body.get("admin_key", "")
-        is_valid = verify_admin_key(admin_key)
+        is_valid = await verify_admin_key_async(admin_key)
         return {"valid": is_valid}
     except Exception as e:
         return {"valid": False, "error": str(e)}
+
+
+@api_router.get("/admin/key-exists")
+async def check_admin_key_exists():
+    """Check if admin key has been set"""
+    stored_hash = await get_admin_key_from_db()
+    return {"exists": stored_hash is not None}
+
+
+@api_router.post("/admin/setup-key")
+async def setup_admin_key(request: Request):
+    """Set up admin key for first time (only works if no key exists)"""
+    try:
+        # Check if key already exists
+        existing = await get_admin_key_from_db()
+        if existing:
+            raise HTTPException(status_code=400, detail="Admin anahtarı zaten ayarlanmış")
+        
+        body = await request.json()
+        new_key = body.get("admin_key", "")
+        
+        if not new_key or len(new_key) < 6:
+            raise HTTPException(status_code=400, detail="Anahtar en az 6 karakter olmalı")
+        
+        success = await set_admin_key_in_db(new_key)
+        if success:
+            return {"success": True, "message": "Admin anahtarı başarıyla ayarlandı"}
+        else:
+            raise HTTPException(status_code=500, detail="Anahtar kaydedilemedi")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @api_router.get("/admin/team-tasks")
