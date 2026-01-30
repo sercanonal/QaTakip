@@ -2326,12 +2326,13 @@ async def health_check():
 async def jiragen_validate(request: Request):
     """Validate JSON test data for Jira test creation (SSE streaming)"""
     
+    # Read body BEFORE generator
+    body = await request.json()
+    is_ui_test = body.get("isUiTest", False)
+    json_data = body.get("jsonData", "")
+    
     async def generate():
         try:
-            body = await request.json()
-            is_ui_test = body.get("isUiTest", False)
-            json_data = body.get("jsonData", "")
-            
             yield f"data: {json.dumps({'log': '🔍 JSON verisi analiz ediliyor...'})}\n\n"
             
             try:
