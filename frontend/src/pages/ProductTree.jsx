@@ -440,15 +440,36 @@ const TreeNode = ({ name, data, level, type, onRefreshEndpoints }) => {
       let totalRequired = data.endPoints.length * 3; // 3 test types per endpoint
       let totalPassed = 0;
       
+      // Helper functions to check test types
+      const isHappyTest = (t) => {
+        const name = (t.name || '').toLowerCase();
+        const testType = (t.testType || t.type || '').toLowerCase();
+        return name.includes('happy') || testType.includes('happy');
+      };
+      
+      const isAlternatifTest = (t) => {
+        const name = (t.name || '').toLowerCase();
+        const testType = (t.testType || t.type || '').toLowerCase();
+        return name.includes('alternatif') || name.includes('alternative') || 
+               testType.includes('alternatif') || testType.includes('alternative');
+      };
+      
+      const isNegatifTest = (t) => {
+        const name = (t.name || '').toLowerCase();
+        const testType = (t.testType || t.type || '').toLowerCase();
+        return name.includes('negatif') || name.includes('negative') ||
+               testType.includes('negatif') || testType.includes('negative');
+      };
+      
       data.endPoints.forEach(endpoint => {
         const hasHappy = endpoint.tests?.some(t => 
-          t.name?.toLowerCase().includes('happy') && t.status === 'PASSED'
+          isHappyTest(t) && t.status === 'PASSED'
         ) || endpoint.happy;
         const hasAlternatif = endpoint.tests?.some(t => 
-          (t.name?.toLowerCase().includes('alternatif') || t.name?.toLowerCase().includes('alternative')) && t.status === 'PASSED'
+          isAlternatifTest(t) && t.status === 'PASSED'
         ) || endpoint.alternatif;
         const hasNegatif = endpoint.tests?.some(t => 
-          (t.name?.toLowerCase().includes('negatif') || t.name?.toLowerCase().includes('negative')) && t.status === 'PASSED'
+          isNegatifTest(t) && t.status === 'PASSED'
         ) || endpoint.negatif;
         
         if (hasHappy) totalPassed++;
