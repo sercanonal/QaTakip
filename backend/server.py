@@ -4018,7 +4018,7 @@ async def refresh_single_test(request: Request):
 
 @api_router.post("/product-tree/refresh-controller")
 async def refresh_controller_endpoints(request: Request):
-    """Refresh test data for a specific controller's endpoints - fetches test types from Jira"""
+    """Refresh test data for a specific controller's endpoints - fetches test types from Jira in BATCH"""
     try:
         body = await request.json()
         controller_name = body.get("controllerName", "")
@@ -4032,7 +4032,22 @@ async def refresh_controller_endpoints(request: Request):
         
         logger.info(f"Refreshing {len(endpoints)} endpoints for controller: {controller_name}")
         
-        # Re-fetch test types from Jira for each endpoint's tests
+        # Collect all test keys first for batch fetch
+        all_test_keys = []
+        for endpoint in endpoints:
+            tests = endpoint.get("tests", [])
+            for test in tests:
+                test_key = test.get("key", "")
+                if test_key:
+                    all_test_keys.append(test_key)
+        
+        # Batch fetch all test cases from Jira
+        jira_tests_map = {}
+        if all_test_keys:
+            jira_tests_map = await jira_client.get_test_cases_batch(list(set(all_test_keys)))
+            logger.info(f"Batch fetched {len(jira_tests_map)} test cases")
+        
+        # Now process each endpoint with the batch data
         refreshed_endpoints = []
         
         for endpoint in endpoints:
@@ -4052,42 +4067,39 @@ async def refresh_controller_endpoints(request: Request):
                     "negatif": False
                 }
                 
-                # Refresh test types from Jira for each test
+                # Process each test using batch data
                 for test in tests:
                     test_key = test.get("key", "")
                     test_name = test.get("name", "")
                     test_status = test.get("status", "NOT_EXECUTED")
                     
-                    # Get fresh test type from Jira (intValue: 812=Happy, 813=Alternatif, 837=Negatif)
+                    # Get test type from batch results
                     type_int = 0
-                    if test_key:
-                        try:
-                            type_int = await jira_client.get_test_type_from_case(test_key)
-                            logger.info(f"Test {test_key}: type_int = {type_int}")
-                        except Exception as e:
-                            logger.warning(f"Could not get test type for {test_key}: {e}")
-                    
-                    # Determine type label based on intValue
                     type_label = "🔴 Test Tipi Girilmemiş."
-                    if type_int == 812:
-                        type_label = "✅ Happy Path"
-                        if test_status == "PASSED":
-                            endpoint_data["happy"] = True
-                    elif type_int == 813:
-                        type_label = "🔀 Alternatif Senaryo"
-                        if test_status == "PASSED":
-                            endpoint_data["alternatif"] = True
-                    elif type_int == 837:
-                        type_label = "❌ Negatif Senaryo"
-                        if test_status == "PASSED":
-                            endpoint_data["negatif"] = True
+                    
+                    if test_key and test_key in jira_tests_map:
+                        jira_test = jira_tests_map[test_key]
+                        custom_field_values = jira_test.get("customFieldValues", [])
+                        type_int = jira_client.get_test_type_from_custom_fields(custom_field_values)
+                        
+                        if type_int == 812:
+                            type_label = "✅ Happy Path"
+                            if test_status == "PASSED":
+                                endpoint_data["happy"] = True
+                        elif type_int == 813:
+                            type_label = "🔀 Alternatif Senaryo"
+                            if test_status == "PASSED":
+                                endpoint_data["alternatif"] = True
+                        elif type_int == 837:
+                            type_label = "❌ Negatif Senaryo"
+                            if test_status == "PASSED":
+                                endpoint_data["negatif"] = True
                     
                     test_info = {
                         "key": test_key,
                         "name": test_name,
                         "status": test_status,
-                        "type": type_label,
-                        "testType": test_type
+                        "type": type_label
                     }
                     endpoint_data["tests"].append(test_info)
                 
