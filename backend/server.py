@@ -181,18 +181,29 @@ ROOT_DIR = Path(__file__).parent
 DATA_DIR = ROOT_DIR / "data"
 DB_PATH = DATA_DIR / "qa_tasks.db"
 ADMIN_WHITELIST_PATH = DATA_DIR / "admin_whitelist.json"
+ADMIN_WHITELIST_LOCAL_PATH = DATA_DIR / "admin_whitelist.local.json"
 
 load_dotenv(ROOT_DIR / '.env')
 
 # ============== Admin Whitelist Functions ==============
 
 def load_admin_whitelist():
-    """Load admin whitelist from JSON file"""
+    """Load admin whitelist - checks .local file first (not in GitHub), then template"""
     try:
+        # First try .local file (real admin data, not in GitHub)
+        if ADMIN_WHITELIST_LOCAL_PATH.exists():
+            with open(ADMIN_WHITELIST_LOCAL_PATH, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                logger.info("Admin whitelist loaded from .local file")
+                return data.get('admins', [])
+        
+        # Fallback to template file
         if ADMIN_WHITELIST_PATH.exists():
             with open(ADMIN_WHITELIST_PATH, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+                logger.warning("Using template admin_whitelist.json - create admin_whitelist.local.json for real admins!")
                 return data.get('admins', [])
+        
         return []
     except Exception as e:
         logger.error(f"Error loading admin whitelist: {e}")
