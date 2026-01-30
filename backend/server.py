@@ -2156,98 +2156,118 @@ async def get_detailed_report_stats(
     user_id: str,
     period_months: int = 1
 ):
-    """Get detailed statistics for report generation"""
-    from datetime import datetime, timedelta
+    """Get detailed statistics for report generation using SQLite"""
+    from datetime import datetime, timedelta, timezone
     
     # Calculate date range
-    end_date = datetime.now()
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=period_months * 30)
     
-    # Get user info
-    user = users_collection.find_one({"id": user_id})
-    user_name = user.get("name", "Kullanıcı") if user else "Kullanıcı"
-    
-    # Get all tasks for the period
-    all_tasks = list(tasks_collection.find({
-        "user_id": user_id,
-        "created_at": {"$gte": start_date.isoformat()}
-    }))
-    
-    # Calculate statistics
-    total_tasks = len(all_tasks)
-    completed_tasks = len([t for t in all_tasks if t.get("status") == "completed"])
-    in_progress_tasks = len([t for t in all_tasks if t.get("status") == "in_progress"])
-    todo_tasks = len([t for t in all_tasks if t.get("status") == "todo"])
-    
-    # Priority breakdown
-    priority_stats = {
-        "critical": len([t for t in all_tasks if t.get("priority") == "critical"]),
-        "high": len([t for t in all_tasks if t.get("priority") == "high"]),
-        "medium": len([t for t in all_tasks if t.get("priority") == "medium"]),
-        "low": len([t for t in all_tasks if t.get("priority") == "low"])
-    }
-    
-    # Task type breakdown (based on tags or labels)
-    maintenance_tasks = len([t for t in all_tasks if "bakım" in t.get("title", "").lower() or "maintenance" in t.get("title", "").lower() or t.get("type") == "maintenance"])
-    new_tests = len([t for t in all_tasks if "yeni test" in t.get("title", "").lower() or "new test" in t.get("title", "").lower() or t.get("type") == "new_test"])
-    bug_fixes = len([t for t in all_tasks if "bug" in t.get("title", "").lower() or "hata" in t.get("title", "").lower() or t.get("type") == "bug_fix"])
-    
-    # Monthly breakdown
-    monthly_data = []
-    for i in range(period_months):
-        month_start = end_date - timedelta(days=(i + 1) * 30)
-        month_end = end_date - timedelta(days=i * 30)
-        month_tasks = [t for t in all_tasks if month_start.isoformat() <= t.get("created_at", "") <= month_end.isoformat()]
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Get user info
+        cursor = await db.execute("SELECT name FROM users WHERE id = ?", (user_id,))
+        user_row = await cursor.fetchone()
+        user_name = user_row[0] if user_row else "Kullanıcı"
         
-        month_name = month_end.strftime("%B %Y")
-        monthly_data.append({
-            "month": month_name,
-            "total": len(month_tasks),
-            "completed": len([t for t in month_tasks if t.get("status") == "completed"]),
-            "maintenance": len([t for t in month_tasks if "bakım" in t.get("title", "").lower()]),
-            "new_tests": len([t for t in month_tasks if "yeni test" in t.get("title", "").lower()])
-        })
-    
-    # Completion rate
-    completion_rate = round((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0, 1)
-    
-    # Average completion time (mock data for now)
-    avg_completion_days = 3.5
-    
-    return {
-        "user_name": user_name,
-        "period_months": period_months,
-        "period_label": f"{period_months} Aylık Rapor",
-        "date_range": {
-            "start": start_date.strftime("%d/%m/%Y"),
-            "end": end_date.strftime("%d/%m/%Y")
-        },
-        "summary": {
-            "total_tasks": total_tasks,
-            "completed_tasks": completed_tasks,
-            "in_progress_tasks": in_progress_tasks,
-            "todo_tasks": todo_tasks,
-            "completion_rate": completion_rate,
-            "avg_completion_days": avg_completion_days
-        },
-        "work_breakdown": {
-            "maintenance_tasks": maintenance_tasks,
-            "new_tests": new_tests,
-            "bug_fixes": bug_fixes,
-            "other": total_tasks - maintenance_tasks - new_tests - bug_fixes
-        },
-        "priority_breakdown": priority_stats,
-        "monthly_data": monthly_data[::-1],  # Reverse for chronological order
-        "recent_tasks": [
+        # Get all tasks for the period
+        cursor = await db.execute(
+            """SELECT id, title, description, category_id, status, priority, created_at, completed_at 
+               FROM tasks 
+               WHERE (user_id = ? OR assigned_to = ?) AND created_at >= ?
+               ORDER BY created_at DESC""",
+            (user_id, user_id, start_date.isoformat())
+        )
+        rows = await cursor.fetchall()
+        
+        all_tasks = [
             {
-                "title": t.get("title", ""),
-                "status": t.get("status", ""),
-                "priority": t.get("priority", ""),
-                "created_at": t.get("created_at", "")[:10] if t.get("created_at") else ""
+                "id": r[0], "title": r[1], "description": r[2], "category_id": r[3],
+                "status": r[4], "priority": r[5], "created_at": r[6], "completed_at": r[7]
             }
-            for t in all_tasks[:10]
+            for r in rows
         ]
-    }
+        
+        # Calculate statistics
+        total_tasks = len(all_tasks)
+        completed_tasks = len([t for t in all_tasks if t.get("status") == "completed"])
+        in_progress_tasks = len([t for t in all_tasks if t.get("status") == "in_progress"])
+        todo_tasks = len([t for t in all_tasks if t.get("status") in ["backlog", "today_planned"]])
+        blocked_tasks = len([t for t in all_tasks if t.get("status") == "blocked"])
+        
+        # Priority breakdown
+        priority_stats = {
+            "critical": len([t for t in all_tasks if t.get("priority") == "critical"]),
+            "high": len([t for t in all_tasks if t.get("priority") == "high"]),
+            "medium": len([t for t in all_tasks if t.get("priority") == "medium"]),
+            "low": len([t for t in all_tasks if t.get("priority") == "low"])
+        }
+        
+        # Task type breakdown (based on title keywords)
+        maintenance_tasks = len([t for t in all_tasks if any(kw in (t.get("title") or "").lower() for kw in ["bakım", "maintenance", "düzeltme", "fix"])])
+        new_tests = len([t for t in all_tasks if any(kw in (t.get("title") or "").lower() for kw in ["yeni test", "new test", "test yaz", "otomasyon"])])
+        bug_fixes = len([t for t in all_tasks if any(kw in (t.get("title") or "").lower() for kw in ["bug", "hata", "sorun", "error"])])
+        
+        # Monthly breakdown
+        monthly_data = []
+        turkish_months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
+                          'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+        
+        for i in range(min(period_months, 12)):
+            month_end = end_date - timedelta(days=i * 30)
+            month_start = month_end - timedelta(days=30)
+            
+            month_tasks = [t for t in all_tasks if t.get("created_at") and month_start.isoformat() <= t.get("created_at", "") <= month_end.isoformat()]
+            
+            month_name = f"{turkish_months[month_end.month - 1]} {month_end.year}"
+            monthly_data.append({
+                "month": month_name,
+                "total": len(month_tasks),
+                "completed": len([t for t in month_tasks if t.get("status") == "completed"]),
+                "maintenance": len([t for t in month_tasks if "bakım" in (t.get("title") or "").lower()]),
+                "new_tests": len([t for t in month_tasks if "test" in (t.get("title") or "").lower()])
+            })
+        
+        # Completion rate
+        completion_rate = round((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0, 1)
+        
+        # Period label
+        period_labels = {1: "Son 1 Ay", 3: "Son 3 Ay", 6: "Son 6 Ay", 12: "Son 12 Ay"}
+        period_label = period_labels.get(period_months, f"Son {period_months} Ay")
+        
+        return {
+            "user_name": user_name,
+            "period_months": period_months,
+            "period_label": period_label,
+            "date_range": {
+                "start": start_date.strftime("%d/%m/%Y"),
+                "end": end_date.strftime("%d/%m/%Y")
+            },
+            "summary": {
+                "total_tasks": total_tasks,
+                "completed_tasks": completed_tasks,
+                "in_progress_tasks": in_progress_tasks,
+                "todo_tasks": todo_tasks,
+                "blocked_tasks": blocked_tasks,
+                "completion_rate": completion_rate
+            },
+            "work_breakdown": {
+                "maintenance_tasks": maintenance_tasks,
+                "new_tests": new_tests,
+                "bug_fixes": bug_fixes,
+                "other": max(0, total_tasks - maintenance_tasks - new_tests - bug_fixes)
+            },
+            "priority_breakdown": priority_stats,
+            "monthly_data": monthly_data[::-1],  # Reverse for chronological order
+            "recent_tasks": [
+                {
+                    "title": t.get("title", ""),
+                    "status": t.get("status", ""),
+                    "priority": t.get("priority", ""),
+                    "created_at": (t.get("created_at") or "")[:10]
+                }
+                for t in all_tasks[:10]
+            ]
+        }
 
 @api_router.post("/reports/export")
 async def export_report(request_data: ReportExportRequest):
