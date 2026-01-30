@@ -86,8 +86,8 @@ const ProductTree = () => {
   }, [jiraTeamId, reportDate, selectedProject, days, time]);
   
   const runAnalysis = async () => {
-    if (!jiraTeamId || !reportDate) {
-      toast.error("Team ID ve tarih gerekli!");
+    if (!jiraTeamId || !reportDate || !selectedProject) {
+      toast.error("Team ID, tarih ve proje seçimi gerekli!");
       return;
     }
     
@@ -103,7 +103,7 @@ const ProductTree = () => {
         body: JSON.stringify({
           jiraTeamId: parseInt(jiraTeamId),
           reportDate,
-          projectNames: selectedProjects,
+          projectNames: [selectedProject], // Single project as array
           days: parseInt(days),
           time
         })
