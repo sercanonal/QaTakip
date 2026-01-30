@@ -136,26 +136,26 @@ class ReportExporter:
     
     @staticmethod
     def generate_pdf_report(data: Dict[str, Any]) -> bytes:
-        """Generate professional PDF report with charts and statistics"""
+        """Generate professional canvas-style PDF report with modern design"""
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
             buffer, 
             pagesize=A4,
-            topMargin=1*cm,
-            bottomMargin=1*cm,
-            leftMargin=1.5*cm,
-            rightMargin=1.5*cm
+            topMargin=0.5*cm,
+            bottomMargin=0.5*cm,
+            leftMargin=1*cm,
+            rightMargin=1*cm
         )
         story = []
         styles = getSampleStyleSheet()
         
-        # Custom styles
+        # Custom styles - Modern dark theme
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
-            fontSize=28,
-            textColor=colors.HexColor(BRAND_PRIMARY),
-            spaceAfter=20,
+            fontSize=32,
+            textColor=colors.HexColor('#FFFFFF'),
+            spaceAfter=8,
             alignment=1,
             fontName='Helvetica-Bold'
         )
@@ -163,41 +163,80 @@ class ReportExporter:
         subtitle_style = ParagraphStyle(
             'CustomSubtitle',
             parent=styles['Normal'],
-            fontSize=12,
-            textColor=colors.HexColor('#71717A'),
-            spaceAfter=30,
+            fontSize=14,
+            textColor=colors.HexColor('#A78BFA'),
+            spaceAfter=20,
             alignment=1
         )
         
         section_title_style = ParagraphStyle(
             'SectionTitle',
             parent=styles['Heading2'],
-            fontSize=16,
-            textColor=colors.HexColor(BRAND_PRIMARY),
-            spaceBefore=20,
+            fontSize=18,
+            textColor=colors.HexColor('#8B5CF6'),
+            spaceBefore=25,
             spaceAfter=15,
+            fontName='Helvetica-Bold'
+        )
+        
+        kpi_label_style = ParagraphStyle(
+            'KPILabel',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#71717A'),
+            alignment=1
+        )
+        
+        kpi_value_style = ParagraphStyle(
+            'KPIValue',
+            parent=styles['Normal'],
+            fontSize=28,
+            textColor=colors.HexColor('#FFFFFF'),
+            alignment=1,
             fontName='Helvetica-Bold'
         )
         
         # Get user info
         user_name = data.get('user_name', 'Kullanıcı')
+        period_label = data.get('period_label', 'Son 30 Gün')
+        stats = data.get('stats', {})
+        tasks = data.get('tasks', [])
         
-        # ===== COVER SECTION =====
-        story.append(Spacer(1, 2*cm))
-        story.append(Paragraph("QA Task Manager", title_style))
+        # ===== HEADER BANNER =====
+        # Create a dark gradient header background
+        header_drawing = Drawing(525, 140)
+        
+        # Main dark background
+        header_bg = Rect(0, 0, 525, 140, fillColor=colors.HexColor('#18181B'), strokeColor=None)
+        header_drawing.add(header_bg)
+        
+        # Accent gradient overlay (purple)
+        accent_rect = Rect(0, 0, 180, 140, fillColor=colors.HexColor('#4C1D95'), strokeColor=None)
+        header_drawing.add(accent_rect)
+        
+        # Decorative circles
+        circle1 = Circle(450, 100, 60, fillColor=colors.HexColor('#7C3AED'), fillOpacity=0.3, strokeColor=None)
+        header_drawing.add(circle1)
+        circle2 = Circle(480, 40, 40, fillColor=colors.HexColor('#A78BFA'), fillOpacity=0.2, strokeColor=None)
+        header_drawing.add(circle2)
+        
+        story.append(header_drawing)
+        
+        # Title text over the header
+        story.append(Spacer(1, -120))
+        story.append(Paragraph("QA Hub", title_style))
         story.append(Paragraph("Performans Raporu", subtitle_style))
-        story.append(Spacer(1, 0.5*cm))
         
-        # Report info box
-        report_info = f"""
-        <para align="center">
-        <b>Hazırlayan:</b> {user_name}<br/>
-        <b>Rapor Tarihi:</b> {datetime.now().strftime('%d %B %Y')}<br/>
-        <b>Dönem:</b> Son 30 Gün
-        </para>
-        """
-        story.append(Paragraph(report_info, styles['Normal']))
-        story.append(Spacer(1, 1*cm))
+        # User info box
+        info_style = ParagraphStyle(
+            'InfoStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            textColor=colors.HexColor('#D4D4D8'),
+            alignment=1
+        )
+        story.append(Paragraph(f"<b>{user_name}</b> | {datetime.now().strftime('%d.%m.%Y')} | {period_label}", info_style))
+        story.append(Spacer(1, 35))
         
         # ===== EXECUTIVE SUMMARY =====
         stats = data.get('stats', {})
