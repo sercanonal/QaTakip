@@ -606,7 +606,7 @@ const TeamTracking = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 };
 
