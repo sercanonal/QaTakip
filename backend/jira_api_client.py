@@ -207,13 +207,14 @@ class JiraAPIClient:
         params = {"fields": "id,key,name,projectId,projectVersionId"}
         
         for attempt in range(self.config.MAX_RETRIES):
-            logger.info(f"Zephyr API (attempt {attempt + 1}): {url}")
-            data = self._curl_get(url, params)
+            logger.info(f"Zephyr API get_test_run (attempt {attempt + 1}/{self.config.MAX_RETRIES})")
+            data = self._smart_curl_get(url, params)
             if data:
                 logger.info(f"Got test run: id={data.get('id')}, key={data.get('key')}")
                 return data
         
-        return {"id": cycle_name, "key": cycle_name, "error": "timeout"}
+        logger.error(f"Failed to get test run after {self.config.MAX_RETRIES} attempts")
+        return {"id": cycle_name, "key": cycle_name, "error": "connection_failed"}
     
     def get_cycle_info(self, cycle_id: str) -> Dict[str, Any]:
         """Get cycle test items"""
@@ -221,7 +222,7 @@ class JiraAPIClient:
         params = {"fields": "id,index,issueCount,$lastTestResult"}
         
         for attempt in range(self.config.MAX_RETRIES):
-            data = self._curl_get(url, params)
+            data = self._smart_curl_get(url, params)
             if data:
                 items = data.get("testRunItems", [])
                 logger.info(f"Got {len(items)} test run items")
@@ -239,9 +240,8 @@ class JiraAPIClient:
         """Execute JQL search and return issues"""
         url = f"{self.base_url}{self.jira_path}/search"
         
-        # JQL should be URL encoded when passed as param
         params = {
-            "jql": jql,  # urllib.parse.urlencode in _curl_get will handle encoding
+            "jql": jql,
             "maxResults": str(max_results),
             "fields": "key,summary,status,assignee,priority,issuetype,project,created,updated,description"
         }
@@ -251,11 +251,11 @@ class JiraAPIClient:
         
         for attempt in range(self.config.MAX_RETRIES):
             logger.info(f"Search attempt {attempt + 1}/{self.config.MAX_RETRIES}")
-            data = self._curl_get(url, params)
+            data = self._smart_curl_get(url, params)
             if data:
                 issues = data.get('issues', [])
                 total = data.get('total', 0)
-                logger.info(f"=== SEARCH RESULT: {len(issues)} issues found (total: {total}) ===")
+                logger.info(f"=== SEARCH SUCCESS: {len(issues)} issues found (total: {total}) ===")
                 return issues
             else:
                 logger.warning(f"Search attempt {attempt + 1} returned no data")
