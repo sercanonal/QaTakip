@@ -3653,7 +3653,8 @@ async def run_product_tree(request: Request):
             yield f"data: {json.dumps({'log': '🌳 Test Kapsam Ağacı analizi başlatılıyor...'})}\n\n"
             yield f"data: {json.dumps({'log': f'   Team ID: {jira_team_id}'})}\n\n"
             yield f"data: {json.dumps({'log': f'   Tarih: {report_date}'})}\n\n"
-            yield f"data: {json.dumps({'log': f'   Projeler: {", ".join(project_names)}'})}\n\n"
+            projects_str = ", ".join(project_names) if project_names else "Yok"
+            yield f"data: {json.dumps({'log': f'   Projeler: {projects_str}'})}\n\n"
             
             if not MSSQL_AVAILABLE:
                 yield f"data: {json.dumps({'log': '⚠️ MSSQL bağlantısı yok - DEMO modu'})}\n\n"
