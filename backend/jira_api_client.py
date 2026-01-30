@@ -333,6 +333,67 @@ class JiraAPIClient:
         
         logger.warning(f"No users found for query: {query}")
         return []
+    
+    def get_user_task_stats(self, username: str, months: int = 1) -> Dict[str, Any]:
+        """Get task statistics for a user"""
+        from datetime import datetime, timedelta
+        
+        # Calculate date range
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=months * 30)
+        date_str = start_date.strftime("%Y-%m-%d")
+        
+        stats = {
+            "backlog": 0,
+            "in_progress": 0,
+            "completed": 0,
+            "tasks": []
+        }
+        
+        # JQL for open tasks (backlog + in progress)
+        jql_open = f'assignee = "{username}" AND status NOT IN (Done, Closed, Resolved, Cancelled, "İptal Edildi") AND created >= "{date_str}" ORDER BY status ASC'
+        
+        open_issues = self.search_issues(jql_open, max_results=200)
+        
+        for issue in open_issues:
+            fields = issue.get('fields', {})
+            status_name = (fields.get('status', {}).get('name', '') or '').lower()
+            
+            task_info = {
+                "key": issue.get('key', ''),
+                "summary": fields.get('summary', ''),
+                "status": fields.get('status', {}).get('name', ''),
+                "priority": fields.get('priority', {}).get('name', ''),
+                "created": fields.get('created', '')[:10] if fields.get('created') else ''
+            }
+            
+            if 'progress' in status_name or 'doing' in status_name or 'development' in status_name:
+                stats["in_progress"] += 1
+                task_info["category"] = "in_progress"
+            else:
+                stats["backlog"] += 1
+                task_info["category"] = "backlog"
+            
+            stats["tasks"].append(task_info)
+        
+        # JQL for completed tasks
+        jql_done = f'assignee = "{username}" AND status IN (Done, Closed, Resolved) AND resolved >= "{date_str}" ORDER BY resolved DESC'
+        
+        done_issues = self.search_issues(jql_done, max_results=200)
+        stats["completed"] = len(done_issues)
+        
+        for issue in done_issues:
+            fields = issue.get('fields', {})
+            stats["tasks"].append({
+                "key": issue.get('key', ''),
+                "summary": fields.get('summary', ''),
+                "status": fields.get('status', {}).get('name', ''),
+                "priority": fields.get('priority', {}).get('name', ''),
+                "created": fields.get('created', '')[:10] if fields.get('created') else '',
+                "category": "completed"
+            })
+        
+        return stats
 
 
 # Create singleton instance
