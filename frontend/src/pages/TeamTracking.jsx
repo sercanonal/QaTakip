@@ -236,21 +236,26 @@ const TeamTracking = () => {
 
           {/* QA Team List */}
           {showTeamList && qaTeam.length > 0 && (
-            <div className="border border-border/50 rounded-lg p-3 bg-secondary/20">
-              <p className="text-sm font-medium mb-2 flex items-center gap-2">
+            <div className="border border-violet-500/20 rounded-lg p-4 bg-violet-500/5">
+              <p className="text-sm font-medium mb-3 flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-violet-500" />
                 Kalite Ekibi ({qaTeam.length} kişi)
               </p>
-              <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                 {qaTeam.map((user, idx) => (
                   <Button
                     key={idx}
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => handleUserSelect(user.name)}
-                    className="h-8 text-xs hover:bg-violet-500/10 hover:border-violet-500/50"
+                    className="justify-start h-9 px-3 hover:bg-violet-500/10 hover:text-violet-400 border border-transparent hover:border-violet-500/30"
                   >
-                    {user.displayName || user.name}
+                    <span className="w-6 h-6 rounded-full bg-violet-500/20 flex items-center justify-center text-xs font-medium text-violet-400 mr-2">
+                      {(user.displayName || user.name || '?').charAt(0).toUpperCase()}
+                    </span>
+                    <span className="truncate text-sm">
+                      {user.displayName || user.name}
+                    </span>
                   </Button>
                 ))}
               </div>
