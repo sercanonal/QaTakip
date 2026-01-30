@@ -602,60 +602,6 @@ const EndpointNode = ({ endpoint, level }) => {
               ? "bg-green-500/20 text-green-400 border border-green-500/40" 
               : "bg-red-500/20 text-red-400 border border-red-500/40"
           )}>
-            {hasHappyPassed ? "✅" : "❌"} HP
-          </Badge>
-          <Badge className={cn(
-            "transition-colors text-xs",
-            hasAlternatifPassed 
-              ? "bg-green-500/20 text-green-400 border border-green-500/40" 
-              : "bg-red-500/20 text-red-400 border border-red-500/40"
-          )}>
-            {hasAlternatifPassed ? "✅" : "❌"} AS
-          </Badge>
-          <Badge className={cn(
-            "transition-colors text-xs",
-            hasNegatifPassed 
-              ? "bg-green-500/20 text-green-400 border border-green-500/40" 
-              : "bg-red-500/20 text-red-400 border border-red-500/40"
-          )}>
-            {hasNegatifPassed ? "✅" : "❌"} NS
-          </Badge>
-        </div>
-      </div>
-          ) : (
-            <Badge variant="outline" className="text-red-600 border-red-600">
-              <XCircle className="w-3 h-3 mr-1" />
-              Not Tested
-            </Badge>
-          )}
-          
-          {hasTests && (
-            <Badge variant="secondary">{endpoint.tests.length} test</Badge>
-          )}
-          
-          {/* Test Type Badges - Green for passed, Red for missing/not passed */}
-          <Badge className={cn(
-            "transition-colors",
-            hasHappyPassed 
-              ? "bg-green-500/20 text-green-400 border border-green-500/40" 
-              : "bg-red-500/20 text-red-400 border border-red-500/40"
-          )}>
-            {hasHappyPassed ? "✅" : "❌"} HP
-          </Badge>
-          <Badge className={cn(
-            "transition-colors",
-            hasAlternatifPassed 
-              ? "bg-green-500/20 text-green-400 border border-green-500/40" 
-              : "bg-red-500/20 text-red-400 border border-red-500/40"
-          )}>
-            {hasAlternatifPassed ? "✅" : "❌"} AS
-          </Badge>
-          <Badge className={cn(
-            "transition-colors",
-            hasNegatifPassed 
-              ? "bg-green-500/20 text-green-400 border border-green-500/40" 
-              : "bg-red-500/20 text-red-400 border border-red-500/40"
-          )}>
             {hasNegatifPassed ? "✅" : "❌"} NS
           </Badge>
         </div>
