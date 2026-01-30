@@ -69,7 +69,6 @@ function App() {
             <Route path="calendar" element={<CalendarPage />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings />} />
-            <Route path="admin" element={<AdminPanel />} />
             <Route path="jira-tools" element={<JiraTools />} />
             <Route path="analysis" element={<Analysis />} />
           </Route>
