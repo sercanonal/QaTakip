@@ -324,7 +324,8 @@ const Dashboard = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
