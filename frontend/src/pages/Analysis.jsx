@@ -373,8 +373,15 @@ const Analysis = () => {
         }
       }
     } catch (error) {
-      toast.error("Bağlantı hatası: " + error.message);
+      if (error.name === 'AbortError') {
+        toast.error("İstek zaman aşımına uğradı (2 dakika)");
+        setApiOutput(prev => prev + "❌ Zaman aşımı - VPN bağlantınızı kontrol edin\n");
+      } else {
+        toast.error("Bağlantı hatası: " + error.message);
+        setApiOutput(prev => prev + `❌ Hata: ${error.message}\n`);
+      }
     } finally {
+      clearTimeout(timeoutId);
       setApiLoading(false);
     }
   };
