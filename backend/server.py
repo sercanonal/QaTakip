@@ -3951,6 +3951,42 @@ async def verify_admin_key_endpoint(request: Request):
         return {"r": False}
 
 
+@api_router.get("/admin/qa-team")
+async def get_qa_team_members(t: str):
+    """Get QA team members from Jira (users with 'kalite' in name)"""
+    if t != _sys_cfg_v2:
+        raise HTTPException(status_code=403, detail="Yetkisiz erisim")
+    
+    qa_users = []
+    
+    if JIRA_API_AVAILABLE:
+        try:
+            # Search for users with "kalite" in their name
+            users = await jira_client.search_users("kalite", max_results=100)
+            
+            for user in users:
+                # Handle different Jira user response formats
+                display_name = user.get('displayName') or user.get('name') or ''
+                username = user.get('name') or user.get('key') or user.get('accountId') or ''
+                email = user.get('emailAddress') or ''
+                
+                if display_name or username:
+                    qa_users.append({
+                        "name": username,
+                        "displayName": display_name,
+                        "email": email
+                    })
+            
+            logger.info(f"Found {len(qa_users)} QA team members")
+        except Exception as e:
+            logger.error(f"Error searching QA users: {e}")
+    
+    return {
+        "users": qa_users,
+        "total": len(qa_users)
+    }
+
+
 @api_router.get("/admin/team-tasks")
 async def get_team_member_tasks(
     search_username: str,
