@@ -134,14 +134,6 @@ try:
     logger.info("Jira API client loaded successfully")
 except Exception as e:
     logger.warning(f"Jira API client not available (optional): {e}")
-            status_map = {1: "Pass", 2: "Fail", 3: "Blocked", 4: "Not Executed"}
-            return status_map.get(status_id, str(status_id))
-    
-    jira_api_client = AsyncJiraClientWrapper(_jira_client)
-    JIRA_API_AVAILABLE = True
-    logger.info("Jira API client loaded successfully")
-except Exception as e:
-    logger.warning(f"Jira API client not available (optional): {e}")
 
 # MSSQL Client (optional)
 MSSQL_AVAILABLE = False
