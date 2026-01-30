@@ -280,13 +280,21 @@ class JiraAPIClient:
         customFieldId=123: 812=Happy Path, 813=Alternatif, 837=Negatif
         """
         if not custom_field_values or not isinstance(custom_field_values, list):
+            logger.warning(f"No customFieldValues found")
             return 0
+        
+        # Debug: Log all custom field IDs
+        cf_ids = [(cfv.get("customFieldId"), cfv.get("intValue"), cfv.get("stringValue", "")[:30] if cfv.get("stringValue") else "") for cfv in custom_field_values]
+        logger.info(f"CustomFieldValues: {cf_ids}")
         
         for cfv in custom_field_values:
             cf_id = cfv.get("customFieldId")
             if cf_id == 123:
-                return cfv.get("intValue", 0)
+                int_val = cfv.get("intValue", 0)
+                logger.info(f"Found customFieldId=123, intValue={int_val}")
+                return int_val
         
+        logger.warning(f"customFieldId=123 not found in customFieldValues")
         return 0
     
     # ============== STANDARD JIRA API ==============
