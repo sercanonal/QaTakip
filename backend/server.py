@@ -4143,8 +4143,8 @@ async def get_user_tasks_detail(username: str, t: str, months: int = 1):
             "completed": []
         }
         
-        # Get open tasks (excluding Cancelled)
-        jql_open = f'assignee = "{username}" AND status NOT IN (Done, Closed, Resolved, Cancelled, "İptal Edildi") AND created >= "{date_str}" ORDER BY priority DESC, updated DESC'
+        # Get open tasks (excluding Cancelled) - NO date filter
+        jql_open = f'assignee = "{username}" AND status NOT IN (Done, Closed, Resolved, Cancelled, "İptal Edildi") ORDER BY priority DESC, updated DESC'
         open_issues = await jira_client.search_issues(jql_open, max_results=100)
         
         for issue in open_issues:
