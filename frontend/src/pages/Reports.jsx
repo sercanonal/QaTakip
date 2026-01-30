@@ -69,13 +69,16 @@ const Reports = () => {
   const reportRef = useRef(null);
 
   useEffect(() => {
-    fetchReportData();
-  }, [periodMonths]);
+    if (user?.id) {
+      fetchReportData();
+    }
+  }, [periodMonths, user?.id]);
 
   const fetchReportData = async () => {
+    if (!user?.id) return;
     setLoading(true);
     try {
-      const response = await api.get(`/reports/detailed-stats?period_months=${periodMonths}`);
+      const response = await api.get(`/reports/detailed-stats?period_months=${periodMonths}&user_id=${user.id}`);
       setReportData(response.data);
     } catch (error) {
       console.error("Error fetching report data:", error);
