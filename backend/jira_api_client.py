@@ -234,6 +234,61 @@ class JiraAPIClient:
         """Get test executions for a cycle"""
         return self.get_cycle_info(cycle_id).get("testRunItems", [])
     
+    def get_test_cases_batch(self, test_keys: List[str], project_id: int = 12700) -> Dict[str, Dict[str, Any]]:
+        """
+        Batch fetch test cases from Zephyr Scale using testcase/search endpoint.
+        Returns a dict mapping test_key -> test_data (including customFieldValues).
+        Much faster than fetching one by one.
+        """
+        if not test_keys:
+            return {}
+        
+        results_map = {}
+        batch_size = 50  # Process in batches of 50
+        
+        for i in range(0, len(test_keys), batch_size):
+            batch = test_keys[i:i + batch_size]
+            keys_str = "','".join(batch)
+            
+            url = f"{self.base_url}{self.zephyr_path}/testcase/search"
+            params = {
+                "fields": "id,key,projectId,name,status,priority,customFieldValues",
+                "query": f"testCase.projectId IN ({project_id}) AND testCase.key IN ('{keys_str}')",
+                "startAt": "0",
+                "maxResults": "100",
+                "archived": "false"
+            }
+            
+            logger.info(f"Batch fetching {len(batch)} test cases (batch {i//batch_size + 1})")
+            
+            data = self._smart_curl_get(url, params)
+            if data and "results" in data:
+                for test in data["results"]:
+                    key = test.get("key", "")
+                    if key:
+                        results_map[key] = test
+                logger.info(f"Got {len(data['results'])} test cases in this batch")
+            else:
+                logger.warning(f"Batch fetch returned no results for keys: {batch[:3]}...")
+        
+        logger.info(f"Total: {len(results_map)} test cases fetched")
+        return results_map
+    
+    def get_test_type_from_custom_fields(self, custom_field_values: List[Dict]) -> int:
+        """
+        Extract test type intValue from customFieldValues array.
+        customFieldId=123: 812=Happy Path, 813=Alternatif, 837=Negatif
+        """
+        if not custom_field_values or not isinstance(custom_field_values, list):
+            return 0
+        
+        for cfv in custom_field_values:
+            cf_id = cfv.get("customFieldId")
+            if cf_id == 123:
+                return cfv.get("intValue", 0)
+        
+        return 0
+    
     # ============== STANDARD JIRA API ==============
     
     def search_issues(self, jql: str, max_results: int = 100) -> List[Dict[str, Any]]:
