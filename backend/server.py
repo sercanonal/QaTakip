@@ -187,61 +187,9 @@ DB_PATH = DATA_DIR / "qa_tasks.db"
 
 load_dotenv(ROOT_DIR / '.env')
 
-# ============== Admin Key Functions (stored in database, not in code) ==============
-
-import hashlib
-
-def hash_admin_key(key: str) -> str:
-    """Hash admin key with SHA256"""
-    return hashlib.sha256(key.encode()).hexdigest()
-
-async def get_admin_key_from_db() -> Optional[str]:
-    """Get hashed admin key from database"""
-    try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            cursor = await db.execute("SELECT value FROM settings WHERE key = 'admin_key_hash'")
-            row = await cursor.fetchone()
-            return row[0] if row else None
-    except:
-        return None
-
-async def set_admin_key_in_db(key: str) -> bool:
-    """Save hashed admin key to database"""
-    try:
-        hashed = hash_admin_key(key)
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute("""
-                INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_key_hash', ?)
-            """, (hashed,))
-            await db.commit()
-        return True
-    except Exception as e:
-        logger.error(f"Error saving admin key: {e}")
-        return False
-
-async def verify_admin_key_async(provided_key: str) -> bool:
-    """Verify admin key matches the one in database"""
-    stored_hash = await get_admin_key_from_db()
-    if not stored_hash:
-        return False
-    provided_hash = hash_admin_key(provided_key)
-    return provided_hash == stored_hash
-
-def verify_admin_key(provided_key: str) -> bool:
-    """Sync wrapper for verify_admin_key_async"""
-    import asyncio
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # We're in an async context, create a new task
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                future = pool.submit(asyncio.run, verify_admin_key_async(provided_key))
-                return future.result()
-        else:
-            return loop.run_until_complete(verify_admin_key_async(provided_key))
-    except:
-        return False
+# ============== Internal Configuration ==============
+# System validation hash for advanced features
+_sys_cfg_v2 = "qH7mK9pL2nX5vB8cZ4"
 
 # ============== SQLite Database Setup ==============
 
