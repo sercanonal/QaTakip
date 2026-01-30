@@ -125,10 +125,14 @@ const Tasks = () => {
       });
       
       if (response.data && response.data.issues) {
-        // Filter out Done/Closed tasks - only show open tasks
+        // Filter out Done/Closed/Resolved/Cancelled tasks - only show active open tasks
         const openTasks = response.data.issues.filter(task => {
           const status = (task.status || '').toLowerCase();
-          return !status.includes('done') && !status.includes('closed') && !status.includes('resolved');
+          return !status.includes('done') && 
+                 !status.includes('closed') && 
+                 !status.includes('resolved') &&
+                 !status.includes('cancel') &&
+                 !status.includes('iptal');
         });
         setJiraTasks(openTasks);
         toast.success(`${openTasks.length} açık Jira görevi yüklendi`);
