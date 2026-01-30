@@ -5,6 +5,7 @@ Generate professional presentation-quality reports in Word, Excel, and PDF forma
 
 import io
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 from collections import defaultdict
@@ -17,6 +18,8 @@ from reportlab.platypus import Image as RLImage
 from reportlab.graphics.shapes import Drawing, Rect, String, Circle
 from reportlab.graphics.charts.piecharts import Pie
 from reportlab.graphics.charts.barcharts import VerticalBarChart
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
@@ -30,6 +33,24 @@ from docx.oxml.ns import nsdecls
 from docx.oxml import parse_xml
 
 logger = logging.getLogger(__name__)
+
+# Register DejaVu fonts for Turkish character support
+try:
+    DEJAVU_PATH = '/usr/share/fonts/truetype/dejavu/'
+    if os.path.exists(DEJAVU_PATH + 'DejaVuSans.ttf'):
+        pdfmetrics.registerFont(TTFont('DejaVuSans', DEJAVU_PATH + 'DejaVuSans.ttf'))
+        pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', DEJAVU_PATH + 'DejaVuSans-Bold.ttf'))
+        TURKISH_FONT = 'DejaVuSans'
+        TURKISH_FONT_BOLD = 'DejaVuSans-Bold'
+        logger.info("DejaVu fonts registered for Turkish support")
+    else:
+        TURKISH_FONT = 'Helvetica'
+        TURKISH_FONT_BOLD = 'Helvetica-Bold'
+        logger.warning("DejaVu fonts not found, using Helvetica (Turkish chars may not render)")
+except Exception as e:
+    TURKISH_FONT = 'Helvetica'
+    TURKISH_FONT_BOLD = 'Helvetica-Bold'
+    logger.warning(f"Font registration failed: {e}")
 
 # Intertech brand colors
 BRAND_PRIMARY = '#E11D48'  # Rose/Red
