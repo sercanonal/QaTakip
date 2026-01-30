@@ -69,6 +69,14 @@ try:
         
         def transform_issue(self, issue):
             return format_issue(issue)
+        
+        async def get_test_type_from_case(self, test_key):
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.get_test_type_from_case, test_key)
+        
+        async def get_test_case_details(self, test_key):
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.get_test_case_details, test_key)
     
     jira_client = JiraClientCompat(_sync_jira_client)
     JIRA_AVAILABLE = True
