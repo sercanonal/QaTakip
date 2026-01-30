@@ -28,7 +28,7 @@ class JiraConfig:
 class JiraAPIClient:
     """
     HTTP client for Jira/Zephyr Scale API
-    Uses curl subprocess for reliable corporate proxy support
+    Tries both with and without proxy for maximum compatibility
     """
     
     def __init__(self):
@@ -37,10 +37,12 @@ class JiraAPIClient:
         self.zephyr_path = self.config.ZEPHYR_API_PATH
         self.jira_path = self.config.JIRA_API_PATH
         self.proxy_url = f"http://{self.config.PROXY_HOST}:{self.config.PROXY_PORT}"
-        logger.info(f"Using proxy: {self.proxy_url}")
+        # Check if we should use proxy or not
+        self.use_proxy = os.getenv("USE_PROXY", "auto").lower()  # auto, yes, no
+        logger.info(f"Jira client initialized. Proxy mode: {self.use_proxy}, Proxy URL: {self.proxy_url}")
     
-    def _curl_get(self, url: str, params: dict = None) -> Optional[dict]:
-        """Execute GET request using curl subprocess with system environment"""
+    def _curl_get(self, url: str, params: dict = None, use_proxy: bool = True) -> Optional[dict]:
+        """Execute GET request using curl subprocess"""
         import urllib.parse
         
         # Build URL with properly encoded params
@@ -50,36 +52,45 @@ class JiraAPIClient:
         else:
             full_url = url
         
-        # Prepare environment with proxy settings
+        # Prepare environment
         env = os.environ.copy()
-        env['HTTP_PROXY'] = self.proxy_url
-        env['HTTPS_PROXY'] = self.proxy_url
-        env['http_proxy'] = self.proxy_url
-        env['https_proxy'] = self.proxy_url
         
+        # Build command based on proxy setting
         cmd = [
-            "curl", "-s", "-k",  # silent, insecure (skip SSL verification)
-            "-x", self.proxy_url,  # explicit proxy
+            "curl", "-s", "-k",  # silent, skip SSL verification
             "--connect-timeout", str(self.config.CONNECT_TIMEOUT),
             "--max-time", str(self.config.REQUEST_TIMEOUT),
             "-H", f"Authorization: {self.config.AUTH_TOKEN}",
             "-H", "Content-Type: application/json",
             "-H", "Accept: application/json",
-            full_url
         ]
         
+        if use_proxy:
+            cmd.extend(["-x", self.proxy_url])
+            env['HTTP_PROXY'] = self.proxy_url
+            env['HTTPS_PROXY'] = self.proxy_url
+            env['http_proxy'] = self.proxy_url
+            env['https_proxy'] = self.proxy_url
+        else:
+            # Clear proxy env vars for direct connection
+            env.pop('HTTP_PROXY', None)
+            env.pop('HTTPS_PROXY', None)
+            env.pop('http_proxy', None)
+            env.pop('https_proxy', None)
+        
+        cmd.append(full_url)
+        
         try:
-            logger.info(f"=== CURL GET REQUEST ===")
+            proxy_status = f"WITH proxy ({self.proxy_url})" if use_proxy else "WITHOUT proxy (direct)"
+            logger.info(f"=== CURL GET {proxy_status} ===")
             logger.info(f"URL: {full_url[:150]}...")
-            logger.info(f"Proxy: {self.proxy_url}")
             
-            # Run with inherited environment
             result = subprocess.run(
                 cmd, 
                 capture_output=True, 
                 text=True, 
                 timeout=self.config.REQUEST_TIMEOUT + 30,
-                env=env  # Pass environment variables
+                env=env
             )
             
             logger.info(f"Curl return code: {result.returncode}")
@@ -88,54 +99,74 @@ class JiraAPIClient:
                 logger.info(f"Response length: {len(result.stdout)} chars")
                 try:
                     data = json.loads(result.stdout)
-                    logger.info(f"=== CURL SUCCESS ===")
+                    logger.info(f"=== CURL SUCCESS ({proxy_status}) ===")
                     return data
                 except json.JSONDecodeError as e:
                     logger.error(f"JSON parse error: {e}")
+                    # Check if it's HTML error page
+                    if "<html" in result.stdout.lower():
+                        logger.error("Received HTML instead of JSON - possible auth or proxy issue")
                     logger.error(f"Raw response (first 500 chars): {result.stdout[:500]}")
             else:
-                logger.error(f"=== CURL FAILED ===")
+                logger.error(f"=== CURL FAILED ({proxy_status}) ===")
                 logger.error(f"Return code: {result.returncode}")
-                # Return codes: 6=couldn't resolve host, 7=connection refused, 28=timeout, 35=SSL error
                 if result.returncode == 28:
-                    logger.error("TIMEOUT: Proxy bağlantısı zaman aşımına uğradı")
+                    logger.error("TIMEOUT: Connection timed out")
                 elif result.returncode == 7:
-                    logger.error("CONNECTION REFUSED: Proxy'ye bağlanılamadı")
+                    logger.error("CONNECTION REFUSED")
                 elif result.returncode == 35:
-                    logger.error("SSL ERROR: SSL handshake hatası")
-                logger.error(f"Stdout: {result.stdout[:500] if result.stdout else 'empty'}")
-                logger.error(f"Stderr: {result.stderr[:500] if result.stderr else 'empty'}")
+                    logger.error("SSL ERROR")
+                elif result.returncode == 6:
+                    logger.error("COULD NOT RESOLVE HOST")
+                logger.error(f"Stderr: {result.stderr[:300] if result.stderr else 'empty'}")
                 
         except subprocess.TimeoutExpired:
-            logger.error("=== CURL SUBPROCESS TIMEOUT ===")
+            logger.error(f"=== CURL SUBPROCESS TIMEOUT ({proxy_status}) ===")
         except Exception as e:
-            logger.error(f"=== CURL EXCEPTION ===: {e}")
+            logger.error(f"=== CURL EXCEPTION ({proxy_status}) ===: {e}")
         
         return None
     
-    def _curl_post(self, url: str, data: dict) -> Optional[dict]:
-        """Execute POST request using curl subprocess with system environment"""
-        # Prepare environment with proxy settings
+    def _smart_curl_get(self, url: str, params: dict = None) -> Optional[dict]:
+        """Smart GET that tries both proxy and direct connection"""
+        if self.use_proxy == "yes":
+            return self._curl_get(url, params, use_proxy=True)
+        elif self.use_proxy == "no":
+            return self._curl_get(url, params, use_proxy=False)
+        else:
+            # Auto mode: try without proxy first (like friend's axios), then with proxy
+            logger.info("Auto mode: Trying direct connection first...")
+            result = self._curl_get(url, params, use_proxy=False)
+            if result:
+                return result
+            
+            logger.info("Direct connection failed, trying with proxy...")
+            return self._curl_get(url, params, use_proxy=True)
+    
+    def _curl_post(self, url: str, data: dict, use_proxy: bool = True) -> Optional[dict]:
+        """Execute POST request using curl subprocess"""
         env = os.environ.copy()
-        env['HTTP_PROXY'] = self.proxy_url
-        env['HTTPS_PROXY'] = self.proxy_url
-        env['http_proxy'] = self.proxy_url
-        env['https_proxy'] = self.proxy_url
         
         cmd = [
             "curl", "-s", "-k",
-            "-x", self.proxy_url,
             "-X", "POST",
             "--connect-timeout", str(self.config.CONNECT_TIMEOUT),
             "--max-time", str(self.config.REQUEST_TIMEOUT),
             "-H", f"Authorization: {self.config.AUTH_TOKEN}",
             "-H", "Content-Type: application/json",
             "-d", json.dumps(data),
-            url
         ]
         
+        if use_proxy:
+            cmd.extend(["-x", self.proxy_url])
+            env['HTTP_PROXY'] = self.proxy_url
+            env['HTTPS_PROXY'] = self.proxy_url
+        
+        cmd.append(url)
+        
         try:
-            logger.info(f"=== CURL POST REQUEST ===")
+            proxy_status = "with proxy" if use_proxy else "direct"
+            logger.info(f"=== CURL POST ({proxy_status}) ===")
             logger.info(f"URL: {url}")
             
             result = subprocess.run(
@@ -147,15 +178,26 @@ class JiraAPIClient:
             )
             
             if result.returncode == 0 and result.stdout:
-                logger.info("=== CURL POST SUCCESS ===")
+                logger.info(f"=== CURL POST SUCCESS ({proxy_status}) ===")
                 return json.loads(result.stdout)
             else:
-                logger.error(f"CURL POST failed: code={result.returncode}")
-                logger.error(f"Stderr: {result.stderr[:300] if result.stderr else 'empty'}")
+                logger.error(f"CURL POST failed ({proxy_status}): code={result.returncode}")
         except Exception as e:
             logger.error(f"Curl POST error: {e}")
         
         return None
+    
+    def _smart_curl_post(self, url: str, data: dict) -> Optional[dict]:
+        """Smart POST that tries both methods"""
+        if self.use_proxy == "yes":
+            return self._curl_post(url, data, use_proxy=True)
+        elif self.use_proxy == "no":
+            return self._curl_post(url, data, use_proxy=False)
+        else:
+            result = self._curl_post(url, data, use_proxy=False)
+            if result:
+                return result
+            return self._curl_post(url, data, use_proxy=True)
     
     # ============== ZEPHYR SCALE API ==============
     
