@@ -525,52 +525,92 @@ class ReportExporter:
         # ===== TASK LIST =====
         if tasks:
             story.append(PageBreak())
-            story.append(Paragraph("Görev Detayları", section_title_style))
             
-            task_data = [['Başlık', 'Kategori', 'Durum', 'Öncelik']]
+            # Page header for tasks
+            task_header_drawing = Drawing(525, 60)
+            task_header_bg = Rect(0, 0, 525, 60, fillColor=colors.HexColor('#F3F4F6'), strokeColor=None)
+            task_header_drawing.add(task_header_bg)
+            accent_line = Rect(0, 0, 6, 60, fillColor=colors.HexColor('#8B5CF6'), strokeColor=None)
+            task_header_drawing.add(accent_line)
+            story.append(task_header_drawing)
             
-            for task in tasks[:25]:  # Limit to 25 for PDF
-                title = task.get('title', '')[:35]
-                if len(task.get('title', '')) > 35:
+            story.append(Spacer(1, -45))
+            story.append(Paragraph("📋 Görev Detayları", section_title_style))
+            story.append(Spacer(1, 10))
+            
+            task_data = [
+                [
+                    Paragraph('<font size="8" color="#FFFFFF"><b>#</b></font>', styles['Normal']),
+                    Paragraph('<font size="8" color="#FFFFFF"><b>Başlık</b></font>', styles['Normal']),
+                    Paragraph('<font size="8" color="#FFFFFF"><b>Kategori</b></font>', styles['Normal']),
+                    Paragraph('<font size="8" color="#FFFFFF"><b>Durum</b></font>', styles['Normal']),
+                    Paragraph('<font size="8" color="#FFFFFF"><b>Öncelik</b></font>', styles['Normal']),
+                ]
+            ]
+            
+            status_colors = {
+                'completed': '#10B981',
+                'in_progress': '#3B82F6',
+                'blocked': '#EF4444',
+                'backlog': '#6B7280',
+                'today_planned': '#F59E0B'
+            }
+            
+            priority_colors = {
+                'critical': '#DC2626',
+                'high': '#EA580C',
+                'medium': '#CA8A04',
+                'low': '#65A30D'
+            }
+            
+            for idx, task in enumerate(tasks[:30], 1):  # Limit to 30 for PDF
+                title = task.get('title', '')[:40]
+                if len(task.get('title', '')) > 40:
                     title += '...'
                 
                 category = CATEGORY_LABELS.get(task.get('category_id', ''), task.get('category_id', ''))
-                status = STATUS_LABELS.get(task.get('status', ''), task.get('status', ''))
-                priority = PRIORITY_LABELS.get(task.get('priority', ''), task.get('priority', ''))
+                status = task.get('status', '')
+                status_label = STATUS_LABELS.get(status, status)
+                status_color = status_colors.get(status, '#6B7280')
+                priority = task.get('priority', '')
+                priority_label = PRIORITY_LABELS.get(priority, priority)
+                priority_color = priority_colors.get(priority, '#6B7280')
                 
-                task_data.append([title, category, status, priority])
+                task_data.append([
+                    Paragraph(f'<font size="8">{idx}</font>', styles['Normal']),
+                    Paragraph(f'<font size="8">{title}</font>', styles['Normal']),
+                    Paragraph(f'<font size="8">{category}</font>', styles['Normal']),
+                    Paragraph(f'<font size="8" color="{status_color}"><b>{status_label}</b></font>', styles['Normal']),
+                    Paragraph(f'<font size="8" color="{priority_color}"><b>{priority_label}</b></font>', styles['Normal']),
+                ])
             
-            task_table = Table(task_data, colWidths=[7*cm, 3.5*cm, 3*cm, 2.5*cm])
+            task_table = Table(task_data, colWidths=[1*cm, 8*cm, 3*cm, 2.5*cm, 2*cm])
             task_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(BRAND_DARK)),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#18181B')),
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                ('ALIGN', (0, 0), (0, -1), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
                 ('TOPPADDING', (0, 0), (-1, 0), 10),
-                ('FONTSIZE', (0, 1), (-1, -1), 8),
                 ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
                 ('TOPPADDING', (0, 1), (-1, -1), 6),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9FAFB')]),
-                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor(BRAND_DARK)),
-                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E5E5E5')),
+                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#E5E7EB')),
+                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#8B5CF6')),
             ]))
             story.append(task_table)
         
         # ===== FOOTER =====
-        story.append(Spacer(1, 1*cm))
-        footer_style = ParagraphStyle(
-            'Footer',
-            parent=styles['Normal'],
-            fontSize=8,
-            textColor=colors.HexColor('#71717A'),
-            alignment=1
-        )
-        story.append(Paragraph("Bu rapor QA Task Manager tarafından otomatik olarak oluşturulmuştur.", footer_style))
-        story.append(Paragraph(f"Intertech QA Ekibi - {datetime.now().strftime('%Y')}", footer_style))
+        story.append(Spacer(1, 1.5*cm))
+        
+        footer_drawing = Drawing(525, 50)
+        footer_bg = Rect(0, 0, 525, 50, fillColor=colors.HexColor('#18181B'), strokeColor=None)
+        footer_drawing.add(footer_bg)
+        footer_text = String(262, 30, "QA Hub - Performans Raporu", fontSize=10, fillColor=colors.HexColor('#A78BFA'), textAnchor='middle')
+        footer_drawing.add(footer_text)
+        footer_date = String(262, 12, f"Oluşturulma: {datetime.now().strftime('%d.%m.%Y %H:%M')} | Intertech QA Ekibi", fontSize=8, fillColor=colors.HexColor('#71717A'), textAnchor='middle')
+        footer_drawing.add(footer_date)
+        story.append(footer_drawing)
         
         # Build PDF
         doc.build(story)
