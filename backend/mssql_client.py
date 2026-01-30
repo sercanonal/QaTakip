@@ -10,14 +10,14 @@ import time
 
 logger = logging.getLogger(__name__)
 
-# MSSQL Configuration - SHORT timeouts for fast failure
+# MSSQL Configuration - Increased timeouts for VPN/corporate network
 MSSQL_CONFIG = {
     "server": "WIPREDB31.intertech.com.tr",
     "user": "quantra",
     "password": "quantra2",
     "database": "TEST_DATA_MANAGEMENT",
-    "timeout": 10,  # Short timeout
-    "login_timeout": 5,  # Very short login timeout for fast failure
+    "timeout": 60,  # Increased timeout for slow network
+    "login_timeout": 30,  # Increased login timeout
     "charset": "UTF-8",
     "as_dict": True
 }
