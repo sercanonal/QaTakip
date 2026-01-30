@@ -334,6 +334,86 @@ class JiraAPIClient:
         logger.warning(f"No users found for query: {query}")
         return []
     
+    def get_test_case_details(self, test_key: str) -> Dict[str, Any]:
+        """Get test case details including custom fields like Test Tipi"""
+        logger.info(f"=== GETTING TEST CASE DETAILS: {test_key} ===")
+        
+        # Zephyr Scale test case endpoint
+        url = f"{self.base_url}{self.zephyr_path}/testcase/{test_key}"
+        
+        result = self._smart_curl_get(url)
+        if result:
+            logger.info(f"Got test case details for {test_key}")
+            return result
+        
+        # Fallback: Try Jira issue endpoint
+        url2 = f"{self.base_url}{self.jira_path}/issue/{test_key}"
+        params = {"fields": "summary,customfield_*,status"}
+        
+        result2 = self._smart_curl_get(url2, params)
+        if result2:
+            logger.info(f"Got test case from Jira issue for {test_key}")
+            return result2
+        
+        logger.warning(f"Could not get test case details for {test_key}")
+        return {}
+    
+    def get_test_type_from_case(self, test_key: str) -> str:
+        """Get the test type (Happy Path, Alternatif, Negatif) from a test case"""
+        details = self.get_test_case_details(test_key)
+        
+        if not details:
+            return "unknown"
+        
+        # Check Zephyr Scale custom fields
+        custom_fields = details.get("customFields", [])
+        if isinstance(custom_fields, list):
+            for cf in custom_fields:
+                cf_name = (cf.get("name", "") or "").lower()
+                if "test tipi" in cf_name or "test type" in cf_name:
+                    value = cf.get("value", {})
+                    if isinstance(value, dict):
+                        return value.get("name", "unknown")
+                    return str(value)
+        
+        # Check Jira custom fields format
+        if isinstance(custom_fields, dict):
+            for key, value in custom_fields.items():
+                if isinstance(value, dict) and value.get("name"):
+                    name = value.get("name", "").lower()
+                    if "happy" in name:
+                        return "Happy Path"
+                    elif "alternatif" in name or "alternative" in name:
+                        return "Alternatif Senaryo"
+                    elif "negatif" in name or "negative" in name:
+                        return "Negatif Senaryo"
+        
+        # Check fields directly
+        fields = details.get("fields", {})
+        if fields:
+            for key, value in fields.items():
+                if key.startswith("customfield_") and isinstance(value, dict):
+                    val_name = (value.get("value", "") or value.get("name", "") or "").lower()
+                    if "happy" in val_name:
+                        return "Happy Path"
+                    elif "alternatif" in val_name or "alternative" in val_name:
+                        return "Alternatif Senaryo"
+                    elif "negatif" in val_name or "negative" in val_name:
+                        return "Negatif Senaryo"
+        
+        return "unknown"
+    
+    async def get_test_types_batch(self, test_keys: List[str]) -> Dict[str, str]:
+        """Get test types for multiple test cases"""
+        import asyncio
+        
+        results = {}
+        for key in test_keys:
+            test_type = self.get_test_type_from_case(key)
+            results[key] = test_type
+        
+        return results
+    
     def get_user_task_stats(self, username: str, months: int = 1) -> Dict[str, Any]:
         """Get task statistics for a user"""
         from datetime import datetime, timedelta
