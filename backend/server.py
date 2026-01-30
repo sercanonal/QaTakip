@@ -4082,31 +4082,6 @@ async def get_team_summary(t: str, months: int = 1):
             batch_results = await asyncio.gather(*[get_user_stats(user) for user in batch])
             team_data.extend([r for r in batch_results if r is not None])
         
-        # Legacy sequential code removed - now using parallel processing above
-        # for user in users: ... (removed)
-                open_issues = await jira_client.search_issues(jql_open, max_results=200)
-                
-                for issue in open_issues:
-                    fields = issue.get('fields', {})
-                    status_name = (fields.get('status', {}).get('name', '') or '').lower()
-                    
-                    if 'progress' in status_name or 'doing' in status_name or 'development' in status_name:
-                        user_stats["in_progress"] += 1
-                    else:
-                        user_stats["backlog"] += 1
-                
-                # JQL for completed tasks (excluding Cancelled)
-                jql_done = f'assignee = "{username}" AND status IN (Done, Closed, Resolved) AND resolved >= "{date_str}" ORDER BY resolved DESC'
-                done_issues = await jira_client.search_issues(jql_done, max_results=200)
-                user_stats["completed"] = len(done_issues)
-                
-                user_stats["total_active"] = user_stats["backlog"] + user_stats["in_progress"]
-                
-            except Exception as e:
-                logger.error(f"Error getting stats for {username}: {e}")
-            
-            team_data.append(user_stats)
-        
         # Sort by total active tasks (descending)
         team_data.sort(key=lambda x: x["total_active"], reverse=True)
         
