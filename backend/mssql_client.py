@@ -205,9 +205,11 @@ def get_team_name(jira_team_id: int) -> str:
 
 def get_product_tree_rapor_data(jira_team_id: int, report_date: str) -> List[Dict[str, Any]]:
     """Get endpoint data for product tree analysis"""
+    sql_date = format_date_for_sql(report_date)
+    
     query = f"""
     SELECT * FROM [TEST_DATA_MANAGEMENT].[COR].[MICROSERVICE_ENDPOINTS](nolock) 
-    WHERE JIRA_TEAM_ID = {jira_team_id} AND TRAN_UPDATED_DATETIME = '{report_date}' AND IS_EXTERNAL = 0
+    WHERE JIRA_TEAM_ID = {jira_team_id} AND TRAN_UPDATED_DATETIME = '{sql_date}' AND IS_EXTERNAL = 0
     """
     
     results = query_data(query)
