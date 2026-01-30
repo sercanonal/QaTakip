@@ -1,6 +1,7 @@
 #!/bin/bash
 # QA Hub - Tek Komutla Kurulum ve Başlatma (Mac)
 # Kullanım: chmod +x start.sh && ./start.sh
+# Proxy olmadan: USE_PROXY=no ./start.sh
 
 echo "╔════════════════════════════════════════╗"
 echo "║   🚀 QA Hub - Kurulum Başlatılıyor    ║"
