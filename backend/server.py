@@ -3900,16 +3900,16 @@ async def run_product_tree(request: Request):
                         test_key = test.get("key", "")
                         if test_key:
                             try:
-                                test_type = jira_client.get_test_type_from_case(test_key)
-                                if test_type and test_type != "unknown":
-                                    if "happy" in test_type.lower():
-                                        test["type"] = "✅ Happy Path"
-                                    elif "alternatif" in test_type.lower() or "alternative" in test_type.lower():
-                                        test["type"] = "🔀 Alternatif Senaryo"
-                                    elif "negatif" in test_type.lower() or "negative" in test_type.lower():
-                                        test["type"] = "❌ Negatif Senaryo"
-                                    else:
-                                        test["type"] = f"🔴 {test_type}"
+                                # Get test type as intValue (812=Happy, 813=Alternatif, 837=Negatif)
+                                type_int = await jira_client.get_test_type_from_case(test_key)
+                                if type_int == 812:
+                                    test["type"] = "✅ Happy Path"
+                                    test_type_count += 1
+                                elif type_int == 813:
+                                    test["type"] = "🔀 Alternatif Senaryo"
+                                    test_type_count += 1
+                                elif type_int == 837:
+                                    test["type"] = "❌ Negatif Senaryo"
                                     test_type_count += 1
                                 else:
                                     test["type"] = "🔴 Test Tipi Girilmemiş."
