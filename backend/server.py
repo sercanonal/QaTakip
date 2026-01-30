@@ -3756,10 +3756,32 @@ def build_product_tree(endpoints: list, tests: list, team_name: str) -> dict:
         # Find tests for this endpoint
         tests_include = [t for t in tests if t.get("endpoint") == path and t.get("app") == app]
         
-        # Check test types
-        happy = any(t.get("type") == "✅ Happy Path" for t in tests_include)
-        alternatif = any(t.get("type") == "🔀 Alternatif Senaryo" for t in tests_include)
-        negatif = any(t.get("type") == "❌ Negatif Senaryo" for t in tests_include)
+        # Check test types - looking at type field (✅ Happy Path, etc.)
+        happy = any("happy" in (t.get("type") or "").lower() for t in tests_include if t.get("status") == "PASSED")
+        alternatif = any("alternatif" in (t.get("type") or "").lower() or "alternative" in (t.get("type") or "").lower() for t in tests_include if t.get("status") == "PASSED")
+        negatif = any("negatif" in (t.get("type") or "").lower() or "negative" in (t.get("type") or "").lower() for t in tests_include if t.get("status") == "PASSED")
+        
+        # Prepare test list with testType field for frontend
+        tests_formatted = []
+        for t in tests_include:
+            test_type_raw = t.get("type", "")
+            test_type_normalized = "unknown"
+            if "happy" in test_type_raw.lower():
+                test_type_normalized = "Happy Path"
+            elif "alternatif" in test_type_raw.lower() or "alternative" in test_type_raw.lower():
+                test_type_normalized = "Alternatif Senaryo"
+            elif "negatif" in test_type_raw.lower() or "negative" in test_type_raw.lower():
+                test_type_normalized = "Negatif Senaryo"
+            
+            tests_formatted.append({
+                "key": t.get("key", ""),
+                "name": t.get("name", ""),
+                "status": t.get("status", "NOT_EXECUTED"),
+                "type": test_type_raw,
+                "testType": test_type_normalized,
+                "endpoint": t.get("endpoint", ""),
+                "app": t.get("app", "")
+            })
         
         # Add endpoint
         tree[project]["apps"][app]["controllers"][controller]["endPoints"].append({
@@ -3767,7 +3789,7 @@ def build_product_tree(endpoints: list, tests: list, team_name: str) -> dict:
             "fullPath": path,
             "method": method,
             "isTested": is_tested,
-            "tests": tests_include,
+            "tests": tests_formatted,
             "happy": happy,
             "alternatif": alternatif,
             "negatif": negatif
