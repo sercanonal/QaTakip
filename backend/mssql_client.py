@@ -124,13 +124,34 @@ def get_all_tests(days: int = 1, time: str = "00:00", project_names: List[str] =
         for r in results
     ]
 
+# ============== HELPER FUNCTIONS ==============
+
+def format_date_for_sql(date_str: str) -> str:
+    """Convert GG/AA/YYYY format to YYYY-MM-DD for SQL Server"""
+    # If already in YYYY-MM-DD format, return as is
+    if '-' in date_str and len(date_str) == 10:
+        return date_str
+    
+    # Parse GG/AA/YYYY format
+    parts = date_str.split('/')
+    if len(parts) != 3:
+        raise ValueError(f'Tarih formatı hatalı! GG/AA/YYYY olmalı (örn: 10/12/2025). Girilen: {date_str}')
+    
+    day = parts[0].zfill(2)
+    month = parts[1].zfill(2)
+    year = parts[2]
+    
+    return f"{year}-{month}-{day}"
+
 # ============== API ANALIZ QUERIES ==============
 
 def get_rapor_data(jira_team_id: int, report_date: str) -> List[Dict[str, Any]]:
     """Get report data from MICROSERVICE_ENDPOINTS table"""
+    sql_date = format_date_for_sql(report_date)
+    
     query = f"""
     SELECT * FROM [TEST_DATA_MANAGEMENT].[COR].[MICROSERVICE_ENDPOINTS](nolock) 
-    WHERE JIRA_TEAM_ID = {jira_team_id} AND TRAN_UPDATED_DATETIME = '{report_date}'
+    WHERE JIRA_TEAM_ID = {jira_team_id} AND TRAN_UPDATED_DATETIME = '{sql_date}'
     """
     
     results = query_data(query)
