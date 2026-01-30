@@ -4083,18 +4083,16 @@ async def refresh_controller_endpoints(request: Request):
                         custom_field_values = jira_test.get("customFieldValues", [])
                         type_int = jira_client.get_test_type_from_custom_fields(custom_field_values)
                         
+                        # Set badge flags based on test TYPE only (not status)
                         if type_int == 812:
                             type_label = "✅ Happy Path"
-                            if test_status == "PASSED":
-                                endpoint_data["happy"] = True
+                            endpoint_data["happy"] = True
                         elif type_int == 813:
                             type_label = "🔀 Alternatif Senaryo"
-                            if test_status == "PASSED":
-                                endpoint_data["alternatif"] = True
+                            endpoint_data["alternatif"] = True
                         elif type_int == 837:
                             type_label = "❌ Negatif Senaryo"
-                            if test_status == "PASSED":
-                                endpoint_data["negatif"] = True
+                            endpoint_data["negatif"] = True
                     
                     test_info = {
                         "key": test_key,
