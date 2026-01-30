@@ -40,7 +40,7 @@ class JiraAPIClient:
         logger.info(f"Using proxy: {self.proxy_url}")
     
     def _curl_get(self, url: str, params: dict = None) -> Optional[dict]:
-        """Execute GET request using curl subprocess"""
+        """Execute GET request using curl subprocess with system environment"""
         import urllib.parse
         
         # Build URL with properly encoded params
@@ -50,23 +50,37 @@ class JiraAPIClient:
         else:
             full_url = url
         
+        # Prepare environment with proxy settings
+        env = os.environ.copy()
+        env['HTTP_PROXY'] = self.proxy_url
+        env['HTTPS_PROXY'] = self.proxy_url
+        env['http_proxy'] = self.proxy_url
+        env['https_proxy'] = self.proxy_url
+        
         cmd = [
-            "curl", "-s", "-k",  # silent, insecure (skip SSL)
-            "-x", self.proxy_url,  # proxy
+            "curl", "-s", "-k",  # silent, insecure (skip SSL verification)
+            "-x", self.proxy_url,  # explicit proxy
+            "--connect-timeout", str(self.config.CONNECT_TIMEOUT),
+            "--max-time", str(self.config.REQUEST_TIMEOUT),
             "-H", f"Authorization: {self.config.AUTH_TOKEN}",
             "-H", "Content-Type: application/json",
             "-H", "Accept: application/json",
-            "--max-time", str(self.config.REQUEST_TIMEOUT),
             full_url
         ]
         
         try:
             logger.info(f"=== CURL GET REQUEST ===")
-            logger.info(f"URL: {full_url[:120]}...")
+            logger.info(f"URL: {full_url[:150]}...")
             logger.info(f"Proxy: {self.proxy_url}")
-            logger.info(f"Command: curl -s -k -x {self.proxy_url} ...")
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.config.REQUEST_TIMEOUT + 10)
+            # Run with inherited environment
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                timeout=self.config.REQUEST_TIMEOUT + 30,
+                env=env  # Pass environment variables
+            )
             
             logger.info(f"Curl return code: {result.returncode}")
             
@@ -82,11 +96,18 @@ class JiraAPIClient:
             else:
                 logger.error(f"=== CURL FAILED ===")
                 logger.error(f"Return code: {result.returncode}")
-                logger.error(f"Stdout: {result.stdout[:300] if result.stdout else 'empty'}")
-                logger.error(f"Stderr: {result.stderr[:300] if result.stderr else 'empty'}")
+                # Return codes: 6=couldn't resolve host, 7=connection refused, 28=timeout, 35=SSL error
+                if result.returncode == 28:
+                    logger.error("TIMEOUT: Proxy bağlantısı zaman aşımına uğradı")
+                elif result.returncode == 7:
+                    logger.error("CONNECTION REFUSED: Proxy'ye bağlanılamadı")
+                elif result.returncode == 35:
+                    logger.error("SSL ERROR: SSL handshake hatası")
+                logger.error(f"Stdout: {result.stdout[:500] if result.stdout else 'empty'}")
+                logger.error(f"Stderr: {result.stderr[:500] if result.stderr else 'empty'}")
                 
         except subprocess.TimeoutExpired:
-            logger.error("=== CURL TIMEOUT ===")
+            logger.error("=== CURL SUBPROCESS TIMEOUT ===")
         except Exception as e:
             logger.error(f"=== CURL EXCEPTION ===: {e}")
         
