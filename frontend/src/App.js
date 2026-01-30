@@ -74,6 +74,7 @@ function App() {
             <Route path="jira-tools" element={<JiraTools />} />
             <Route path="analysis" element={<Analysis />} />
             <Route path="product-tree" element={<ProductTree />} />
+            <Route path="team-tracking" element={<TeamTracking />} />
           </Route>
         </Routes>
         <Toaster position="top-right" richColors />
