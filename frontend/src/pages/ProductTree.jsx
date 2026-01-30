@@ -457,6 +457,19 @@ const EndpointNode = ({ endpoint, level }) => {
     PATCH: "bg-purple-500"
   };
   
+  // Check if specific test types exist and are passed
+  const hasHappyPassed = endpoint.tests?.some(t => 
+    t.name?.toLowerCase().includes('happy') && t.status === 'PASSED'
+  ) || endpoint.happy;
+  
+  const hasAlternatifPassed = endpoint.tests?.some(t => 
+    (t.name?.toLowerCase().includes('alternatif') || t.name?.toLowerCase().includes('alternative')) && t.status === 'PASSED'
+  ) || endpoint.alternatif;
+  
+  const hasNegatifPassed = endpoint.tests?.some(t => 
+    (t.name?.toLowerCase().includes('negatif') || t.name?.toLowerCase().includes('negative')) && t.status === 'PASSED'
+  ) || endpoint.negatif;
+  
   return (
     <div className={cn("ml-6 border-l border-border pl-4")}>
       <div
@@ -497,15 +510,30 @@ const EndpointNode = ({ endpoint, level }) => {
             <Badge variant="secondary">{endpoint.tests.length} test</Badge>
           )}
           
-          {/* Test Type Badges */}
-          <Badge className={endpoint.happy ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}>
-            ✅ HP
+          {/* Test Type Badges - Green for passed, Red for missing/not passed */}
+          <Badge className={cn(
+            "transition-colors",
+            hasHappyPassed 
+              ? "bg-green-500/20 text-green-400 border border-green-500/40" 
+              : "bg-red-500/20 text-red-400 border border-red-500/40"
+          )}>
+            {hasHappyPassed ? "✅" : "❌"} HP
           </Badge>
-          <Badge className={endpoint.alternatif ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}>
-            🔀 AS
+          <Badge className={cn(
+            "transition-colors",
+            hasAlternatifPassed 
+              ? "bg-green-500/20 text-green-400 border border-green-500/40" 
+              : "bg-red-500/20 text-red-400 border border-red-500/40"
+          )}>
+            {hasAlternatifPassed ? "✅" : "❌"} AS
           </Badge>
-          <Badge className={endpoint.negatif ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}>
-            ❌ NS
+          <Badge className={cn(
+            "transition-colors",
+            hasNegatifPassed 
+              ? "bg-green-500/20 text-green-400 border border-green-500/40" 
+              : "bg-red-500/20 text-red-400 border border-red-500/40"
+          )}>
+            {hasNegatifPassed ? "✅" : "❌"} NS
           </Badge>
         </div>
       </div>
@@ -516,7 +544,12 @@ const EndpointNode = ({ endpoint, level }) => {
           {endpoint.tests.map((test, idx) => (
             <div
               key={idx}
-              className="flex items-center gap-2 p-2 rounded bg-muted/30 border border-border/30 text-sm"
+              className={cn(
+                "flex items-center gap-2 p-2 rounded border text-sm",
+                test.status === "PASSED" 
+                  ? "bg-green-500/10 border-green-500/30" 
+                  : "bg-red-500/10 border-red-500/30"
+              )}
             >
               <Badge className={test.status === "PASSED" ? "bg-green-500" : "bg-red-500"}>
                 {test.status === "PASSED" ? "✓" : "✗"} {test.status}
