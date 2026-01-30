@@ -3942,13 +3942,12 @@ async def check_admin_status(username: str, device_id: str):
 @api_router.get("/admin/team-tasks")
 async def get_team_member_tasks(
     search_username: str,
-    requester_username: str,
-    requester_device_id: str
+    admin_key: str
 ):
-    """Get tasks for a specific team member from JIRA - ADMIN ONLY"""
-    # Security check: Only admins can access this
-    if not is_admin(requester_username, requester_device_id):
-        raise HTTPException(status_code=403, detail="Bu özelliğe erişim yetkiniz yok")
+    """Get tasks for a specific team member from JIRA - ADMIN KEY REQUIRED"""
+    # Security check: Verify admin key
+    if not verify_admin_key(admin_key):
+        raise HTTPException(status_code=403, detail="Geçersiz admin anahtarı")
     
     search_username_clean = search_username.strip()
     
