@@ -114,22 +114,44 @@ class JiraAPIClient:
         return None
     
     def _curl_post(self, url: str, data: dict) -> Optional[dict]:
-        """Execute POST request using curl subprocess"""
+        """Execute POST request using curl subprocess with system environment"""
+        # Prepare environment with proxy settings
+        env = os.environ.copy()
+        env['HTTP_PROXY'] = self.proxy_url
+        env['HTTPS_PROXY'] = self.proxy_url
+        env['http_proxy'] = self.proxy_url
+        env['https_proxy'] = self.proxy_url
+        
         cmd = [
             "curl", "-s", "-k",
             "-x", self.proxy_url,
             "-X", "POST",
+            "--connect-timeout", str(self.config.CONNECT_TIMEOUT),
+            "--max-time", str(self.config.REQUEST_TIMEOUT),
             "-H", f"Authorization: {self.config.AUTH_TOKEN}",
             "-H", "Content-Type: application/json",
             "-d", json.dumps(data),
-            "--max-time", str(self.config.REQUEST_TIMEOUT),
             url
         ]
         
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.config.REQUEST_TIMEOUT + 10)
+            logger.info(f"=== CURL POST REQUEST ===")
+            logger.info(f"URL: {url}")
+            
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                timeout=self.config.REQUEST_TIMEOUT + 30,
+                env=env
+            )
+            
             if result.returncode == 0 and result.stdout:
+                logger.info("=== CURL POST SUCCESS ===")
                 return json.loads(result.stdout)
+            else:
+                logger.error(f"CURL POST failed: code={result.returncode}")
+                logger.error(f"Stderr: {result.stderr[:300] if result.stderr else 'empty'}")
         except Exception as e:
             logger.error(f"Curl POST error: {e}")
         
