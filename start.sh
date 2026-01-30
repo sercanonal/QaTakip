@@ -42,6 +42,19 @@ pkill -f "craco start" 2>/dev/null || true
 sleep 2
 echo -e "${GREEN}✅ Portlar temizlendi${NC}"
 
+# ============== BACKEND .ENV OLUŞTUR ==============
+echo ""
+echo -e "${YELLOW}📝 Backend .env dosyası oluşturuluyor...${NC}"
+
+# Backend .env with USE_PROXY setting
+cat > "$PROJECT_DIR/backend/.env" << EOF
+# Jira Proxy Ayarı: auto, yes, no
+USE_PROXY=$USE_PROXY
+PROXY_HOST=10.125.24.215
+PROXY_PORT=8080
+EOF
+echo -e "${GREEN}✅ Backend .env oluşturuldu${NC}"
+
 # ============== FRONTEND .ENV OLUŞTUR ==============
 echo ""
 echo -e "${YELLOW}📝 Frontend .env dosyası oluşturuluyor...${NC}"
