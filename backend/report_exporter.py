@@ -264,14 +264,15 @@ class ReportExporter:
             parent=styles['Normal'],
             fontSize=10,
             textColor=colors.HexColor('#D4D4D8'),
-            alignment=1
+            alignment=1,
+            fontName=TURKISH_FONT
         )
         story.append(Paragraph(f"<b>{user_name}</b> | {datetime.now().strftime('%d.%m.%Y')} | {period_label}", info_style))
         story.append(Spacer(1, 35))
         
         # ===== KPI CARDS SECTION =====
         if stats:
-            story.append(Paragraph("📊 Performans Göstergeleri", section_title_style))
+            story.append(Paragraph("Performans Gostergeleri", section_title_style))
             
             total = stats.get('total_tasks', 0)
             completed = stats.get('completed_tasks', 0)
@@ -292,18 +293,18 @@ class ReportExporter:
             # Create KPI cards as a styled table
             kpi_data = [
                 [
-                    Paragraph(f'<font size="24" color="#8B5CF6"><b>{total}</b></font>', styles['Normal']),
-                    Paragraph(f'<font size="24" color="#10B981"><b>{completed}</b></font>', styles['Normal']),
-                    Paragraph(f'<font size="24" color="#3B82F6"><b>{in_progress}</b></font>', styles['Normal']),
-                    Paragraph(f'<font size="24" color="#F59E0B"><b>{todo}</b></font>', styles['Normal']),
-                    Paragraph(f'<font size="24" color="#EF4444"><b>{overdue}</b></font>', styles['Normal']),
+                    Paragraph(f'<font size="24" color="#8B5CF6"><b>{total}</b></font>', normal_turkish),
+                    Paragraph(f'<font size="24" color="#10B981"><b>{completed}</b></font>', normal_turkish),
+                    Paragraph(f'<font size="24" color="#3B82F6"><b>{in_progress}</b></font>', normal_turkish),
+                    Paragraph(f'<font size="24" color="#F59E0B"><b>{todo}</b></font>', normal_turkish),
+                    Paragraph(f'<font size="24" color="#EF4444"><b>{overdue}</b></font>', normal_turkish),
                 ],
                 [
-                    Paragraph('<font size="8" color="#71717A">TOPLAM</font>', styles['Normal']),
-                    Paragraph('<font size="8" color="#71717A">TAMAMLANAN</font>', styles['Normal']),
-                    Paragraph('<font size="8" color="#71717A">DEVAM EDEN</font>', styles['Normal']),
-                    Paragraph('<font size="8" color="#71717A">BEKLEYEN</font>', styles['Normal']),
-                    Paragraph('<font size="8" color="#71717A">GECİKMİŞ</font>', styles['Normal']),
+                    Paragraph('<font size="8" color="#71717A">TOPLAM</font>', normal_turkish),
+                    Paragraph('<font size="8" color="#71717A">TAMAMLANAN</font>', normal_turkish),
+                    Paragraph('<font size="8" color="#71717A">DEVAM EDEN</font>', normal_turkish),
+                    Paragraph('<font size="8" color="#71717A">BEKLEYEN</font>', normal_turkish),
+                    Paragraph('<font size="8" color="#71717A">GECIKMIS</font>', normal_turkish),
                 ]
             ]
             
