@@ -2418,12 +2418,13 @@ async def jiragen_validate(request: Request):
 async def jiragen_create(request: Request):
     """Create test in Jira (SSE streaming) - Requires VPN"""
     
+    # Read body BEFORE generator
+    body = await request.json()
+    test_data = body.get("testData", {})
+    is_ui_test = body.get("isUiTest", False)
+    
     async def generate():
         try:
-            body = await request.json()
-            test_data = body.get("testData", {})
-            is_ui_test = body.get("isUiTest", False)
-            
             yield f"data: {json.dumps({'log': '🚀 Jira test oluşturuluyor...'})}\n\n"
             
             # Check if Jira is available
