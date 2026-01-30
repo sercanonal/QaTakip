@@ -3185,8 +3185,14 @@ async def run_api_analysis(request: Request):
                     return
                 
                 yield f"data: {json.dumps({'log': '🧪 Test sonuçları alınıyor...'})}\n\n"
-                tests = mssql_client.get_all_api_tests(project_names, days, time)
-                yield f"data: {json.dumps({'log': f'✅ {len(tests)} test sonucu bulundu'})}\n\n"
+                try:
+                    tests = mssql_client.get_all_api_tests(project_names, days, time)
+                    yield f"data: {json.dumps({'log': f'✅ {len(tests)} test sonucu bulundu'})}\n\n"
+                except Exception as mssql_err:
+                    logger.error(f"MSSQL get_all_api_tests error: {mssql_err}")
+                    yield f"data: {json.dumps({'log': f'❌ Test verisi alınamadı: {str(mssql_err)}'})}\n\n"
+                    yield f"data: {json.dumps({'error': f'Test verisi alınamadı: {str(mssql_err)}'})}\n\n"
+                    return
                 
                 yield f"data: {json.dumps({'log': '🔄 Veriler eşleştiriliyor...'})}\n\n"
                 
