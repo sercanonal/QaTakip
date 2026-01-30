@@ -4149,8 +4149,10 @@ async def get_user_tasks_detail(username: str, t: str, months: int = 1):
         }
         
         # Get open tasks (excluding Cancelled) - NO date filter
-        jql_open = f'assignee = "{username}" AND status NOT IN (Done, Closed, Resolved, Cancelled, "İptal Edildi") ORDER BY priority DESC, updated DESC'
+        jql_open = f'assignee = "{username}" AND status NOT IN (Done, Closed, Resolved, Cancelled) ORDER BY priority DESC, updated DESC'
+        logger.info(f"User detail query for {username}: {jql_open[:80]}...")
         open_issues = await jira_client.search_issues(jql_open, max_results=100)
+        logger.info(f"User detail {username}: Found {len(open_issues)} open issues")
         
         for issue in open_issues:
             fields = issue.get('fields', {})
@@ -4176,6 +4178,7 @@ async def get_user_tasks_detail(username: str, t: str, months: int = 1):
         # Get completed tasks
         jql_done = f'assignee = "{username}" AND status IN (Done, Closed, Resolved) AND resolved >= "{date_str}" ORDER BY resolved DESC'
         done_issues = await jira_client.search_issues(jql_done, max_results=100)
+        logger.info(f"User detail {username}: Found {len(done_issues)} completed issues")
         
         for issue in done_issues:
             fields = issue.get('fields', {})
