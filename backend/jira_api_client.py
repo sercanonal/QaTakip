@@ -151,20 +151,29 @@ class JiraAPIClient:
     def search_issues(self, jql: str, max_results: int = 100) -> List[Dict[str, Any]]:
         """Execute JQL search and return issues"""
         url = f"{self.base_url}{self.jira_path}/search"
+        
+        # JQL should be URL encoded when passed as param
         params = {
-            "jql": jql,
-            "maxResults": max_results,
-            "fields": "key,summary,status,assignee,priority,issuetype,project,created,updated"
+            "jql": jql,  # urllib.parse.urlencode in _curl_get will handle encoding
+            "maxResults": str(max_results),
+            "fields": "key,summary,status,assignee,priority,issuetype,project,created,updated,description"
         }
         
+        logger.info(f"=== JIRA SEARCH ===")
+        logger.info(f"JQL: {jql}")
+        
         for attempt in range(self.config.MAX_RETRIES):
-            logger.info(f"Jira search (attempt {attempt + 1}): {jql[:50]}...")
+            logger.info(f"Search attempt {attempt + 1}/{self.config.MAX_RETRIES}")
             data = self._curl_get(url, params)
             if data:
                 issues = data.get('issues', [])
-                logger.info(f"Found {len(issues)} issues")
+                total = data.get('total', 0)
+                logger.info(f"=== SEARCH RESULT: {len(issues)} issues found (total: {total}) ===")
                 return issues
+            else:
+                logger.warning(f"Search attempt {attempt + 1} returned no data")
         
+        logger.error("=== SEARCH FAILED after all retries ===")
         return []
     
     def get_issues_by_assignee(self, username: str, max_results: int = 100) -> List[Dict[str, Any]]:
