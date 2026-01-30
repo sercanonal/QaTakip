@@ -4047,20 +4047,21 @@ async def get_team_summary(t: str, months: int = 1):
             }
             
             try:
-                # JQL for open tasks (excluding Cancelled)
-                jql_open = f'assignee = "{username}" AND status NOT IN (Done, Closed, Resolved, Cancelled, "İptal Edildi") AND created >= "{date_str}" ORDER BY status ASC'
+                # JQL for open tasks (excluding Cancelled) - NO date filter for open tasks
+                # We want ALL currently open tasks regardless of when they were created
+                jql_open = f'assignee = "{username}" AND status NOT IN (Done, Closed, Resolved, Cancelled, "İptal Edildi") ORDER BY status ASC'
                 open_issues = await jira_client.search_issues(jql_open, max_results=200)
                 
                 for issue in open_issues:
                     fields = issue.get('fields', {})
                     status_name = (fields.get('status', {}).get('name', '') or '').lower()
                     
-                    if 'progress' in status_name or 'doing' in status_name or 'development' in status_name:
+                    if 'progress' in status_name or 'doing' in status_name or 'development' in status_name or 'test' in status_name:
                         user_stats["in_progress"] += 1
                     else:
                         user_stats["backlog"] += 1
                 
-                # JQL for completed tasks (excluding Cancelled)
+                # JQL for completed tasks - only tasks resolved in the selected time period
                 jql_done = f'assignee = "{username}" AND status IN (Done, Closed, Resolved) AND resolved >= "{date_str}" ORDER BY resolved DESC'
                 done_issues = await jira_client.search_issues(jql_done, max_results=200)
                 user_stats["completed"] = len(done_issues)
