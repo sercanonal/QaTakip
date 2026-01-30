@@ -3756,16 +3756,18 @@ def build_product_tree(endpoints: list, tests: list, team_name: str) -> dict:
         # Find tests for this endpoint
         tests_include = [t for t in tests if t.get("endpoint") == path and t.get("app") == app]
         
-        # Check test types - looking at type field (✅ Happy Path, etc.)
+        # Check test types - ONLY looking at type field from Jira (NOT test name)
         happy = any("happy" in (t.get("type") or "").lower() for t in tests_include if t.get("status") == "PASSED")
         alternatif = any("alternatif" in (t.get("type") or "").lower() or "alternative" in (t.get("type") or "").lower() for t in tests_include if t.get("status") == "PASSED")
         negatif = any("negatif" in (t.get("type") or "").lower() or "negative" in (t.get("type") or "").lower() for t in tests_include if t.get("status") == "PASSED")
         
-        # Prepare test list with testType field for frontend
+        # Prepare test list with testType field for frontend - use ONLY Jira Test Tipi field
         tests_formatted = []
         for t in tests_include:
-            test_type_raw = t.get("type", "")
+            test_type_raw = t.get("type", "")  # This is the Jira "Test Tipi" field
             test_type_normalized = "unknown"
+            
+            # Normalize based on Jira Test Tipi value only
             if "happy" in test_type_raw.lower():
                 test_type_normalized = "Happy Path"
             elif "alternatif" in test_type_raw.lower() or "alternative" in test_type_raw.lower():
