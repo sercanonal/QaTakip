@@ -3292,12 +3292,17 @@ async def run_api_analysis(request: Request):
                 yield f"data: {json.dumps({'success': True, 'tableData': tests, 'stats': stats, 'managementMetrics': management_metrics})}\n\n"
                 
             except Exception as e:
-                logger.error(f"API Analysis error: {e}")
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                import traceback
+                error_detail = traceback.format_exc()
+                logger.error(f"API Analysis error: {e}\n{error_detail}")
+                yield f"data: {json.dumps({'log': f'❌ Hata: {str(e) or error_detail[:200]}'})}\n\n"
+                yield f"data: {json.dumps({'error': str(e) or 'Bilinmeyen hata - backend loglarını kontrol edin'})}\n\n"
             
         except Exception as e:
-            logger.error(f"API Analysis error: {e}")
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            import traceback
+            error_detail = traceback.format_exc()
+            logger.error(f"API Analysis outer error: {e}\n{error_detail}")
+            yield f"data: {json.dumps({'error': str(e) or 'Bilinmeyen hata'})}\n\n"
     
     return StreamingResponse(generate(), media_type="text/event-stream")
 
