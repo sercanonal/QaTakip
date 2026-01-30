@@ -2196,11 +2196,13 @@ async def get_detailed_report_stats(
         user_row = await cursor.fetchone()
         user_name = user_row[0] if user_row else "Kullanıcı"
         
-        # Get all tasks for the period
+        # Get all tasks for the period - EXCLUDE BACKLOG
         cursor = await db.execute(
             """SELECT id, title, description, category_id, status, priority, created_at, completed_at 
                FROM tasks 
-               WHERE (user_id = ? OR assigned_to = ?) AND created_at >= ?
+               WHERE (user_id = ? OR assigned_to = ?) 
+               AND created_at >= ?
+               AND status != 'backlog'
                ORDER BY created_at DESC""",
             (user_id, user_id, start_date.isoformat())
         )
@@ -2214,7 +2216,7 @@ async def get_detailed_report_stats(
             for r in rows
         ]
         
-        # Calculate statistics
+        # Calculate statistics (backlog already excluded)
         total_tasks = len(all_tasks)
         completed_tasks = len([t for t in all_tasks if t.get("status") == "completed"])
         in_progress_tasks = len([t for t in all_tasks if t.get("status") == "in_progress"])
