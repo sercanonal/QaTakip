@@ -58,6 +58,22 @@ const Layout = () => {
   const [notifications, setNotifications] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [sseConnected, setSseConnected] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check admin status
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user?.name) return;
+      try {
+        const deviceId = user.device_id || localStorage.getItem('qa_device_id');
+        const response = await api.get(`/admin/check?username=${encodeURIComponent(user.name)}&device_id=${encodeURIComponent(deviceId)}`);
+        setIsAdmin(response.data.is_admin);
+      } catch (error) {
+        setIsAdmin(false);
+      }
+    };
+    checkAdmin();
+  }, [user?.name, user?.device_id]);
 
   // Debug: Log user info
   useEffect(() => {
