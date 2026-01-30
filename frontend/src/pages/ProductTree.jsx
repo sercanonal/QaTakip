@@ -57,6 +57,59 @@ const ProductTree = () => {
   const [logs, setLogs] = useState([]);
   const [treeData, setTreeData] = useState(null);
   const [stats, setStats] = useState(null);
+
+  // Refresh controller endpoints function
+  const handleRefreshEndpoints = async (controllerName, controllerData) => {
+    if (!controllerData.endPoints || controllerData.endPoints.length === 0) {
+      toast.info("Bu controller'da endpoint bulunamadı");
+      return;
+    }
+    
+    toast.info(`${controllerName} için TOAY listesi yenileniyor...`);
+    
+    try {
+      // Re-run analysis for this specific controller's endpoints
+      const response = await api.post("/product-tree/refresh-controller", {
+        controllerName,
+        endPoints: controllerData.endPoints,
+        jiraTeamId,
+        reportDate,
+        days,
+        time
+      });
+      
+      if (response.data.success) {
+        // Update the tree data with refreshed endpoints
+        setTreeData(prevTree => {
+          const newTree = JSON.parse(JSON.stringify(prevTree));
+          
+          // Find and update the controller in the tree
+          Object.values(newTree).forEach(project => {
+            if (project.apps) {
+              Object.values(project.apps).forEach(app => {
+                if (app.controllers && app.controllers[controllerName]) {
+                  app.controllers[controllerName].endPoints = response.data.endPoints;
+                  // Recalculate stats
+                  const endpoints = response.data.endPoints;
+                  app.controllers[controllerName].totalEndpoints = endpoints.length;
+                  app.controllers[controllerName].testedEndpoints = endpoints.filter(e => e.isTested).length;
+                }
+              });
+            }
+          });
+          
+          return newTree;
+        });
+        
+        toast.success(`${controllerName} güncellendi!`);
+      } else {
+        toast.error(response.data.error || "Yenileme başarısız");
+      }
+    } catch (error) {
+      console.error("Refresh error:", error);
+      toast.error("TOAY listesi yenilenemedi");
+    }
+  };
   
   // Fetch QA projects from settings
   useEffect(() => {
