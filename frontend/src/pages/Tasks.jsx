@@ -77,6 +77,7 @@ const Tasks = () => {
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterAssignment, setFilterAssignment] = useState("all"); // all, mine, assigned_to_me
+  const [showJiraTasks, setShowJiraTasks] = useState(true); // Jira tasks filter
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [saving, setSaving] = useState(false);
