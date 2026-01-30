@@ -419,19 +419,19 @@ class ReportExporter:
                     'low': '#65A30D'
                 }
                 
-                priority_icons = {
-                    'critical': '🔴',
-                    'high': '🟠',
-                    'medium': '🟡',
-                    'low': '🟢'
+                priority_markers = {
+                    'critical': '[!]',
+                    'high': '[H]',
+                    'medium': '[M]',
+                    'low': '[L]'
                 }
                 
                 priority_data = [
                     [
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Öncelik</b></font>', styles['Normal']),
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Görev Sayısı</b></font>', styles['Normal']),
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Oran</b></font>', styles['Normal']),
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Görsel</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Oncelik</b></font>', normal_turkish),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Gorev Sayisi</b></font>', normal_turkish),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Oran</b></font>', normal_turkish),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Gorsel</b></font>', normal_turkish),
                     ]
                 ]
                 total_tasks = sum(priority_stats.values())
@@ -441,17 +441,17 @@ class ReportExporter:
                         count = priority_stats[priority]
                         rate = round(count / total_tasks * 100, 1) if total_tasks > 0 else 0
                         color = priority_colors.get(priority, '#6B7280')
-                        icon = priority_icons.get(priority, '⚪')
+                        marker = priority_markers.get(priority, '*')
                         
                         # Create visual bar representation
                         bar_length = int(rate / 5)  # Scale to fit
-                        bar = '█' * bar_length + '░' * (20 - bar_length)
+                        bar = '|' * bar_length + '.' * (20 - bar_length)
                         
                         priority_data.append([
-                            Paragraph(f'<font size="10" color="{color}"><b>{icon} {PRIORITY_LABELS.get(priority, priority)}</b></font>', styles['Normal']),
-                            Paragraph(f'<font size="12"><b>{count}</b></font>', styles['Normal']),
-                            Paragraph(f'<font size="10" color="{color}"><b>%{rate}</b></font>', styles['Normal']),
-                            Paragraph(f'<font size="8" color="{color}">{bar}</font>', styles['Normal']),
+                            Paragraph(f'<font size="10" color="{color}"><b>{marker} {PRIORITY_LABELS.get(priority, priority)}</b></font>', normal_turkish),
+                            Paragraph(f'<font size="12"><b>{count}</b></font>', normal_turkish),
+                            Paragraph(f'<font size="10" color="{color}"><b>%{rate}</b></font>', normal_turkish),
+                            Paragraph(f'<font size="8" color="{color}">{bar}</font>', normal_turkish),
                         ])
                 
                 if len(priority_data) > 1:
@@ -480,15 +480,15 @@ class ReportExporter:
             monthly_stats = ReportExporter._calculate_monthly_stats(tasks)
             
             if monthly_stats:
-                story.append(Paragraph("📈 Aylık Performans Trendi", section_title_style))
+                story.append(Paragraph("Aylik Performans Trendi", section_title_style))
                 
                 monthly_data = [
                     [
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Ay</b></font>', styles['Normal']),
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Oluşturulan</b></font>', styles['Normal']),
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Tamamlanan</b></font>', styles['Normal']),
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Performans</b></font>', styles['Normal']),
-                        Paragraph('<font size="9" color="#FFFFFF"><b>Trend</b></font>', styles['Normal']),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Ay</b></font>', normal_turkish),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Olusturulan</b></font>', normal_turkish),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Tamamlanan</b></font>', normal_turkish),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Performans</b></font>', normal_turkish),
+                        Paragraph('<font size="9" color="#FFFFFF"><b>Trend</b></font>', normal_turkish),
                     ]
                 ]
                 
@@ -504,10 +504,10 @@ class ReportExporter:
                     # Trend indicator
                     if prev_perf is not None:
                         if perf > prev_perf:
-                            trend = '📈 ↑'
+                            trend = '++ UP'
                             trend_color = '#10B981'
                         elif perf < prev_perf:
-                            trend = '📉 ↓'
+                            trend = '-- DN'
                             trend_color = '#EF4444'
                         else:
                             trend = '➡️ ='
