@@ -600,26 +600,21 @@ const EndpointNode = ({ endpoint, level }) => {
   
   // Check if specific test types exist and are passed
   // Each endpoint MUST have at least 1 of each: Happy, Alternatif, Negatif
-  // Check both test name AND testType/type custom field from Jira
+  // ONLY check testType field from Jira - DO NOT check test name
   
   const isHappyTest = (t) => {
-    const name = (t.name || '').toLowerCase();
-    const testType = (t.testType || t.type || t.testTipi || '').toLowerCase();
-    return name.includes('happy') || testType.includes('happy');
+    const testType = (t.testType || t.type || '').toLowerCase();
+    return testType.includes('happy');
   };
   
   const isAlternatifTest = (t) => {
-    const name = (t.name || '').toLowerCase();
-    const testType = (t.testType || t.type || t.testTipi || '').toLowerCase();
-    return name.includes('alternatif') || name.includes('alternative') || 
-           testType.includes('alternatif') || testType.includes('alternative');
+    const testType = (t.testType || t.type || '').toLowerCase();
+    return testType.includes('alternatif') || testType.includes('alternative');
   };
   
   const isNegatifTest = (t) => {
-    const name = (t.name || '').toLowerCase();
-    const testType = (t.testType || t.type || t.testTipi || '').toLowerCase();
-    return name.includes('negatif') || name.includes('negative') ||
-           testType.includes('negatif') || testType.includes('negative');
+    const testType = (t.testType || t.type || '').toLowerCase();
+    return testType.includes('negatif') || testType.includes('negative');
   };
   
   const hasHappyPassed = endpoint.tests?.some(t => 
