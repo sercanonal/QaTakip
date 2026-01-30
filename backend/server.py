@@ -51,8 +51,72 @@ except Exception as e:
 
 # Jira API Client for QA Hub (optional)
 JIRA_API_AVAILABLE = False
+jira_api_client = None
 try:
-    import jira_api_client
+    from jira_api_client import jira_api_client as _jira_client, format_issue
+    
+    # Async wrapper for synchronous Jira client
+    class AsyncJiraClientWrapper:
+        def __init__(self, sync_client):
+            self._sync = sync_client
+            
+        async def get_issues_by_assignee(self, username, max_results=100):
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.get_issues_by_assignee, username, max_results)
+        
+        async def search_issues(self, jql, max_results=100):
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.search_issues, jql, max_results)
+        
+        async def get_test_run(self, cycle_key):
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.get_test_run, cycle_key)
+        
+        async def get_test_executions(self, cycle_id):
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.get_test_executions, cycle_id)
+        
+        async def add_comment(self, issue_key, comment):
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.add_comment, issue_key, comment)
+        
+        async def link_issues(self, inward_key, outward_key, link_type="Relates"):
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._sync.link_issues, inward_key, outward_key, link_type)
+        
+        # Stub methods for compatibility
+        async def get_cycle_info(self, cycle_id):
+            return await self.get_test_executions(cycle_id)
+        
+        async def get_test_run_items(self, run_id):
+            return await self.get_test_executions(run_id)
+        
+        async def get_test_results_by_item_id(self, run_id, item_id):
+            return []
+        
+        async def get_issue_key(self, issue_id):
+            return issue_id
+        
+        async def link_bug_to_test_result(self, result_id, bug_id, link_type):
+            return True
+        
+        async def refresh_issue_count_cache(self, cycle_id):
+            return True
+        
+        async def get_last_test_results(self, cycle_id):
+            return await self.get_test_executions(cycle_id)
+        
+        async def get_test_case(self, item):
+            return item
+        
+        async def save_cycle(self, body):
+            return True
+        
+        def get_status_name(self, status_id):
+            status_map = {1: "Pass", 2: "Fail", 3: "Blocked", 4: "Not Executed"}
+            return status_map.get(status_id, str(status_id))
+    
+    jira_api_client = AsyncJiraClientWrapper(_jira_client)
     JIRA_API_AVAILABLE = True
     logger.info("Jira API client loaded successfully")
 except Exception as e:
