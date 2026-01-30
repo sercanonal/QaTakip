@@ -64,12 +64,10 @@ try:
 except Exception as e:
     logger.warning(f"Jira client not available (optional): {e}")
 
-# Jira API Client for QA Hub (optional)
+# Jira API Client for QA Hub (reuse the same sync client)
 JIRA_API_AVAILABLE = False
 jira_api_client = None
 try:
-    from jira_api_client import jira_api_client as _jira_client, format_issue
-    
     # Async wrapper for synchronous Jira client
     class AsyncJiraClientWrapper:
         def __init__(self, sync_client):
@@ -128,6 +126,14 @@ try:
             return True
         
         def get_status_name(self, status_id):
+            status_map = {1: "Pass", 2: "Fail", 3: "Blocked", 4: "Not Executed"}
+            return status_map.get(status_id, str(status_id))
+    
+    jira_api_client = AsyncJiraClientWrapper(_sync_jira_client)
+    JIRA_API_AVAILABLE = True
+    logger.info("Jira API client loaded successfully")
+except Exception as e:
+    logger.warning(f"Jira API client not available (optional): {e}")
             status_map = {1: "Pass", 2: "Fail", 3: "Blocked", 4: "Not Executed"}
             return status_map.get(status_id, str(status_id))
     
