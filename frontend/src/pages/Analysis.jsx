@@ -756,35 +756,35 @@ const Analysis = () => {
                           />
                         </div>
                         
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
                           <SelectTrigger className="w-[130px] border-violet-500/30">
                             <SelectValue placeholder="Status" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Tümü</SelectItem>
+                            <SelectItem value="all">Tümü</SelectItem>
                             <SelectItem value="Pass">Pass</SelectItem>
                             <SelectItem value="Fail">Fail</SelectItem>
                           </SelectContent>
                         </Select>
 
-                        <Select value={regressionFilter} onValueChange={setRegressionFilter}>
+                        <Select value={regressionFilter || "all"} onValueChange={(v) => setRegressionFilter(v === "all" ? "" : v)}>
                           <SelectTrigger className="w-[130px] border-violet-500/30">
                             <SelectValue placeholder="Regression" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Tümü</SelectItem>
+                            <SelectItem value="all">Tümü</SelectItem>
                             <SelectItem value="true">Reg. Var</SelectItem>
                             <SelectItem value="false">Reg. Yok</SelectItem>
                           </SelectContent>
                         </Select>
 
-                        <Select value={projectFilter} onValueChange={setProjectFilter}>
+                        <Select value={projectFilter || "all"} onValueChange={(v) => setProjectFilter(v === "all" ? "" : v)}>
                           <SelectTrigger className="w-[130px] border-violet-500/30">
                             <SelectValue placeholder="Proje" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Tümü</SelectItem>
-                            {selectedProjects.map(p => (
+                            <SelectItem value="all">Tümü</SelectItem>
+                            {selectedProjects.filter(p => p).map(p => (
                               <SelectItem key={p} value={p}>{p}</SelectItem>
                             ))}
                           </SelectContent>
