@@ -222,9 +222,18 @@ const TeamTracking = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fadeIn" data-testid="team-tracking-dashboard">
+    <motion.div 
+      className="space-y-6" 
+      data-testid="team-tracking-dashboard"
+      initial="initial"
+      animate="animate"
+      variants={containerVariants}
+    >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div 
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        variants={itemVariants}
+      >
         <div>
           <h2 className="font-heading text-2xl font-bold flex items-center gap-2">
             <Users className="w-6 h-6 text-violet-500" />
