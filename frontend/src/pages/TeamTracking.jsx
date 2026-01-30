@@ -487,6 +487,7 @@ const TeamTracking = () => {
           )}
         </CardContent>
       </Card>
+      </motion.div>
 
       {/* User Detail Modal */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
