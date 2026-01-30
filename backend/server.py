@@ -3943,6 +3943,123 @@ async def refresh_single_test(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============== Admin / Team Tracking Endpoints ==============
+
+@api_router.get("/admin/check")
+async def check_admin_status(username: str, device_id: str):
+    """Check if current user is admin"""
+    is_admin_user = is_admin(username, device_id)
+    return {"is_admin": is_admin_user}
+
+
+@api_router.get("/admin/team-tasks")
+async def get_team_member_tasks(
+    search_username: str,
+    requester_username: str,
+    requester_device_id: str
+):
+    """Get tasks for a specific team member - ADMIN ONLY"""
+    # Security check: Only admins can access this
+    if not is_admin(requester_username, requester_device_id):
+        raise HTTPException(status_code=403, detail="Bu özelliğe erişim yetkiniz yok")
+    
+    search_username_upper = search_username.upper().strip()
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Find user by username
+        cursor = await db.execute(
+            "SELECT id, name FROM users WHERE UPPER(name) = ?",
+            (search_username_upper,)
+        )
+        user_row = await cursor.fetchone()
+        
+        if not user_row:
+            return {
+                "found": False,
+                "message": f"'{search_username}' kullanıcısı bulunamadı",
+                "tasks": []
+            }
+        
+        user_id, user_name = user_row
+        
+        # Get backlog and in_progress tasks only
+        cursor = await db.execute(
+            """SELECT id, title, description, category_id, status, priority, created_at, due_date
+               FROM tasks 
+               WHERE (user_id = ? OR assigned_to = ?) 
+               AND status IN ('backlog', 'in_progress', 'today_planned')
+               ORDER BY 
+                   CASE status 
+                       WHEN 'in_progress' THEN 1 
+                       WHEN 'today_planned' THEN 2
+                       WHEN 'backlog' THEN 3 
+                   END,
+                   CASE priority 
+                       WHEN 'critical' THEN 1 
+                       WHEN 'high' THEN 2 
+                       WHEN 'medium' THEN 3 
+                       WHEN 'low' THEN 4 
+                   END""",
+            (user_id, user_id)
+        )
+        rows = await cursor.fetchall()
+        
+        tasks = [
+            {
+                "id": r[0],
+                "title": r[1],
+                "description": r[2],
+                "category_id": r[3],
+                "status": r[4],
+                "priority": r[5],
+                "created_at": r[6],
+                "due_date": r[7]
+            }
+            for r in rows
+        ]
+        
+        # Count by status
+        in_progress_count = len([t for t in tasks if t['status'] == 'in_progress'])
+        backlog_count = len([t for t in tasks if t['status'] in ['backlog', 'today_planned']])
+        
+        return {
+            "found": True,
+            "user": {
+                "id": user_id,
+                "name": user_name
+            },
+            "summary": {
+                "in_progress": in_progress_count,
+                "backlog": backlog_count,
+                "total": len(tasks)
+            },
+            "tasks": tasks
+        }
+
+
+@api_router.get("/admin/all-users")
+async def get_all_users_for_admin(
+    requester_username: str,
+    requester_device_id: str
+):
+    """Get list of all users - ADMIN ONLY"""
+    if not is_admin(requester_username, requester_device_id):
+        raise HTTPException(status_code=403, detail="Bu özelliğe erişim yetkiniz yok")
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT id, name, created_at FROM users ORDER BY name"
+        )
+        rows = await cursor.fetchall()
+        
+        users = [
+            {"id": r[0], "name": r[1], "created_at": r[2]}
+            for r in rows
+        ]
+        
+        return {"users": users}
+
+
 # Include router and middleware
 app.include_router(api_router)
 
