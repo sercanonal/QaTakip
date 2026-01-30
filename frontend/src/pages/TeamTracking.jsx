@@ -284,6 +284,7 @@ const TeamTracking = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Tamamlanan</p>
                   <p className="text-2xl font-bold text-green-400">{totals.total_completed}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Son {periodMonths} ay</p>
                 </div>
                 <CheckCircle2 className="w-8 h-8 text-green-500 opacity-50" />
               </div>
