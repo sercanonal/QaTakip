@@ -538,7 +538,10 @@ const TreeNode = ({ name, data, level, type, onRefreshEndpoints }) => {
         </Badge>
         
         <span className="text-sm text-muted-foreground whitespace-nowrap">
-          {tested}/{data.newCalc || 0}/{total}
+          {type === "controller" 
+            ? `${coverage.passed}/${coverage.total}` 
+            : `${data.testedEndpoints || 0}/${data.totalEndpoints || 0} EP`
+          }
         </span>
       </div>
       
