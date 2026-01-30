@@ -3773,10 +3773,11 @@ def build_product_tree(endpoints: list, tests: list, team_name: str) -> dict:
         # Find tests for this endpoint
         tests_include = [t for t in tests if t.get("endpoint") == path and t.get("app") == app]
         
-        # Check test types - ONLY looking at type field from Jira (NOT test name)
-        happy = any("happy" in (t.get("type") or "").lower() for t in tests_include if t.get("status") == "PASSED")
-        alternatif = any("alternatif" in (t.get("type") or "").lower() or "alternative" in (t.get("type") or "").lower() for t in tests_include if t.get("status") == "PASSED")
-        negatif = any("negatif" in (t.get("type") or "").lower() or "negative" in (t.get("type") or "").lower() for t in tests_include if t.get("status") == "PASSED")
+        # Check test types - ONLY looking at type field from Jira (NOT test status)
+        # Badge should be green if the test TYPE exists, regardless of pass/fail status
+        happy = any("happy" in (t.get("type") or "").lower() for t in tests_include)
+        alternatif = any("alternatif" in (t.get("type") or "").lower() or "alternative" in (t.get("type") or "").lower() for t in tests_include)
+        negatif = any("negatif" in (t.get("type") or "").lower() or "negative" in (t.get("type") or "").lower() for t in tests_include)
         
         # Prepare test list with testType field for frontend - use ONLY Jira Test Tipi field
         tests_formatted = []
