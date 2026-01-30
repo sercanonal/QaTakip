@@ -247,15 +247,17 @@ const ProductTree = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {qaProjects.length > 0 ? (
-                    qaProjects.map((project) => (
-                      <SelectItem key={project.name} value={project.name}>
-                        {project.name}
-                      </SelectItem>
-                    ))
+                    qaProjects
+                      .filter(project => project && project.name) // Filter out invalid projects
+                      .map((project) => (
+                        <SelectItem key={project.name} value={project.name}>
+                          {project.name}
+                        </SelectItem>
+                      ))
                   ) : (
-                    <SelectItem value="no-projects" disabled>
+                    <div className="py-2 px-3 text-sm text-muted-foreground">
                       Proje bulunamadı - Ayarlardan ekleyin
-                    </SelectItem>
+                    </div>
                   )}
                 </SelectContent>
               </Select>
