@@ -43,8 +43,9 @@
 
 ### 30.01.2026 - Product Tree Test Tipi Hatası Düzeltildi (v2.5.1)
 - ✅ **AttributeError Düzeltildi:** `JiraClientCompat` sınıfına `get_test_type_from_case` ve `get_test_case_details` async metodları eklendi
-- ✅ **Test Tipi Okuma:** Test tipleri artık sadece Jira'daki custom field'dan okunuyor (isim kontrolü kaldırıldı)
-- ✅ **Backend Stabil:** Hiçbir `AttributeError` hatası oluşmuyor
+- ✅ **Async/Await Sorunu Düzeltildi:** `server.py`'da `await` kullanılmayan yerler düzeltildi (`'coroutine' object has no attribute 'lower'` hatası giderildi)
+- ✅ **Test Tipi Okuma Mantığı Güncellendi:** Arkadaşın projesindeki gibi `customFieldId == 123` ve `intValue` kullanılıyor (812=Happy Path, 813=Alternatif, 837=Negatif)
+- ✅ **Backend Stabil:** Hiçbir `AttributeError` veya `coroutine` hatası oluşmuyor
 
 ## Bilinen Kısıtlamalar
 - Raporlama sayfası sadece SQLite'a kaydedilen görevleri gösteriyor
