@@ -260,6 +260,7 @@ const TeamTracking = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Backlog</p>
                   <p className="text-2xl font-bold text-zinc-400">{totals.total_backlog}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Tüm açık</p>
                 </div>
                 <ListTodo className="w-8 h-8 text-zinc-500 opacity-50" />
               </div>
@@ -271,6 +272,7 @@ const TeamTracking = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Devam Eden</p>
                   <p className="text-2xl font-bold text-blue-400">{totals.total_in_progress}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Tüm açık</p>
                 </div>
                 <Clock className="w-8 h-8 text-blue-500 opacity-50" />
               </div>
