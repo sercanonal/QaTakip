@@ -1,6 +1,7 @@
 """
 Jira/Zephyr Scale API Client - Port from axiosClient.js
 Uses Zephyr Scale (TM4J) API: /rest/tests/1.0/
+WITH PROXY SUPPORT
 """
 
 import requests
@@ -25,12 +26,16 @@ class JiraConfig:
     AUTH_TOKEN = os.getenv("JIRA_AUTH_TOKEN", "Basic aW50ZWdyYXRpb25fdXNlcjpkMkBDQig1ZA==")
     REQUEST_TIMEOUT = 60
     MAX_RETRIES = 2
+    # PROXY SETTINGS - Corporate network proxy
+    PROXY_HOST = os.getenv("PROXY_HOST", "10.125.24.215")
+    PROXY_PORT = os.getenv("PROXY_PORT", "8080")
 
 
 class JiraAPIClient:
     """
     HTTP client for Jira/Zephyr Scale API
     Port from axiosClient.js
+    WITH PROXY SUPPORT
     """
     
     def __init__(self):
@@ -43,9 +48,19 @@ class JiraAPIClient:
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
+        
+        # PROXY CONFIGURATION
+        proxy_url = f"http://{self.config.PROXY_HOST}:{self.config.PROXY_PORT}"
+        self.proxies = {
+            "http": proxy_url,
+            "https": proxy_url,
+        }
+        logger.info(f"Using proxy: {proxy_url}")
+        
         # Create session for connection pooling
         self.session = requests.Session()
         self.session.headers.update(self.headers)
+        self.session.proxies.update(self.proxies)
         self.session.verify = False  # Skip SSL verification for internal server
     
     # ============== ZEPHYR SCALE API (Test Management) ==============
@@ -151,6 +166,8 @@ class JiraAPIClient:
                     params=params,
                     timeout=self.config.REQUEST_TIMEOUT
                 )
+                
+                logger.info(f"Response status: {response.status_code}")
                 
                 if response.status_code == 200:
                     data = response.json()
