@@ -4057,49 +4057,6 @@ async def refresh_controller_endpoints(request: Request):
     except Exception as e:
         logger.error(f"Refresh controller error: {e}")
         return {"success": False, "error": str(e)}
-                            
-                            test_info = {
-                                "key": test.get("key", ""),
-                                "name": test_name,
-                                "status": test_status
-                            }
-                            endpoint_data["tests"].append(test_info)
-                            
-                            # Check test type based on name
-                            name_lower = test_name.lower()
-                            if "happy" in name_lower:
-                                if test_status == "PASSED":
-                                    endpoint_data["happy"] = True
-                            elif "alternatif" in name_lower or "alternative" in name_lower:
-                                if test_status == "PASSED":
-                                    endpoint_data["alternatif"] = True
-                            elif "negatif" in name_lower or "negative" in name_lower:
-                                if test_status == "PASSED":
-                                    endpoint_data["negatif"] = True
-                        
-                        endpoint_data["isTested"] = len(endpoint_data["tests"]) > 0
-                        
-                    except Exception as e:
-                        logger.warning(f"Could not fetch tests for {full_path}: {e}")
-                        # Keep original endpoint data
-                        endpoint_data = endpoint
-                
-                refreshed_endpoints.append(endpoint_data)
-                
-            except Exception as e:
-                logger.error(f"Error refreshing endpoint {endpoint.get('fullPath', '')}: {e}")
-                refreshed_endpoints.append(endpoint)
-        
-        return {
-            "success": True,
-            "controllerName": controller_name,
-            "endPoints": refreshed_endpoints,
-            "refreshedCount": len(refreshed_endpoints)
-        }
-        
-    except Exception as e:
-        logger.error(f"Refresh controller error: {e}")
-        return {"success": False, "error": str(e)}
 
 
 # ============== Admin / Team Tracking Endpoints ==============
