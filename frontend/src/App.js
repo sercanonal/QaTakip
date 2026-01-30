@@ -10,6 +10,7 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import JiraTools from "./pages/JiraTools";
 import Analysis from "./pages/Analysis";
+import ProductTree from "./pages/ProductTree";
 import Layout from "./components/Layout";
 
 const ProtectedRoute = ({ children }) => {
